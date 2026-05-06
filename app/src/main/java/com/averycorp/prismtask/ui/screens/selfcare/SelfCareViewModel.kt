@@ -149,17 +149,14 @@ constructor(
         }
     }
 
-    fun getSelectedTier(log: SelfCareLogEntity?): String {
+    fun getSelectedTier(
+        log: SelfCareLogEntity?,
+        defaults: SelfCareTierDefaults = tierDefaults.value
+    ): String {
         val routineType = _routineType.value
         val order = SelfCareRoutines.getTierOrder(routineType)
         log?.selectedTier?.takeIf { it in order }?.let { return it }
-        val preferred = when (routineType) {
-            "morning" -> tierDefaults.value.morning
-            "bedtime" -> tierDefaults.value.bedtime
-            "medication" -> tierDefaults.value.medication
-            "housework" -> tierDefaults.value.housework
-            else -> null
-        }
+        val preferred = defaults.forRoutine(routineType)
         if (preferred != null && preferred in order) return preferred
         return if (order.size >= 2) order[order.size - 2] else order.first()
     }

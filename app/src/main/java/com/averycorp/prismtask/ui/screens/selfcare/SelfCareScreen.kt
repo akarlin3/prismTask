@@ -72,9 +72,10 @@ fun SelfCareScreen(
     val todayLog by viewModel.todayLog.collectAsStateWithLifecycle()
     val allSteps by viewModel.steps.collectAsStateWithLifecycle()
     val editMode by viewModel.editMode.collectAsStateWithLifecycle()
+    val tierDefaults by viewModel.tierDefaults.collectAsStateWithLifecycle()
 
     val completedSteps = viewModel.getCompletedSteps(todayLog)
-    val selectedTier = viewModel.getSelectedTier(todayLog)
+    val selectedTier = viewModel.getSelectedTier(todayLog, tierDefaults)
     val tiers = SelfCareRoutines.getTiers(routineType)
     val tierOrder = SelfCareRoutines.getTierOrder(routineType)
     val visibleSteps = viewModel.getVisibleSteps(allSteps, selectedTier)
