@@ -11,26 +11,28 @@ import javax.inject.Singleton
 
 /**
  * Shared schedule-import orchestrator for the F.8 "Import Project from
- * Schedule File" feature. Both [com.averycorp.prismtask.ui.screens.projects.ProjectListViewModel]
- * and [com.averycorp.prismtask.ui.screens.tasklist.TaskListViewModel] delegate
- * here so the rich path (phases / risks / anchors / dependencies) lights up
- * from either entry point.
+ * Schedule File" feature. The use case is split into two stages so the
+ * preview screen can render the parsed shape before any rows hit Room:
  *
- * The caller passes `createProject` based on the user's choice in the
- * import dialog ("Import as new project?" checkbox). It controls the whole
- * orchestration:
+ *  - [parse] runs Haiku / regex and returns an [ImportPlan] describing
+ *    what *would* be created. No Room writes.
+ *  - [materialise] takes a plan + optional [ImportExclusions] and
+ *    inserts the rows. Excluded sections are skipped at the materialise
+ *    boundary (no row inserted) — task / risk indices match plan-relative
+ *    position, see [ImportExclusions].
+ *  - [importContent] composes the two for callers that don't need a
+ *    preview (kept for backward compat — same signature, same outcome).
+ *
+ * `createProject` controls the orchestration:
  *
  * - `createProject = true`:
- *     - If the source expresses phases / risks / anchors / dependencies →
- *       materialise the full Project + cascading entities → [ImportOutcome.Rich].
- *     - Otherwise wrap the parsed flat items in a new Project → [ImportOutcome.FlatProject].
+ *     - Rich extras present (phases / risks / anchors / dependencies) →
+ *       [ImportPlan.Rich] → [ImportOutcome.Rich].
+ *     - Otherwise → [ImportPlan.FlatProject] → [ImportOutcome.FlatProject].
  * - `createProject = false`:
- *     - Skip the rich parser entirely (it's only useful when we're going
- *       to create a project tree). Use the flat parser and insert items as
- *       orphan tasks (no project) → [ImportOutcome.FlatOrphans]. Any rich
- *       structure in the source is intentionally ignored — the user opted
- *       out of project creation.
- * - Either path: if no parser produces output → [ImportOutcome.Unparseable].
+ *     - Skip the rich parser entirely; flat parser → [ImportPlan.FlatOrphans]
+ *       → [ImportOutcome.FlatOrphans].
+ * - Either path: no parser produces output → null plan → [ImportOutcome.Unparseable].
  */
 @Singleton
 class ProjectImporter @Inject constructor(
@@ -41,13 +43,10 @@ class ProjectImporter @Inject constructor(
     private val checklistParser: ChecklistParser,
     private val todoListParser: TodoListParser
 ) {
-    suspend fun importContent(content: String, createProject: Boolean): ImportOutcome {
+    suspend fun parse(content: String, createProject: Boolean): ImportPlan? {
         if (!createProject) {
-            // User opted out of project creation. Skip the (more expensive)
-            // rich parser — its only output is project-shaped — and insert
-            // the flat parse as orphan tasks.
-            val flat = todoListParser.parse(content) ?: return ImportOutcome.Unparseable
-            return materialiseFlatAsOrphans(flat)
+            val flat = todoListParser.parse(content) ?: return null
+            return ImportPlan.FlatOrphans(listName = flat.name, items = flat.items)
         }
 
         val checklist = checklistParser.parse(content)
@@ -58,14 +57,34 @@ class ProjectImporter @Inject constructor(
                 checklist.taskDependencies.isNotEmpty()
             )
         if (checklist != null && hasRichExtras) {
-            return materialiseRich(checklist)
+            return ImportPlan.Rich(checklist)
         }
 
-        val flat = todoListParser.parse(content) ?: return ImportOutcome.Unparseable
-        return materialiseFlatAsProject(flat)
+        val flat = todoListParser.parse(content) ?: return null
+        return ImportPlan.FlatProject(
+            projectName = flat.name ?: "Imported List",
+            items = flat.items
+        )
     }
 
-    private suspend fun materialiseRich(result: ComprehensiveImportResult): ImportOutcome.Rich {
+    suspend fun materialise(
+        plan: ImportPlan,
+        exclusions: ImportExclusions = ImportExclusions.EMPTY
+    ): ImportOutcome = when (plan) {
+        is ImportPlan.Rich -> materialiseRich(plan.result, exclusions)
+        is ImportPlan.FlatProject -> materialiseFlatAsProject(plan, exclusions)
+        is ImportPlan.FlatOrphans -> materialiseFlatAsOrphans(plan, exclusions)
+    }
+
+    suspend fun importContent(content: String, createProject: Boolean): ImportOutcome {
+        val plan = parse(content, createProject) ?: return ImportOutcome.Unparseable
+        return materialise(plan)
+    }
+
+    private suspend fun materialiseRich(
+        result: ComprehensiveImportResult,
+        exclusions: ImportExclusions
+    ): ImportOutcome.Rich {
         val projectId = projectRepository.addProject(
             name = result.project.name,
             color = result.project.color,
@@ -86,7 +105,8 @@ class ProjectImporter @Inject constructor(
 
         val taskIdsByTitle = mutableMapOf<String, Long>()
         var taskCount = 0
-        for (task in result.tasks) {
+        result.tasks.forEachIndexed { index, task ->
+            if (index in exclusions.excludedTaskIndices) return@forEachIndexed
             val taskId = insertChecklistTask(task, projectId, parentTaskId = null)
             if (taskId > 0) {
                 taskCount++
@@ -97,13 +117,16 @@ class ProjectImporter @Inject constructor(
             }
         }
 
-        for (risk in result.risks) {
+        var riskCount = 0
+        result.risks.forEachIndexed { index, risk ->
+            if (index in exclusions.excludedRiskIndices) return@forEachIndexed
             projectRepository.addRisk(
                 projectId = projectId,
                 title = risk.title,
                 level = risk.level.uppercase().takeIf { it in setOf("LOW", "MEDIUM", "HIGH") } ?: "MEDIUM",
                 mitigation = risk.description
             )
+            riskCount++
         }
 
         for (anchor in result.externalAnchors) {
@@ -132,30 +155,37 @@ class ProjectImporter @Inject constructor(
             projectName = result.project.name,
             taskCount = taskCount,
             phaseCount = result.phases.size,
-            riskCount = result.risks.size
+            riskCount = riskCount
         )
     }
 
-    private suspend fun materialiseFlatAsProject(parsed: ParsedTodoList): ImportOutcome.FlatProject {
-        val projectName = parsed.name ?: "Imported List"
-        val projectId = projectRepository.addProject(name = projectName)
+    private suspend fun materialiseFlatAsProject(
+        plan: ImportPlan.FlatProject,
+        exclusions: ImportExclusions
+    ): ImportOutcome.FlatProject {
+        val projectId = projectRepository.addProject(name = plan.projectName)
         var count = 0
-        for (item in parsed.items) {
+        plan.items.forEachIndexed { index, item ->
+            if (index in exclusions.excludedTaskIndices) return@forEachIndexed
             val taskId = insertParsedItem(item, projectId, parentTaskId = null)
             if (taskId > 0) count++
             for (sub in item.subtasks) insertParsedItem(sub, projectId, parentTaskId = taskId)
         }
-        return ImportOutcome.FlatProject(projectName = projectName, taskCount = count)
+        return ImportOutcome.FlatProject(projectName = plan.projectName, taskCount = count)
     }
 
-    private suspend fun materialiseFlatAsOrphans(parsed: ParsedTodoList): ImportOutcome.FlatOrphans {
+    private suspend fun materialiseFlatAsOrphans(
+        plan: ImportPlan.FlatOrphans,
+        exclusions: ImportExclusions
+    ): ImportOutcome.FlatOrphans {
         var count = 0
-        for (item in parsed.items) {
+        plan.items.forEachIndexed { index, item ->
+            if (index in exclusions.excludedTaskIndices) return@forEachIndexed
             val taskId = insertParsedItem(item, projectId = null, parentTaskId = null)
             if (taskId > 0) count++
             for (sub in item.subtasks) insertParsedItem(sub, projectId = null, parentTaskId = taskId)
         }
-        return ImportOutcome.FlatOrphans(listName = parsed.name, taskCount = count)
+        return ImportOutcome.FlatOrphans(listName = plan.listName, taskCount = count)
     }
 
     private suspend fun insertChecklistTask(
@@ -200,6 +230,58 @@ class ProjectImporter @Inject constructor(
                 updatedAt = now
             )
         )
+    }
+}
+
+/**
+ * Parsed import shape the preview screen renders. Materialise-time the
+ * caller passes the plan back through [ProjectImporter.materialise]
+ * along with optional per-section [ImportExclusions].
+ */
+sealed interface ImportPlan {
+    val projectName: String
+    val taskTitles: List<String>
+    val riskTitles: List<String>
+
+    data class Rich(val result: ComprehensiveImportResult) : ImportPlan {
+        override val projectName: String get() = result.project.name
+        override val taskTitles: List<String> get() = result.tasks.map { it.title }
+        override val riskTitles: List<String> get() = result.risks.map { it.title }
+        val phases: List<ParsedProjectPhaseDomain> get() = result.phases
+        val externalAnchors: List<ParsedExternalAnchorDomain> get() = result.externalAnchors
+        val taskDependencies: List<ParsedTaskDependencyDomain> get() = result.taskDependencies
+    }
+
+    data class FlatProject(
+        override val projectName: String,
+        val items: List<ParsedTodoItem>
+    ) : ImportPlan {
+        override val taskTitles: List<String> get() = items.map { it.title }
+        override val riskTitles: List<String> get() = emptyList()
+    }
+
+    data class FlatOrphans(
+        val listName: String?,
+        val items: List<ParsedTodoItem>
+    ) : ImportPlan {
+        override val projectName: String get() = listName ?: "Imported List"
+        override val taskTitles: List<String> get() = items.map { it.title }
+        override val riskTitles: List<String> get() = emptyList()
+    }
+}
+
+/**
+ * Per-section opt-out indices, plan-relative. Materialise drops any
+ * task / risk whose index appears in the matching set; non-listed
+ * sections (phases, anchors, dependencies) are read-only in v1 and
+ * always materialised.
+ */
+data class ImportExclusions(
+    val excludedTaskIndices: Set<Int> = emptySet(),
+    val excludedRiskIndices: Set<Int> = emptySet()
+) {
+    companion object {
+        val EMPTY = ImportExclusions()
     }
 }
 

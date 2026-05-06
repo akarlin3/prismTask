@@ -1,7 +1,5 @@
 package com.averycorp.prismtask.ui.screens.projects
 
-import android.content.Context
-import android.net.Uri
 import android.util.Log
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.ViewModel
@@ -11,8 +9,6 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
-import com.averycorp.prismtask.domain.usecase.ImportOutcome
-import com.averycorp.prismtask.domain.usecase.ProjectImporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +23,7 @@ class ProjectListViewModel
 constructor(
     private val projectRepository: ProjectRepository,
     private val taskRepository: TaskRepository,
-    private val projectImporter: ProjectImporter,
+    private val pendingImportContent: PendingImportContent,
     private val sortPreferences: SortPreferences
 ) : ViewModel() {
     val snackbarHostState = SnackbarHostState()
@@ -64,52 +60,13 @@ constructor(
         }
     }
 
-    // --- Import from JSX / file ---
-
-    fun importFromFile(context: Context, uri: Uri, asProject: Boolean) {
-        viewModelScope.launch {
-            try {
-                val content = context.contentResolver
-                    .openInputStream(uri)
-                    ?.bufferedReader()
-                    ?.use { it.readText() }
-                    ?: run {
-                        snackbarHostState.showSnackbar("Could not read file")
-                        return@launch
-                    }
-                importContent(content, asProject)
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed")
-            }
-        }
-    }
-
-    fun importFromText(content: String, asProject: Boolean) {
-        viewModelScope.launch {
-            try {
-                importContent(content, asProject)
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed")
-            }
-        }
-    }
-
-    private suspend fun importContent(content: String, asProject: Boolean) {
-        when (val outcome = projectImporter.importContent(content, createProject = asProject)) {
-            is ImportOutcome.Rich -> snackbarHostState.showSnackbar(
-                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks, " +
-                    "${outcome.phaseCount} phases, ${outcome.riskCount} risks"
-            )
-            is ImportOutcome.FlatProject -> snackbarHostState.showSnackbar(
-                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks"
-            )
-            is ImportOutcome.FlatOrphans -> {
-                val label = outcome.listName?.let { "$it: " } ?: ""
-                snackbarHostState.showSnackbar("Imported ${label}${outcome.taskCount} tasks")
-            }
-            ImportOutcome.Unparseable -> snackbarHostState.showSnackbar(
-                "Could not parse to-do list format"
-            )
-        }
+    /**
+     * Stage pasted content for the import preview screen to consume.
+     * The preview ViewModel reads it via [PendingImportContent.consume]
+     * because Compose Navigation's nav-arg has a length cap that would
+     * truncate real schedules.
+     */
+    fun stagePastedContent(content: String) {
+        pendingImportContent.stage(content)
     }
 }

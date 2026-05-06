@@ -194,6 +194,21 @@ sealed class PrismTaskRoute(
             "batch_preview?command=${android.net.Uri.encode(command)}"
     }
 
+    /**
+     * Project import preview — shows the parsed plan (project name,
+     * phases, tasks, risks, anchors, dependencies) before any rows
+     * land in Room. `uri` is null for paste imports (the content is
+     * staged in [com.averycorp.prismtask.ui.screens.projects.PendingImportContent]
+     * because nav args have a length cap).
+     */
+    data object ProjectImportPreview :
+        PrismTaskRoute("project_import_preview?uri={uri}&asProject={asProject}") {
+        fun createRoute(uri: String?, asProject: Boolean): String {
+            val uriPart = uri?.let { "uri=${android.net.Uri.encode(it)}" } ?: "uri="
+            return "project_import_preview?$uriPart&asProject=$asProject"
+        }
+    }
+
     data object BatchHistory : PrismTaskRoute("settings/batch_history")
 
     data object MultiCreate : PrismTaskRoute("multi_create?text={text}") {

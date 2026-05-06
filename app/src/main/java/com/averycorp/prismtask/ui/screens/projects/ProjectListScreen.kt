@@ -55,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,7 +74,6 @@ fun ProjectListScreen(
     navController: NavController,
     viewModel: ProjectListViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     var projectToDelete by remember { mutableStateOf<ProjectWithCount?>(null) }
     var showPasteDialog by remember { mutableStateOf(false) }
@@ -143,7 +141,13 @@ fun ProjectListScreen(
                 TextButton(
                     onClick = {
                         if (pasteContent.isNotBlank()) {
-                            viewModel.importFromText(pasteContent, asProject = pasteAsProject)
+                            viewModel.stagePastedContent(pasteContent)
+                            navController.navigate(
+                                PrismTaskRoute.ProjectImportPreview.createRoute(
+                                    uri = null,
+                                    asProject = pasteAsProject
+                                )
+                            )
                         }
                         showPasteDialog = false
                         pasteContent = ""
@@ -188,7 +192,12 @@ fun ProjectListScreen(
             confirmButton = {
                 TextButton(onClick = {
                     pendingFileUri?.let {
-                        viewModel.importFromFile(context, it, asProject = fileAsProject)
+                        navController.navigate(
+                            PrismTaskRoute.ProjectImportPreview.createRoute(
+                                uri = it.toString(),
+                                asProject = fileAsProject
+                            )
+                        )
                     }
                     pendingFileUri = null
                 }) { Text("Import") }
