@@ -102,7 +102,10 @@ class MutateTaskActionHandler @Inject constructor(
             when (field) {
                 "title" -> {
                     val v = value as? String
-                        ?: return ActionResult.Error(type, "wrong type for title: expected String, got ${value?.javaClass?.simpleName ?: "null"}")
+                        ?: return ActionResult.Error(
+                            type,
+                            "wrong type for title: expected String, got ${value?.javaClass?.simpleName ?: "null"}"
+                        )
                     next = next.copy(title = v)
                     applied += field
                 }
@@ -115,7 +118,10 @@ class MutateTaskActionHandler @Inject constructor(
                 }
                 "priority" -> {
                     val v = (value as? Number)?.toInt()
-                        ?: return ActionResult.Error(type, "wrong type for priority: expected Number, got ${value?.javaClass?.simpleName ?: "null"}")
+                        ?: return ActionResult.Error(
+                            type,
+                            "wrong type for priority: expected Number, got ${value?.javaClass?.simpleName ?: "null"}"
+                        )
                     next = next.copy(priority = v)
                     applied += field
                 }
@@ -128,7 +134,10 @@ class MutateTaskActionHandler @Inject constructor(
                 }
                 "isFlagged" -> {
                     val v = value as? Boolean
-                        ?: return ActionResult.Error(type, "wrong type for isFlagged: expected Boolean, got ${value?.javaClass?.simpleName ?: "null"}")
+                        ?: return ActionResult.Error(
+                            type,
+                            "wrong type for isFlagged: expected Boolean, got ${value?.javaClass?.simpleName ?: "null"}"
+                        )
                     next = next.copy(isFlagged = v)
                     applied += field
                 }
