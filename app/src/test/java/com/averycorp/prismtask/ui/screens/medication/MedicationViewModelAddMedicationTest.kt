@@ -153,11 +153,11 @@ class MedicationViewModelAddMedicationTest {
         coVerify {
             medicationRepository.update(
                 match {
-                it.id == 99L &&
-                    !it.isArchived &&
-                    it.notes == "fresh note" &&
-                    it.tier == "prescription"
-            }
+                    it.id == 99L &&
+                        !it.isArchived &&
+                        it.notes == "fresh note" &&
+                        it.tier == "prescription"
+                }
             )
         }
         // Junction is rebuilt against the unarchived row's id, not a fresh
@@ -272,8 +272,8 @@ class MedicationViewModelAddMedicationTest {
         coVerify {
             medicationRepository.update(
                 match {
-                it.id == 5L && it.notes == "fresh note"
-            }
+                    it.id == 5L && it.notes == "fresh note"
+                }
             )
         }
         // Self-update path skips the name lookup entirely.
