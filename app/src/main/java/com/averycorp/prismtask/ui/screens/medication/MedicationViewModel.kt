@@ -23,9 +23,12 @@ import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -92,6 +95,9 @@ constructor(
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
+
+    private val _errorMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
     val medications: StateFlow<List<MedicationEntity>> = medicationRepository
         .observeActive()
@@ -287,6 +293,21 @@ constructor(
      * enum; the storage write is handled inside MedicationTier.toStorage().
      * Per-slot overrides in [slotSelections] are written via upsertOverride
      * so the underlying UNIQUE index is respected.
+     *
+     * Pre-flight name guard: `medications.name` carries a unique index
+     * (see `MedicationEntity` `Index(value = ["name"], unique = true)`), so
+     * a duplicate-name insert would throw `SQLiteConstraintException` and
+     * crash via the otherwise-uncaught `viewModelScope.launch`. We look up
+     * the existing row and route accordingly:
+     *  - active duplicate → emit a friendly error, no insert
+     *  - archived duplicate → unarchive + update fields (preserves dose
+     *    history; mirrors `MedicationRefillViewModel.addMedication`)
+     *  - no duplicate → insert as before
+     *
+     * Outer `try/catch` covers any other write-path exception (alarm
+     * scheduling SecurityException isn't possible here — `ExactAlarmHelper`
+     * already handles it — but Room/Firestore writes have their own
+     * failure modes worth surfacing rather than crashing).
      */
     fun addMedication(
         name: String,
@@ -298,37 +319,65 @@ constructor(
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            val id = medicationRepository.insert(
-                MedicationEntity(
-                    name = name.trim(),
-                    tier = tier.toStorage(),
-                    notes = notes.trim(),
-                    reminderMode = reminderMode,
-                    reminderIntervalMinutes = reminderIntervalMinutes
-                )
-            )
-            slotRepository.replaceLinksForMedication(id, slotSelections.map { it.slotId })
-            slotSelections
-                .filter { it.hasOverride }
-                .forEach { sel ->
-                    slotRepository.upsertOverride(
-                        com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
-                            medicationId = id,
-                            slotId = sel.slotId,
-                            overrideIdealTime = sel.overrideIdealTime,
-                            overrideDriftMinutes = sel.overrideDriftMinutes
+            val trimmed = name.trim()
+            try {
+                val existing = medicationRepository.getByNameOnce(trimmed)
+                val id: Long = when {
+                    existing == null -> medicationRepository.insert(
+                        MedicationEntity(
+                            name = trimmed,
+                            tier = tier.toStorage(),
+                            notes = notes.trim(),
+                            reminderMode = reminderMode,
+                            reminderIntervalMinutes = reminderIntervalMinutes
                         )
                     )
+                    existing.isArchived -> {
+                        medicationRepository.update(
+                            existing.copy(
+                                tier = tier.toStorage(),
+                                notes = notes.trim(),
+                                reminderMode = reminderMode,
+                                reminderIntervalMinutes = reminderIntervalMinutes,
+                                isArchived = false
+                            )
+                        )
+                        existing.id
+                    }
+                    else -> {
+                        _errorMessages.emit(
+                            "A medication named \"$trimmed\" already exists. " +
+                                "Edit it instead, or pick a different name."
+                        )
+                        return@launch
+                    }
                 }
-            // Bump the med so its embedded slotCloudIds list re-pushes.
-            val inserted = medicationRepository.getByIdOnce(id) ?: return@launch
-            medicationRepository.update(inserted)
-            // Junction-table writes (medication_medication_slots) don't
-            // emit a Flow that the clock rescheduler observes, so a
-            // newly-linked med wouldn't fire its CLOCK alarm until the
-            // next slot/med edit. Invoke the rescheduler explicitly to
-            // close that gap.
-            clockRescheduler.rescheduleAll()
+                slotRepository.replaceLinksForMedication(id, slotSelections.map { it.slotId })
+                slotSelections
+                    .filter { it.hasOverride }
+                    .forEach { sel ->
+                        slotRepository.upsertOverride(
+                            com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
+                                medicationId = id,
+                                slotId = sel.slotId,
+                                overrideIdealTime = sel.overrideIdealTime,
+                                overrideDriftMinutes = sel.overrideDriftMinutes
+                            )
+                        )
+                    }
+                // Bump the med so its embedded slotCloudIds list re-pushes.
+                val inserted = medicationRepository.getByIdOnce(id) ?: return@launch
+                medicationRepository.update(inserted)
+                // Junction-table writes (medication_medication_slots) don't
+                // emit a Flow that the clock rescheduler observes, so a
+                // newly-linked med wouldn't fire its CLOCK alarm until the
+                // next slot/med edit. Invoke the rescheduler explicitly to
+                // close that gap.
+                clockRescheduler.rescheduleAll()
+            } catch (e: Exception) {
+                android.util.Log.e("MedicationVM", "Failed to add medication", e)
+                _errorMessages.emit("Couldn't save medication. Please try again.")
+            }
         }
     }
 
@@ -343,41 +392,57 @@ constructor(
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            medicationRepository.update(
-                medication.copy(
-                    name = name.trim(),
-                    tier = tier.toStorage(),
-                    notes = notes.trim(),
-                    reminderMode = reminderMode,
-                    reminderIntervalMinutes = reminderIntervalMinutes
-                )
-            )
-            slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })
-            // Replace override rows: delete any existing for slots that
-            // are no longer overridden, upsert the rest.
-            val existingOverrides = slotRepository.getOverridesForMedicationOnce(medication.id)
-            val selectedSlotIds = slotSelections.map { it.slotId }.toSet()
-            existingOverrides
-                .filter { it.slotId !in selectedSlotIds }
-                .forEach { slotRepository.deleteOverride(it) }
-            slotSelections
-                .filter { it.hasOverride }
-                .forEach { sel ->
-                    slotRepository.upsertOverride(
-                        com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
-                            medicationId = medication.id,
-                            slotId = sel.slotId,
-                            overrideIdealTime = sel.overrideIdealTime,
-                            overrideDriftMinutes = sel.overrideDriftMinutes
+            val trimmed = name.trim()
+            try {
+                if (trimmed != medication.name) {
+                    val collision = medicationRepository.getByNameOnce(trimmed)
+                    if (collision != null && collision.id != medication.id) {
+                        _errorMessages.emit(
+                            "A medication named \"$trimmed\" already exists. " +
+                                "Edit it instead, or pick a different name."
                         )
-                    )
+                        return@launch
+                    }
                 }
-            slotSelections
-                .filter { !it.hasOverride }
-                .forEach { sel -> slotRepository.deleteOverrideForPair(medication.id, sel.slotId) }
-            // Junction edits aren't covered by any rescheduler Flow; trigger
-            // explicitly so re-linked / unlinked slots take effect immediately.
-            clockRescheduler.rescheduleAll()
+                medicationRepository.update(
+                    medication.copy(
+                        name = trimmed,
+                        tier = tier.toStorage(),
+                        notes = notes.trim(),
+                        reminderMode = reminderMode,
+                        reminderIntervalMinutes = reminderIntervalMinutes
+                    )
+                )
+                slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })
+                // Replace override rows: delete any existing for slots that
+                // are no longer overridden, upsert the rest.
+                val existingOverrides = slotRepository.getOverridesForMedicationOnce(medication.id)
+                val selectedSlotIds = slotSelections.map { it.slotId }.toSet()
+                existingOverrides
+                    .filter { it.slotId !in selectedSlotIds }
+                    .forEach { slotRepository.deleteOverride(it) }
+                slotSelections
+                    .filter { it.hasOverride }
+                    .forEach { sel ->
+                        slotRepository.upsertOverride(
+                            com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
+                                medicationId = medication.id,
+                                slotId = sel.slotId,
+                                overrideIdealTime = sel.overrideIdealTime,
+                                overrideDriftMinutes = sel.overrideDriftMinutes
+                            )
+                        )
+                    }
+                slotSelections
+                    .filter { !it.hasOverride }
+                    .forEach { sel -> slotRepository.deleteOverrideForPair(medication.id, sel.slotId) }
+                // Junction edits aren't covered by any rescheduler Flow; trigger
+                // explicitly so re-linked / unlinked slots take effect immediately.
+                clockRescheduler.rescheduleAll()
+            } catch (e: Exception) {
+                android.util.Log.e("MedicationVM", "Failed to update medication", e)
+                _errorMessages.emit("Couldn't save medication. Please try again.")
+            }
         }
     }
 

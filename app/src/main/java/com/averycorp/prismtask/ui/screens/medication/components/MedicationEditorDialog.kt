@@ -227,6 +227,15 @@ fun MedicationEditorDialog(
             }
         },
         confirmButton = {
+            // Gate Save on (a) non-blank name AND (b) at least one slot
+            // picked WHEN slots exist. The empty-`activeSlots` escape hatch
+            // preserves the bootstrap UX (a user with zero slots can still
+            // create a med — they'd link it later from the slot editor).
+            // Without this gate the dialog would happily insert a slot-less
+            // med that's invisible on the Today screen, which matches the
+            // operator's "no slot selected" repro shape — see
+            // `docs/audits/D_MEDICATION_ADD_CRASH_AUDIT.md`.
+            val hasSlotIfRequired = selections.isNotEmpty() || activeSlots.isEmpty()
             Button(
                 onClick = {
                     onConfirm(
@@ -238,7 +247,7 @@ fun MedicationEditorDialog(
                         if (reminderModeChoice == MedicationReminderModeChoice.INTERVAL) intervalMinutes else null
                     )
                 },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank() && hasSlotIfRequired
             ) {
                 Text("Save")
             }
