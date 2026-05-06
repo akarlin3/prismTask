@@ -263,6 +263,13 @@ constructor(
         val task = draft.copy(lifeCategory = resolveLifeCategoryForInsert(draft))
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
+        // Mirror insertTask() — every primary-creation surface routes through
+        // this method (TaskList QuickAdd row, Today plan-for-today,
+        // AddEditTask save-new, MultiCreate, Onboarding, Conversation
+        // extract). Without this emit, automation rules with TaskCreated
+        // triggers silently never fire for those paths. See
+        // docs/audits/D_AUTOMATION_ACTION_SILENT_FAILURE_AUDIT.md § A1.
+        automationEventBus.emit(AutomationEvent.TaskCreated(id))
         calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
         if (reminderOffset != null && dueDate != null) {
