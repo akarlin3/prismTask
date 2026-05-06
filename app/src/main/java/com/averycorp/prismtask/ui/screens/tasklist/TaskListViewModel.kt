@@ -1,7 +1,5 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
-import android.content.Context
-import android.net.Uri
 import android.util.Log
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -21,8 +19,6 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.TagFilterMode
 import com.averycorp.prismtask.domain.model.TaskFilter
-import com.averycorp.prismtask.domain.usecase.ImportOutcome
-import com.averycorp.prismtask.domain.usecase.ProjectImporter
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import com.averycorp.prismtask.util.DayBoundary
@@ -79,7 +75,6 @@ constructor(
     internal val projectRepository: ProjectRepository,
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
-    private val projectImporter: ProjectImporter,
     internal val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
@@ -882,61 +877,6 @@ constructor(
                 Log.e("TaskListVM", "Failed to plan for today", e)
                 snackbarHostState.showSnackbar("Couldn't add to today's plan")
             }
-        }
-    }
-
-    // --- Import from JSX / file ---
-
-    fun importFromFile(context: Context, uri: Uri, asProject: Boolean) {
-        viewModelScope.launch {
-            try {
-                val content = context.contentResolver
-                    .openInputStream(uri)
-                    ?.bufferedReader()
-                    ?.use { it.readText() }
-                    ?: run {
-                        snackbarHostState.showSnackbar("Could not read file")
-                        return@launch
-                    }
-                importContent(content, asProject)
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed")
-            }
-        }
-    }
-
-    fun importFromText(content: String, asProject: Boolean) {
-        viewModelScope.launch {
-            try {
-                importContent(content, asProject)
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed")
-            }
-        }
-    }
-
-    private suspend fun importContent(content: String, asProject: Boolean) {
-        // The user picks `asProject` in the import dialog ("Import as new
-        // project?" checkbox). When checked, the rich F.8 path lights up
-        // (Project + Phases + Risks + Anchors + Dependencies if the source
-        // expresses them; otherwise a flat Project). When unchecked, items
-        // land as orphan tasks and any rich structure in the source is
-        // intentionally ignored.
-        when (val outcome = projectImporter.importContent(content, createProject = asProject)) {
-            is ImportOutcome.Rich -> snackbarHostState.showSnackbar(
-                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks, " +
-                    "${outcome.phaseCount} phases, ${outcome.riskCount} risks"
-            )
-            is ImportOutcome.FlatProject -> snackbarHostState.showSnackbar(
-                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks"
-            )
-            is ImportOutcome.FlatOrphans -> {
-                val label = outcome.listName?.let { "$it: " } ?: ""
-                snackbarHostState.showSnackbar("Imported ${label}${outcome.taskCount} tasks")
-            }
-            ImportOutcome.Unparseable -> snackbarHostState.showSnackbar(
-                "Could not parse to-do list format"
-            )
         }
     }
 

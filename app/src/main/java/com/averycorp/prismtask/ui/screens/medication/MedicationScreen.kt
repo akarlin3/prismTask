@@ -112,6 +112,8 @@ fun MedicationScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // Editor dialog opens as soon as editingMed is set; selections load
     // asynchronously via the suspend helper on the viewmodel.
     LaunchedEffect(editingMed) {

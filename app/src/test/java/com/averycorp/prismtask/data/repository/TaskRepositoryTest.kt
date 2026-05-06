@@ -50,6 +50,8 @@ class TaskRepositoryTest {
     private lateinit var userPreferences: UserPreferencesDataStore
     private lateinit var advancedTuningPreferences:
         com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+    private lateinit var automationEventBus:
+        com.averycorp.prismtask.domain.automation.AutomationEventBus
     private lateinit var repo: TaskRepository
 
     @Before
@@ -77,6 +79,7 @@ class TaskRepositoryTest {
         }
         coEvery { eisenhowerClassifier.classify(any()) } returns
             Result.failure(IllegalStateException("stub"))
+        automationEventBus = com.averycorp.prismtask.domain.automation.AutomationEventBus()
         repo =
             TaskRepository(
                 inlineTransactionRunner(),
@@ -89,7 +92,7 @@ class TaskRepositoryTest {
                 taskCompletionRepository,
                 eisenhowerClassifier,
                 userPreferences,
-                com.averycorp.prismtask.domain.automation.AutomationEventBus(),
+                automationEventBus,
                 advancedTuningPreferences
             )
     }
@@ -121,6 +124,37 @@ class TaskRepositoryTest {
         assertEquals(7L, task.projectId)
         assertFalse(task.isCompleted)
         coVerify { syncTracker.trackCreate(id, "task") }
+    }
+
+    /**
+     * Regression for the AVD pair test Stage 7 (May 6) silent failure.
+     * `addTask()` is the path used by every primary user-facing creation
+     * surface (TaskList QuickAdd row, Today plan-for-today, AddEditTask
+     * save-new, MultiCreate, Onboarding, Conversation extract). Without
+     * this emit, automation rules with `TaskCreated` triggers silently
+     * never fire for those paths — see
+     * `docs/audits/D_AUTOMATION_ACTION_SILENT_FAILURE_AUDIT.md` § A1.
+     */
+    @Test
+    fun addTask_emitsTaskCreatedOntoAutomationEventBus() = kotlinx.coroutines.test.runTest {
+        val collected =
+            mutableListOf<com.averycorp.prismtask.domain.automation.AutomationEvent>()
+        val collector = kotlinx.coroutines.launch {
+            automationEventBus.events.collect { collected += it }
+        }
+        // Yield once so the collector is subscribed before we emit.
+        kotlinx.coroutines.yield()
+
+        val id = repo.addTask(title = "From quick-add")
+
+        kotlinx.coroutines.yield()
+        collector.cancel()
+
+        val taskCreated = collected.filterIsInstance<
+            com.averycorp.prismtask.domain.automation.AutomationEvent.TaskCreated
+            >()
+        assertEquals(1, taskCreated.size)
+        assertEquals(id, taskCreated.first().taskId)
     }
 
     @Test
