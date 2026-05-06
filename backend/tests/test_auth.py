@@ -186,7 +186,7 @@ async def test_register_promotes_allowlisted_email_to_admin(client: AsyncClient)
     resp = await client.post(
         "/api/v1/auth/register",
         json={
-            "email": "averycheese@gmail.com",
+            "email": "avery.karlin@gmail.com",
             "name": "Avery",
             "password": "pass123",
         },
@@ -222,7 +222,7 @@ async def test_login_retroactively_promotes_allowlisted_email(client: AsyncClien
     await client.post(
         "/api/v1/auth/register",
         json={
-            "email": "averycheese@gmail.com",
+            "email": "avery.karlin@gmail.com",
             "name": "Avery",
             "password": "pass123",
         },
@@ -231,14 +231,14 @@ async def test_login_retroactively_promotes_allowlisted_email(client: AsyncClien
     async with TestSessionLocal() as session:
         await session.execute(
             update(User)
-            .where(User.email == "averycheese@gmail.com")
+            .where(User.email == "avery.karlin@gmail.com")
             .values(is_admin=False)
         )
         await session.commit()
 
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "averycheese@gmail.com", "password": "pass123"},
+        json={"email": "avery.karlin@gmail.com", "password": "pass123"},
     )
     assert resp.status_code == 200
     headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
@@ -251,7 +251,7 @@ async def test_admin_email_match_is_case_insensitive(client: AsyncClient):
     resp = await client.post(
         "/api/v1/auth/register",
         json={
-            "email": "AveryCheese@Gmail.com",
+            "email": "Avery.Karlin@Gmail.com",
             "name": "Avery",
             "password": "pass123",
         },
@@ -267,7 +267,7 @@ async def test_admin_email_match_is_case_insensitive(client: AsyncClient):
     "app.routers.auth.verify_firebase_token",
     return_value={
         "uid": "firebase-admin-uid",
-        "email": "averycheese@gmail.com",
+        "email": "avery.karlin@gmail.com",
         "name": "Avery",
     },
 )
