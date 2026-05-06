@@ -74,6 +74,16 @@ data class MedicationDoseEntity(
     val note: String = "",
     @ColumnInfo(name = "is_synthetic_skip", defaultValue = "0")
     val isSyntheticSkip: Boolean = false,
+    /**
+     * Free-form dose amount captured at log time when the parent
+     * [MedicationEntity.promptDoseAtLog] is true. Stored verbatim — the
+     * UI lets the user type "500 mg", "1 tablet", etc. — so the
+     * Medication Log can render it back without a normalization pass.
+     * NULL on legacy rows and on doses for medications that don't
+     * prompt.
+     */
+    @ColumnInfo(name = "dose_amount")
+    val doseAmount: String? = null,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

@@ -106,7 +106,8 @@ constructor(
         medicationId: Long,
         slotKey: String,
         takenAt: Long = System.currentTimeMillis(),
-        note: String = ""
+        note: String = "",
+        doseAmount: String? = null
     ): Long {
         val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
         val dateLocal = DayBoundary.currentLocalDateString(dayStartHour, takenAt)
@@ -117,6 +118,7 @@ constructor(
             takenAt = takenAt,
             takenDateLocal = dateLocal,
             note = note,
+            doseAmount = doseAmount,
             createdAt = now,
             updatedAt = now
         )

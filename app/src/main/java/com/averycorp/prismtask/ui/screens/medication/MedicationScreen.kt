@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,6 +95,7 @@ fun MedicationScreen(
     val medications by viewModel.medications.collectAsStateWithLifecycle()
     val slots by viewModel.activeSlots.collectAsStateWithLifecycle()
     val slotStates by viewModel.slotTodayStates.collectAsStateWithLifecycle()
+    val unslottedStates by viewModel.unslottedMedicationsState.collectAsStateWithLifecycle()
     val todayDateIso by viewModel.todayDate.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
@@ -103,6 +105,10 @@ fun MedicationScreen(
     var archivingMed by remember { mutableStateOf<MedicationEntity?>(null) }
     // Slot whose intended_time is being edited (long-press → time sheet).
     var timeEditingSlotState by remember { mutableStateOf<MedicationSlotTodayState?>(null) }
+    // Pending dose-prompt for a (medication, optional slot) pair when the
+    // medication has `promptDoseAtLog = true`. The dialog collects a
+    // free-form amount, then dispatches to the appropriate record path.
+    var doseDialogTarget by remember { mutableStateOf<DoseDialogTarget?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -188,7 +194,20 @@ fun MedicationScreen(
                         SlotTodayCard(
                             state = state,
                             editMode = editMode,
-                            onToggleDose = { med -> viewModel.toggleDose(state.slot, med) },
+                            onToggleDose = { med ->
+                                // Meds opted into dose-prompting collect an amount
+                                // before the row lands. Already-taken rows skip the
+                                // prompt (untoggling has no amount to capture).
+                                val alreadyTaken = med.id in state.takenMedicationIds
+                                if (med.promptDoseAtLog && !alreadyTaken) {
+                                    doseDialogTarget = DoseDialogTarget(
+                                        medication = med,
+                                        slot = state.slot
+                                    )
+                                } else {
+                                    viewModel.toggleDose(state.slot, med)
+                                }
+                            },
                             onSelectTier = { tier ->
                                 // Every tier click routes through bulkMark, which logs real
                                 // dose rows for meds at or below the clicked tier (or for
@@ -200,6 +219,31 @@ fun MedicationScreen(
                             },
                             onLongPressTier = { timeEditingSlotState = state }
                         )
+                    }
+                    if (unslottedStates.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Unscheduled",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        items(unslottedStates, key = { "unslotted_${it.medication.id}" }) { state ->
+                            UnslottedMedicationCard(
+                                state = state,
+                                onRecordTaken = {
+                                    if (state.medication.promptDoseAtLog) {
+                                        doseDialogTarget = DoseDialogTarget(
+                                            medication = state.medication,
+                                            slot = null
+                                        )
+                                    } else {
+                                        viewModel.recordUnslottedDose(state.medication)
+                                    }
+                                }
+                            )
+                        }
                     }
                     if (editMode) {
                         item {
@@ -229,8 +273,10 @@ fun MedicationScreen(
             title = "Add Medication",
             activeSlots = slots,
             onDismiss = { showAddDialog = false },
-            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes ->
-                viewModel.addMedication(name, tier, notes, selections, reminderMode, intervalMinutes)
+            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
+                viewModel.addMedication(
+                    name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                )
                 showAddDialog = false
             },
             onCreateNewSlot = { navController.navigate("settings/medication_slots") }
@@ -246,13 +292,32 @@ fun MedicationScreen(
             initialSelections = editingSelections,
             initialReminderMode = med.reminderMode,
             initialReminderIntervalMinutes = med.reminderIntervalMinutes,
+            initialPromptDoseAtLog = med.promptDoseAtLog,
             activeSlots = slots,
             onDismiss = { editingMed = null },
-            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes ->
-                viewModel.updateMedication(med, name, tier, notes, selections, reminderMode, intervalMinutes)
+            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
+                viewModel.updateMedication(
+                    med, name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                )
                 editingMed = null
             },
             onCreateNewSlot = { navController.navigate("settings/medication_slots") }
+        )
+    }
+
+    doseDialogTarget?.let { target ->
+        DoseAmountPromptDialog(
+            medicationName = target.medication.name,
+            onDismiss = { doseDialogTarget = null },
+            onConfirm = { amount ->
+                val slot = target.slot
+                if (slot != null) {
+                    viewModel.toggleDose(slot, target.medication, amount)
+                } else {
+                    viewModel.recordUnslottedDose(target.medication, amount)
+                }
+                doseDialogTarget = null
+            }
         )
     }
 
@@ -606,6 +671,112 @@ private fun MedicationEditRow(
             )
         }
     }
+}
+
+/**
+ * Card row for a medication that isn't linked to any slot. Each tap on
+ * "Record Taken" inserts a new dose row (no toggle); the label below the
+ * name surfaces the most recent take time today as visual feedback.
+ * Un-recording goes through the Medication Log screen.
+ */
+@Composable
+private fun UnslottedMedicationCard(
+    state: UnslottedMedicationState,
+    onRecordTaken: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = state.medication.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            val takenAt = state.takenAt
+            if (state.takenToday && takenAt != null) {
+                Text(
+                    text = "Last taken at ${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(takenAt))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    text = tierShortLabel(MedicationTier.fromStorage(state.medication.tier)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(modifier = Modifier.size(8.dp))
+        Button(
+            onClick = onRecordTaken,
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text("Record Taken")
+        }
+    }
+}
+
+/**
+ * Snapshot of the (medication, optional slot) pair that needs a dose
+ * amount captured before the row is logged. `slot == null` routes to the
+ * unscheduled record path; non-null routes to the per-slot toggle.
+ */
+private data class DoseDialogTarget(
+    val medication: MedicationEntity,
+    val slot: com.averycorp.prismtask.data.local.entity.MedicationSlotEntity?
+)
+
+/**
+ * Free-form dose-amount prompt fired before logging when the parent med
+ * has `promptDoseAtLog = true`. The user types something like "500 mg"
+ * or "1 tablet"; the string is passed through verbatim. An empty input
+ * is allowed — the row is still logged, just with `doseAmount = null` —
+ * so the prompt never blocks a user mid-flow.
+ */
+@Composable
+private fun DoseAmountPromptDialog(
+    medicationName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String?) -> Unit
+) {
+    var amount by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record $medicationName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "How much did you take?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    placeholder = { Text("e.g. 500 mg, 1 tablet") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onConfirm(amount.trim().takeIf { it.isNotEmpty() })
+            }) { Text("Record") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

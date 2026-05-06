@@ -2341,7 +2341,28 @@ val MIGRATION_74_75 = object : Migration(74, 75) {
     }
 }
 
-const val CURRENT_DB_VERSION = 75
+/**
+ * v75 → v76: per-medication "prompt for dose at logging" toggle plus a
+ * free-form `dose_amount` column on `medication_doses`. When the toggle
+ * is on, the dose-record UI prompts the user for an amount before
+ * inserting the row; the entered string is captured verbatim on the
+ * dose entity so the medication log can render it back ("500 mg",
+ * "1 tablet", etc.). Both columns are pure-additive with sane defaults
+ * — `prompt_dose_at_log = 0` (off, preserves existing behavior) and
+ * `dose_amount` NULL (no amount captured for legacy doses).
+ */
+val MIGRATION_75_76 = object : Migration(75, 76) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE medications ADD COLUMN prompt_dose_at_log INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE medication_doses ADD COLUMN dose_amount TEXT"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 76
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2417,5 +2438,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_71_72,
     MIGRATION_72_73,
     MIGRATION_73_74,
-    MIGRATION_74_75
+    MIGRATION_74_75,
+    MIGRATION_75_76
 )
