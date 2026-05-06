@@ -18,6 +18,7 @@ import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
 import com.averycorp.prismtask.ui.screens.multicreate.MultiCreateBottomSheet
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
+import com.averycorp.prismtask.ui.screens.projects.ProjectImportPreviewScreen
 import com.averycorp.prismtask.ui.screens.review.WeeklyReviewDetailScreen
 import com.averycorp.prismtask.ui.screens.review.WeeklyReviewScreen
 import com.averycorp.prismtask.ui.screens.review.WeeklyReviewsListScreen
@@ -121,6 +122,32 @@ internal fun NavGraphBuilder.aiRoutes(
 
     composable(route = PrismTaskRoute.BatchHistory.route) {
         BatchHistoryScreen(navController)
+    }
+
+    // Project import preview — same modal-style registration as
+    // BatchPreview (no slide transition, feels like a sheet over caller).
+    composable(
+        route = PrismTaskRoute.ProjectImportPreview.route,
+        arguments = listOf(
+            navArgument("uri") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+            navArgument("asProject") {
+                type = NavType.BoolType
+                defaultValue = true
+            }
+        )
+    ) { backStackEntry ->
+        val uriArg = backStackEntry.arguments?.getString("uri").orEmpty()
+        val asProject = backStackEntry.arguments?.getBoolean("asProject") ?: true
+        ProjectImportPreviewScreen(
+            navController = navController,
+            uriString = uriArg.ifBlank { null },
+            asProject = asProject,
+            onApproved = { navController.popBackStack() },
+            onCancelled = { navController.popBackStack() }
+        )
     }
 
     composable(
