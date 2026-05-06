@@ -315,3 +315,96 @@ Aggregate ≈ 340 LOC; under the STOP-F 1500 ceiling.
 None. Scope is operator-locked; STOPs are clean; convention exists.
 Proceeding straight into Phase 2 per audit-first default (no
 checkpoint gate).
+
+---
+
+## Phase 3 — Bundle summary (pre-merge per CLAUDE.md § Repo conventions)
+
+**PR:** opened on branch `claude/add-audit-first-action-aiVoj`,
+implementation commit `2ea991e`, audit doc commit `9a5a140`. Both ride
+in the same PR per memory #28.
+
+**Per-improvement outcomes.**
+
+- **A1 — `TaskRepository.addTask()` no-emit (RED):** fixed by adding
+  a single `automationEventBus.emit(AutomationEvent.TaskCreated(id))`
+  call in `data/repository/TaskRepository.kt`. Regression test in
+  `TaskRepositoryTest.kt::addTask_emitsTaskCreatedOntoAutomationEventBus`.
+  Closes the AVD pair test Stage 7 reproduction.
+- **A2 — `MutateTaskActionHandler` silent ignores (YELLOW):**
+  rewritten to return `ActionResult.Error` on unknown field /
+  type mismatch / wrong tag-list shape, and to distinguish "updated"
+  vs "no-op" in the success message. Five new unit tests cover the
+  happy path + each error / no-op surface.
+- **A3 — `MutateHabitActionHandler` partial coverage (YELLOW):**
+  `SUPPORTED_KEYS = setOf("isArchived")` constant added; unknown keys
+  now Error with the offending key in the message. Three unit tests.
+- **A4 — `MutateMedicationActionHandler` partial coverage (YELLOW):**
+  `SUPPORTED_KEYS = setOf("isArchived", "name")`; unknown keys Error
+  and the message points to `apply.batch` for dose mutations. Two
+  unit tests.
+- **A5, A6:** unchanged — A5 deferred per § A5, A6 already GREEN.
+
+**Re-baselined wall-clock.** Single-file repository edit + single-file
+handler tightening + two test files came in around 432 insertions /
+15 deletions. Within the 250-LOC Phase 1 estimate doubled by tests;
+under STOP-F.
+
+**Memory entry candidates.** None promoted. Reasons:
+
+- The "every Repository write site that creates an entity must emit
+  the corresponding AutomationEvent" invariant is real but is
+  already documented in the engine architecture doc § A3. The
+  failure mode here was a missed application of that rule, not a
+  missing rule.
+- Per the audit-first skill's "wait-for-second-data-point"
+  guideline, the per-handler "Error on unknown key, distinguish
+  no-op from updated" convention is consistent across all three
+  Mutate handlers in this PR but only used in this one PR. Hold
+  off promoting to memory until the next handler addition would
+  benefit from the convention.
+
+**Schedule for next audit.** D-series launch-gate item closes with
+this PR. Next audit triggered by either (a) the medication-add crash
+work, or (b) the deferred A5 (`addSubtask` / `reorderSubtasks` no-
+emit) becoming an automation user-case requirement.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+**Scope.** D-series launch-blocker: the AVD pair test Stage 7 (May 6)
+silent failure where an automation rule with `Set priority` action
+"fired" on Device A but never wrote the priority change. Audited every
+automation action handler (operator-locked broad scope per memory #28)
+and shipped fixes in a single PR.
+
+**Verdicts.**
+
+| Item | Status | One-line finding |
+|------|--------|------------------|
+| A1 — `TaskRepository.addTask()` no-emit | RED | Primary user-facing creation surfaces (QuickAdd, Today, AddEditTask, MultiCreate, Onboarding, Conversation extract) all route through `addTask()`, which never emitted `AutomationEvent.TaskCreated`. The actual root cause of "rule didn't fire" — not the action handler. |
+| A2 — `MutateTaskActionHandler` silent ignores | YELLOW | Unknown / mistyped update keys silently no-op'd and returned Ok with the keys list, masking broken rules. |
+| A3 — `MutateHabitActionHandler` | YELLOW | Only `isArchived` supported; unknown keys returned Skipped with no individual key mentioned. |
+| A4 — `MutateMedicationActionHandler` | YELLOW | Only `isArchived` + `name` supported; same unknown-key opacity as A3. |
+| A5 — `addSubtask` / `reorderSubtasks` no-emit | DEFERRED | Same shape as A1 but no current automation use-case demands it; design question (should subtasks emit?) is bigger than the scoped fix. |
+| A6 — Notify / Log / ScheduleTimer / ApplyBatch / AiComplete / AiSummarize | GREEN | All return ActionResult correctly; no silent-failure surface. |
+
+**Shipped.** One PR on branch `claude/add-audit-first-action-aiVoj`:
+- audit doc: `docs/audits/D_AUTOMATION_ACTION_SILENT_FAILURE_AUDIT.md` (commit `9a5a140`)
+- impl: `data/repository/TaskRepository.kt` + `domain/automation/handlers/SimpleActionHandlers.kt` + new `SimpleActionHandlersTest.kt` + `TaskRepositoryTest.kt` regression test (commit `2ea991e`)
+
+**Deferred / stopped.**
+- A5 — subtask events: re-trigger when an automation use-case demands it.
+- `ApplyBatchActionHandler` partial-batch honesty (returns Ok even when `appliedCount < proposed.size`): re-trigger if user-visible reports complain.
+- `MutateHabit` / `MutateMedication` field-coverage expansion (name, streakCount, dose): re-trigger when a template author asks.
+
+**Non-obvious findings.**
+- Operator hypothesis was "action handler doesn't write." Static analysis showed the write *does* land — the bug is upstream in trigger emission. The "rule fired but did nothing" symptom and "rule never fired (no log row)" symptom are visually identical in the rule list (which only shows `lastFiredAt` from prior firings), so the operator's reproduction may have conflated two test events. The fix targets the actual upstream gap; the AVD Stage 7 reproduction will pass after this PR.
+- `TaskRepository` has *two* parallel creation methods: `addTask(title, …)` (the broken one) and `insertTask(task: TaskEntity)` (works). The asymmetry was not flagged in `AUTOMATION_ENGINE_ARCHITECTURE.md` and there is no inline comment pointing readers at the invariant; the architecture doc § A3 implies the invariant but doesn't enforce it on either of the two methods.
+- PR #1093 referenced in the operator memo is not visible in `git log --all --oneline`; closest is PR #1098. Subscriber installation in `AutomationEngine.start()` is in fact wired unconditionally at construction, so the "subscriber pattern" is N/A for this layer — the actual invariant is on the emit side, not the subscribe side.
+
+**Open questions.** None blocking. The `addSubtask` no-emit is filed as deferred A5 — design question deferred until an automation use-case forces the answer.
+```
+
