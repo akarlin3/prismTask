@@ -177,3 +177,58 @@ Bundle decision: keep separate. They touch different files and can ship
 independently; #1 closes the Today-access gap, #2 closes the Settings-discoverability
 gap. They both consume the same nav routes (already wired in `AIRoutes.kt`), so
 no shared scaffolding.
+
+---
+
+## Phase 3 — Bundle summary
+
+### Shipped
+
+- **PR #1145** (`feat(today): surface buried AI features from Today + AI
+  Settings`) bundled both PROCEED items into a single PR rather than the
+  two PRs proposed in the Phase 2 plan. Reason: single-branch constraint
+  on `claude/ai-features-today-screen-258ko` (operator's task system pins
+  development to one branch), and the changes are a single coherent
+  scope ("AI access").
+
+### Deviation from audit recommendation
+
+- Phase 1 recommended a Today **bottom-sheet hub** triggered by a sparkle
+  "AI Tools" chip. Implementation went with a **horizontally-scrolling
+  chip row** instead.
+  - Same accessibility outcome (one tap to every AI feature).
+  - Half the implementation: no new bottom-sheet composable, just a
+    `Modifier.horizontalScroll(rememberScrollState())` on the existing
+    `Row` plus three additional `AssistChip` entries.
+  - Same scalability story for adding a 7th / 8th chip later.
+  - Risk: scrollable row's affordance ("there are more chips off-screen")
+    is less obvious than a "More AI…" sparkle chip would be. Acceptable
+    tradeoff — the three new chips (Matrix / Extract / Review) are
+    visible without scrolling on most phone widths.
+
+### Per-improvement detail
+
+| # | Improvement | PR | Files | Insertions |
+|---|-------------|----|-------|------------|
+| 1 | Today AI chip-row expansion | #1145 | `TodayScreen.kt` | +39 |
+| 2 | `AiSection` backfill (Extract / Review / Mood / Chat) | #1145 | `AiSection.kt`, `AiFeaturesScreen.kt` | +32 |
+
+### Memory entry candidates
+
+None worth promoting — the findings here (Settings-buried AI features,
+share-sheet-only entry points) are app-specific UX debt rather than
+generalizable harness lessons.
+
+### Schedule for next audit
+
+Re-audit after the AI Coach Free-tier visibility decision is made (item
+#3 in the Phase 1 ranked table — DEFERRED pending pricing call). At that
+point also revisit whether the Today chip row needs to migrate to a
+bottom-sheet hub, since the chip count would grow to ~7.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+See the fenced block printed at the end of the run output for a paste-
+ready summary suitable for a fresh Claude.ai (Claude Chat) thread.
