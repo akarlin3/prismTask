@@ -55,7 +55,6 @@ class Settings(BaseSettings):
     # ADMIN_EMAILS env var (comma-separated).
     ADMIN_EMAILS: list[str] = [
         "avery.karlin@gmail.com",
-        "averycheese@gmail.com",
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
