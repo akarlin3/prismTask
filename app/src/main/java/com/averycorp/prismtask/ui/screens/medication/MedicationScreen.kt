@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -102,11 +104,22 @@ fun MedicationScreen(
     // Slot whose intended_time is being edited (long-press → time sheet).
     var timeEditingSlotState by remember { mutableStateOf<MedicationSlotTodayState?>(null) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // Editor dialog opens as soon as editingMed is set; selections load
     // asynchronously via the suspend helper on the viewmodel.
     LaunchedEffect(editingMed) {
         editingMed?.let { med ->
             editingSelections = viewModel.selectionsForMedication(med.id)
+        }
+    }
+
+    // Surface viewmodel error messages (e.g. duplicate medication name) via
+    // a Snackbar. Without this collector, errors emitted from
+    // `addMedication` / `updateMedication` would be silently dropped.
+    LaunchedEffect(Unit) {
+        viewModel.errorMessages.collect { message ->
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -152,7 +165,8 @@ fun MedicationScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
