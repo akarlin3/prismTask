@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
 import com.averycorp.prismtask.core.time.LocalDateFlow
+import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.SwipePrefs
@@ -19,6 +20,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -182,6 +184,65 @@ class TaskListViewModelTest {
         assertTrue(
             "Deselect all should keep multi-select mode active",
             vm.isMultiSelectMode.value
+        )
+    }
+
+    /**
+     * Regression: "From Earlier shows things due today" when SoD > 0.
+     *
+     * A timeless task created via the "Today" date picker / NLP "today"
+     * stores dueDate at calendar midnight (00:00 local). The bucketing
+     * compare must use calendar midnight too — using the SoD-anchored
+     * projection (`startOfToday` set to `today.atTime(sodHour, sodMinute)`)
+     * sat *after* 00:00 and pushed every such task into Overdue / "From
+     * Earlier".
+     *
+     * This test mocks SoD=4am and a single task whose dueDate is calendar
+     * midnight of the mocked logical date. It must land in Today, not
+     * Overdue.
+     */
+    @Test
+    fun groupedTasks_timelessTaskOnTodayLandsInTodayWhenSoDIsNonZero() = runTest(dispatcher) {
+        val logicalDate = java.time.LocalDate.parse("2026-04-26")
+        val midnightMillis = logicalDate
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+        coEvery { taskBehaviorPreferences.getStartOfDay() } returns
+            flowOf(StartOfDay(hour = 4, minute = 0, hasBeenSet = true))
+        coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(4)
+        every { localDateFlow.observe(any()) } returns flowOf(logicalDate)
+        every { localDateFlow.observeIsoString(any()) } returns flowOf(logicalDate.toString())
+
+        val timelessTodayTask = TaskEntity(
+            id = 99L,
+            title = "Buy milk",
+            dueDate = midnightMillis,
+            parentTaskId = null
+        )
+        coEvery { taskRepository.getAllTasks() } returns flowOf(listOf(timelessTodayTask))
+        coEvery { taskRepository.getIncompleteRootTasks() } returns flowOf(listOf(timelessTodayTask))
+
+        val vm = newViewModel()
+        // groupedTasks is gated by SharingStarted.WhileSubscribed — `.value`
+        // alone returns the initial empty map without activating the upstream.
+        // Launch a collector in backgroundScope so the combine actually fires.
+        val emissions = mutableListOf<Map<String, List<TaskEntity>>>()
+        backgroundScope.launch { vm.groupedTasks.collect { emissions.add(it) } }
+        advanceUntilIdle()
+
+        val grouped = emissions.lastOrNull() ?: emptyMap()
+        assertFalse(
+            "Timeless task at 00:00 must NOT bucket to Overdue when SoD=4 — " +
+                "this is the 'From Earlier shows things due today' regression. " +
+                "Found buckets: ${grouped.keys}",
+            grouped["Overdue"].orEmpty().any { it.id == 99L }
+        )
+        assertTrue(
+            "Timeless task at 00:00 with logical-date = today must bucket to Today. " +
+                "Found buckets: ${grouped.keys}, Today contents: ${grouped["Today"]?.map { it.id }}",
+            grouped["Today"].orEmpty().any { it.id == 99L }
         )
     }
 }
