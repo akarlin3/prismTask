@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.projects
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,12 +80,22 @@ fun ProjectListScreen(
     var projectToDelete by remember { mutableStateOf<ProjectWithCount?>(null) }
     var showPasteDialog by remember { mutableStateOf(false) }
     var pasteContent by remember { mutableStateOf("") }
+    // Defaults to ON because the Projects screen is the natural home for
+    // creating projects. The TasksScreen mirror defaults to OFF.
+    var pasteAsProject by remember { mutableStateOf(true) }
+    var pendingFileUri by remember { mutableStateOf<Uri?>(null) }
+    var fileAsProject by remember { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.importFromFile(context, it) }
+        if (uri != null) {
+            // Stage the URI and open the confirm dialog so the user picks
+            // the "Import as new project?" toggle before we read the file.
+            fileAsProject = true
+            pendingFileUri = uri
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -98,22 +110,40 @@ fun ProjectListScreen(
             },
             title = { Text("Paste To-Do List") },
             text = {
-                OutlinedTextField(
-                    value = pasteContent,
-                    onValueChange = { pasteContent = it },
-                    placeholder = { Text("Paste JSX / markdown list here\u2026") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    maxLines = 50
-                )
+                Column {
+                    OutlinedTextField(
+                        value = pasteContent,
+                        onValueChange = { pasteContent = it },
+                        placeholder = { Text("Paste JSX / markdown list here\u2026") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        maxLines = 50
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { pasteAsProject = !pasteAsProject }
+                    ) {
+                        Checkbox(
+                            checked = pasteAsProject,
+                            onCheckedChange = { pasteAsProject = it }
+                        )
+                        Text(
+                            "Import As New Project",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (pasteContent.isNotBlank()) {
-                            viewModel.importFromText(pasteContent)
+                            viewModel.importFromText(pasteContent, asProject = pasteAsProject)
                         }
                         showPasteDialog = false
                         pasteContent = ""
@@ -130,6 +160,41 @@ fun ProjectListScreen(
                 }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    if (pendingFileUri != null) {
+        AlertDialog(
+            onDismissRequest = { pendingFileUri = null },
+            title = { Text("Import File") },
+            text = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { fileAsProject = !fileAsProject }
+                ) {
+                    Checkbox(
+                        checked = fileAsProject,
+                        onCheckedChange = { fileAsProject = it }
+                    )
+                    Text(
+                        "Import As New Project",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingFileUri?.let {
+                        viewModel.importFromFile(context, it, asProject = fileAsProject)
+                    }
+                    pendingFileUri = null
+                }) { Text("Import") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingFileUri = null }) { Text("Cancel") }
             }
         )
     }

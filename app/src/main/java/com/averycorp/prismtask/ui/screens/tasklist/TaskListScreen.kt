@@ -167,6 +167,12 @@ fun TaskListScreen(
     var showBatchMoveDialog by remember { mutableStateOf(false) }
     var showPasteDialog by remember { mutableStateOf(false) }
     var pasteContent by remember { mutableStateOf("") }
+    // Tasks screen defaults to OFF — most users on this surface want flat
+    // task additions (the pre-F.8 inbox-style behaviour). The Projects
+    // screen mirror defaults to ON.
+    var pasteAsProject by remember { mutableStateOf(false) }
+    var pendingFileUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var fileAsProject by remember { mutableStateOf(false) }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
     // Move-to-project sheet, triggered from the 3-dot overflow menu on each
@@ -216,7 +222,12 @@ fun TaskListScreen(
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.importFromFile(context, it) }
+        if (uri != null) {
+            // Stage the URI and open the confirm dialog so the user picks
+            // the "Import as new project?" toggle before we read the file.
+            fileAsProject = false
+            pendingFileUri = uri
+        }
     }
 
     BackHandler(enabled = isMultiSelectMode) {
@@ -304,22 +315,40 @@ fun TaskListScreen(
             },
             title = { Text("Paste To-Do List") },
             text = {
-                OutlinedTextField(
-                    value = pasteContent,
-                    onValueChange = { pasteContent = it },
-                    placeholder = { Text("Paste JSX / markdown list here\u2026") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    maxLines = 50
-                )
+                Column {
+                    OutlinedTextField(
+                        value = pasteContent,
+                        onValueChange = { pasteContent = it },
+                        placeholder = { Text("Paste JSX / markdown list here\u2026") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        maxLines = 50
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { pasteAsProject = !pasteAsProject }
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = pasteAsProject,
+                            onCheckedChange = { pasteAsProject = it }
+                        )
+                        Text(
+                            "Import As New Project",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         if (pasteContent.isNotBlank()) {
-                            viewModel.importFromText(pasteContent)
+                            viewModel.importFromText(pasteContent, asProject = pasteAsProject)
                         }
                         showPasteDialog = false
                         pasteContent = ""
@@ -336,6 +365,41 @@ fun TaskListScreen(
                 }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    if (pendingFileUri != null) {
+        AlertDialog(
+            onDismissRequest = { pendingFileUri = null },
+            title = { Text("Import File") },
+            text = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { fileAsProject = !fileAsProject }
+                ) {
+                    androidx.compose.material3.Checkbox(
+                        checked = fileAsProject,
+                        onCheckedChange = { fileAsProject = it }
+                    )
+                    Text(
+                        "Import As New Project",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingFileUri?.let {
+                        viewModel.importFromFile(context, it, asProject = fileAsProject)
+                    }
+                    pendingFileUri = null
+                }) { Text("Import") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingFileUri = null }) { Text("Cancel") }
             }
         )
     }

@@ -887,7 +887,7 @@ constructor(
 
     // --- Import from JSX / file ---
 
-    fun importFromFile(context: Context, uri: Uri) {
+    fun importFromFile(context: Context, uri: Uri, asProject: Boolean) {
         viewModelScope.launch {
             try {
                 val content = context.contentResolver
@@ -898,36 +898,38 @@ constructor(
                         snackbarHostState.showSnackbar("Could not read file")
                         return@launch
                     }
-                importContent(content)
+                importContent(content, asProject)
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
 
-    fun importFromText(content: String) {
+    fun importFromText(content: String, asProject: Boolean) {
         viewModelScope.launch {
             try {
-                importContent(content)
+                importContent(content, asProject)
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
 
-    private suspend fun importContent(content: String) {
-        // Tasks screen preserves the pre-F.8 behaviour for simple sources
-        // (orphan tasks, no project) but lights up the rich F.8 path —
-        // Project + Phases + Risks + Anchors + Dependencies — when the source
-        // expresses that structure. Operator gap closed: previously only the
-        // (less-discoverable) Projects sub-screen would materialise the rich
-        // structure.
-        when (val outcome = projectImporter.importContent(content, projectifyFlat = false)) {
+    private suspend fun importContent(content: String, asProject: Boolean) {
+        // The user picks `asProject` in the import dialog ("Import as new
+        // project?" checkbox). When checked, the rich F.8 path lights up
+        // (Project + Phases + Risks + Anchors + Dependencies if the source
+        // expresses them; otherwise a flat Project). When unchecked, items
+        // land as orphan tasks and any rich structure in the source is
+        // intentionally ignored.
+        when (val outcome = projectImporter.importContent(content, createProject = asProject)) {
             is ImportOutcome.Rich -> snackbarHostState.showSnackbar(
                 "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks, " +
                     "${outcome.phaseCount} phases, ${outcome.riskCount} risks"
             )
-            is ImportOutcome.FlatProject -> Unit // unreachable when projectifyFlat=false
+            is ImportOutcome.FlatProject -> snackbarHostState.showSnackbar(
+                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks"
+            )
             is ImportOutcome.FlatOrphans -> {
                 val label = outcome.listName?.let { "$it: " } ?: ""
                 snackbarHostState.showSnackbar("Imported ${label}${outcome.taskCount} tasks")

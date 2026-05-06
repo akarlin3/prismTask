@@ -66,7 +66,7 @@ constructor(
 
     // --- Import from JSX / file ---
 
-    fun importFromFile(context: Context, uri: Uri) {
+    fun importFromFile(context: Context, uri: Uri, asProject: Boolean) {
         viewModelScope.launch {
             try {
                 val content = context.contentResolver
@@ -77,29 +77,25 @@ constructor(
                         snackbarHostState.showSnackbar("Could not read file")
                         return@launch
                     }
-                importContent(content)
+                importContent(content, asProject)
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
 
-    fun importFromText(content: String) {
+    fun importFromText(content: String, asProject: Boolean) {
         viewModelScope.launch {
             try {
-                importContent(content)
+                importContent(content, asProject)
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
 
-    private suspend fun importContent(content: String) {
-        // Projects screen always wraps imported items in a new Project, even
-        // for the simple/flat fallback path. (TaskListViewModel uses the same
-        // importer with projectifyFlat = false to preserve its orphan-task
-        // behaviour for non-rich sources.)
-        when (val outcome = projectImporter.importContent(content, projectifyFlat = true)) {
+    private suspend fun importContent(content: String, asProject: Boolean) {
+        when (val outcome = projectImporter.importContent(content, createProject = asProject)) {
             is ImportOutcome.Rich -> snackbarHostState.showSnackbar(
                 "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks, " +
                     "${outcome.phaseCount} phases, ${outcome.riskCount} risks"
@@ -107,7 +103,10 @@ constructor(
             is ImportOutcome.FlatProject -> snackbarHostState.showSnackbar(
                 "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks"
             )
-            is ImportOutcome.FlatOrphans -> Unit // unreachable when projectifyFlat=true
+            is ImportOutcome.FlatOrphans -> {
+                val label = outcome.listName?.let { "$it: " } ?: ""
+                snackbarHostState.showSnackbar("Imported ${label}${outcome.taskCount} tasks")
+            }
             ImportOutcome.Unparseable -> snackbarHostState.showSnackbar(
                 "Could not parse to-do list format"
             )

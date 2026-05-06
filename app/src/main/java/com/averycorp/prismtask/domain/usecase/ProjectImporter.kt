@@ -16,17 +16,21 @@ import javax.inject.Singleton
  * here so the rich path (phases / risks / anchors / dependencies) lights up
  * from either entry point.
  *
- * Strategy:
- *   1. Try the comprehensive parser ([ChecklistParser]) first. If the source
- *      expresses phases / risks / external anchors / task dependencies,
- *      materialise a Project + cascading entities and return [ImportOutcome.Rich].
- *   2. Otherwise fall back to the flat parser ([TodoListParser]):
- *        - When `projectifyFlat = true` (Projects screen UX), wrap the items
- *          in a new Project and return [ImportOutcome.FlatProject].
- *        - When `projectifyFlat = false` (Tasks screen UX, preserves the
- *          pre-F.8 behaviour), insert items as orphan tasks and return
- *          [ImportOutcome.FlatOrphans].
- *   3. If neither parser produces output, return [ImportOutcome.Unparseable].
+ * The caller passes `createProject` based on the user's choice in the
+ * import dialog ("Import as new project?" checkbox). It controls the whole
+ * orchestration:
+ *
+ * - `createProject = true`:
+ *     - If the source expresses phases / risks / anchors / dependencies →
+ *       materialise the full Project + cascading entities → [ImportOutcome.Rich].
+ *     - Otherwise wrap the parsed flat items in a new Project → [ImportOutcome.FlatProject].
+ * - `createProject = false`:
+ *     - Skip the rich parser entirely (it's only useful when we're going
+ *       to create a project tree). Use the flat parser and insert items as
+ *       orphan tasks (no project) → [ImportOutcome.FlatOrphans]. Any rich
+ *       structure in the source is intentionally ignored — the user opted
+ *       out of project creation.
+ * - Either path: if no parser produces output → [ImportOutcome.Unparseable].
  */
 @Singleton
 class ProjectImporter @Inject constructor(
@@ -37,7 +41,15 @@ class ProjectImporter @Inject constructor(
     private val checklistParser: ChecklistParser,
     private val todoListParser: TodoListParser
 ) {
-    suspend fun importContent(content: String, projectifyFlat: Boolean): ImportOutcome {
+    suspend fun importContent(content: String, createProject: Boolean): ImportOutcome {
+        if (!createProject) {
+            // User opted out of project creation. Skip the (more expensive)
+            // rich parser — its only output is project-shaped — and insert
+            // the flat parse as orphan tasks.
+            val flat = todoListParser.parse(content) ?: return ImportOutcome.Unparseable
+            return materialiseFlatAsOrphans(flat)
+        }
+
         val checklist = checklistParser.parse(content)
         val hasRichExtras = checklist != null && (
             checklist.phases.isNotEmpty() ||
@@ -50,7 +62,7 @@ class ProjectImporter @Inject constructor(
         }
 
         val flat = todoListParser.parse(content) ?: return ImportOutcome.Unparseable
-        return if (projectifyFlat) materialiseFlatAsProject(flat) else materialiseFlatAsOrphans(flat)
+        return materialiseFlatAsProject(flat)
     }
 
     private suspend fun materialiseRich(result: ComprehensiveImportResult): ImportOutcome.Rich {
