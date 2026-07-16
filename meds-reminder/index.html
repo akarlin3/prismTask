@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Next Dose — Medication Reminders</title>
+<meta name="description" content="Get notified when your next medication dose is due, a set time after you take each one." />
+<meta name="theme-color" content="#6366f1" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Next Dose" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%236366f1'/%3E%3Cpath d='M12 6v6l4 2' stroke='white' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='12' cy='12' r='7' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --accent: #6366f1;
+    --accent-strong: #4f46e5;
+    --bg: #0f0f23;
+    --surface: #1a1a33;
+    --surface-2: #232345;
+    --border: #2e2e52;
+    --text: #e8e8f5;
+    --muted: #a0a0c0;
+    --ready: #10b981;
+    --waiting: #6366f1;
+    --due: #f43f5e;
+    --due-bg: #3a1622;
+    --radius: 14px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f4fb;
+      --surface: #ffffff;
+      --surface-2: #f0f0f8;
+      --border: #e2e2ee;
+      --text: #1a1a2e;
+      --muted: #6b6b85;
+      --due-bg: #fdeef1;
+      --shadow: 0 4px 20px rgba(80,80,140,0.12);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    display: grid; place-items: center; flex: none;
+  }
+  .logo svg { width: 24px; height: 24px; }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.02em; }
+  .tagline { color: var(--muted); font-size: 0.85rem; margin: 0; }
+
+  /* Permission banner */
+  .banner {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; margin: 16px 0;
+    font-size: 0.9rem;
+  }
+  .banner.warn { border-color: #b45309; background: color-mix(in srgb, #f59e0b 12%, var(--surface)); }
+  .banner .grow { flex: 1 1 auto; min-width: 180px; }
+  .banner .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .dot.granted { background: var(--ready); }
+  .dot.default { background: #f59e0b; }
+  .dot.denied { background: var(--due); }
+
+  /* Buttons */
+  button {
+    font: inherit; cursor: pointer; border: none; border-radius: 10px;
+    padding: 10px 16px; font-weight: 600; transition: transform .05s, filter .15s, background .15s;
+    color: #fff; background: var(--accent);
+  }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: scale(0.97); }
+  button.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  button.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+  button.ghost:hover { color: var(--text); filter: none; }
+  button.danger { background: transparent; color: var(--due); border: 1px solid transparent; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.small { padding: 7px 12px; font-size: 0.85rem; }
+
+  /* Add form */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 14px;
+  }
+  .add-form { display: grid; gap: 12px; }
+  .field { display: grid; gap: 5px; }
+  label { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  input[type="text"], input[type="number"] {
+    font: inherit; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    width: 100%;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row .field { flex: 1 1 120px; }
+  .interval-inputs { display: flex; align-items: center; gap: 8px; }
+  .interval-inputs input { width: 84px; }
+  .interval-inputs .unit { color: var(--muted); font-size: 0.85rem; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 22px 4px 10px; font-weight: 700; }
+
+  /* Med card */
+  .med { position: relative; overflow: hidden; }
+  .med .accent-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--waiting); }
+  .med.is-ready .accent-bar { background: var(--ready); }
+  .med.is-due .accent-bar { background: var(--due); }
+  .med.is-due { background: var(--due-bg); border-color: var(--due); }
+  .med-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .med-name { font-size: 1.1rem; font-weight: 700; margin: 0; }
+  .med-sub { color: var(--muted); font-size: 0.82rem; margin: 2px 0 0; }
+  .med-menu { display: flex; gap: 2px; }
+
+  .status { margin: 14px 0 4px; }
+  .status-label { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .countdown { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  .med.is-due .countdown { color: var(--due); }
+  .med.is-ready .countdown { color: var(--ready); font-size: 1.3rem; }
+  .due-clock { color: var(--muted); font-size: 0.85rem; }
+
+  .progress { height: 7px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin: 12px 0 4px; }
+  .progress > span { display: block; height: 100%; background: var(--waiting); border-radius: 99px; transition: width 1s linear; }
+  .med.is-due .progress > span { background: var(--due); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .actions .grow { flex: 1 1 auto; }
+
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+  .empty .big { font-size: 2.2rem; margin-bottom: 6px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 28px; line-height: 1.6; }
+
+  .flash { animation: flash 1s ease-in-out 2; }
+  @keyframes flash { 50% { box-shadow: 0 0 0 3px var(--due); } }
+
+  dialog {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+    max-width: 420px; width: calc(100% - 32px); padding: 0;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .dialog-body { padding: 18px; display: grid; gap: 12px; }
+  .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="white" stroke-width="2"/><path d="M12 8v4l3 2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <h1>Next Dose</h1>
+      <p class="tagline">Tap when you take a dose — get reminded when the next one's due.</p>
+    </div>
+  </header>
+
+  <div id="permission-banner"></div>
+
+  <!-- Add medication -->
+  <div class="card">
+    <form class="add-form" id="add-form">
+      <div class="field">
+        <label for="med-name">Medication name</label>
+        <input type="text" id="med-name" placeholder="e.g. Ibuprofen" autocomplete="off" required maxlength="60" />
+      </div>
+      <div class="row">
+        <div class="field" style="flex: 2 1 160px;">
+          <label for="med-dose">Dose (optional)</label>
+          <input type="text" id="med-dose" placeholder="e.g. 400 mg, 1 pill" autocomplete="off" maxlength="40" />
+        </div>
+        <div class="field">
+          <label>Remind after</label>
+          <div class="interval-inputs">
+            <input type="number" id="med-hours" min="0" max="72" value="6" inputmode="numeric" aria-label="Hours" />
+            <span class="unit">hr</span>
+            <input type="number" id="med-mins" min="0" max="59" value="0" inputmode="numeric" aria-label="Minutes" />
+            <span class="unit">min</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit">Add Medication</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="med-list"></div>
+
+  <footer>
+    Reminders fire while this page is open in your browser.<br />
+    Add it to your home screen and keep the tab alive for the most reliable alerts.<br />
+    All data stays on this device.
+  </footer>
+</div>
+
+<!-- Edit dialog -->
+<dialog id="edit-dialog">
+  <form method="dialog" class="dialog-body" id="edit-form">
+    <strong style="font-size:1.05rem;">Edit Medication</strong>
+    <div class="field">
+      <label for="edit-name">Name</label>
+      <input type="text" id="edit-name" maxlength="60" required />
+    </div>
+    <div class="field">
+      <label for="edit-dose">Dose (optional)</label>
+      <input type="text" id="edit-dose" maxlength="40" />
+    </div>
+    <div class="field">
+      <label>Remind after</label>
+      <div class="interval-inputs">
+        <input type="number" id="edit-hours" min="0" max="72" inputmode="numeric" aria-label="Hours" />
+        <span class="unit">hr</span>
+        <input type="number" id="edit-mins" min="0" max="59" inputmode="numeric" aria-label="Minutes" />
+        <span class="unit">min</span>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="secondary" id="edit-cancel">Cancel</button>
+      <button type="submit" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "nextDose.meds.v1";
+  const HOUR = 3600000, MIN = 60000;
+
+  /** @type {{meds: Array<Med>}} */
+  let state = load();
+
+  // ---- Persistence -------------------------------------------------------
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { meds: [] };
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.meds)) return { meds: [] };
+      return parsed;
+    } catch (_) {
+      return { meds: [] };
+    }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // ---- Notifications -----------------------------------------------------
+  const notifySupported = "Notification" in window;
+
+  function permission() {
+    return notifySupported ? Notification.permission : "denied";
+  }
+
+  async function requestPermission() {
+    if (!notifySupported) return "denied";
+    if (Notification.permission === "granted") return "granted";
+    try {
+      const result = await Notification.requestPermission();
+      renderBanner();
+      return result;
+    } catch (_) {
+      return Notification.permission;
+    }
+  }
+
+  function fireNotification(med) {
+    const title = "Time for " + med.name;
+    const body = (med.dose ? med.dose + " — " : "") + "Your next dose is due now.";
+    if (notifySupported && Notification.permission === "granted") {
+      try {
+        const n = new Notification(title, {
+          body,
+          tag: "dose-" + med.id,
+          renotify: true,
+          requireInteraction: true,
+        });
+        n.onclick = function () { window.focus(); n.close(); };
+      } catch (_) { /* some browsers require a SW for notifications */ }
+    }
+    beep();
+    if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch (_) {} }
+    document.title = "⏰ " + med.name + " due — Next Dose";
+  }
+
+  // Short WebAudio chime so a reminder is noticeable even if the OS
+  // notification is missed. Best-effort; silently no-ops if unavailable.
+  let audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      [880, 1174].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        const t = now + i * 0.28;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.26);
+      });
+    } catch (_) {}
+  }
+
+  // ---- Medication operations --------------------------------------------
+  function addMed(name, dose, intervalMs) {
+    state.meds.push({
+      id: uid(),
+      name: name,
+      dose: dose || "",
+      intervalMs: intervalMs,
+      lastTakenAt: null,   // ms epoch of most recent dose, or null if never taken
+      notified: false,     // whether the "due" alert already fired for current dose
+    });
+    save();
+    render();
+  }
+
+  function takeDose(id, atMs) {
+    const med = state.meds.find((m) => m.id === id);
+    if (!med) return;
+    med.lastTakenAt = atMs != null ? atMs : Date.now();
+    med.notified = false;
+    save();
+    requestPermission();
+    render();
+  }
+
+  function snooze(id, ms) {
+    const med = state.meds.find((m) => m.id === id);
+    if (!med) return;
+    // Push the next-due time to now + ms by back-dating lastTakenAt.
+    med.lastTakenAt = Date.now() + ms - med.intervalMs;
+    med.notified = false;
+    save();
+    render();
+  }
+
+  function resetMed(id) {
+    const med = state.meds.find((m) => m.id === id);
+    if (!med) return;
+    med.lastTakenAt = null;
+    med.notified = false;
+    save();
+    render();
+  }
+
+  function deleteMed(id) {
+    state.meds = state.meds.filter((m) => m.id !== id);
+    save();
+    render();
+  }
+
+  // ---- Status + formatting ----------------------------------------------
+  function statusOf(med, now) {
+    if (med.lastTakenAt == null) return { kind: "ready" };
+    const due = med.lastTakenAt + med.intervalMs;
+    const remaining = due - now;
+    if (remaining > 0) return { kind: "waiting", due: due, remaining: remaining };
+    return { kind: "due", due: due, overdue: -remaining };
+  }
+
+  function fmtDuration(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const pad = (n) => String(n).padStart(2, "0");
+    if (h > 0) return h + ":" + pad(m) + ":" + pad(s);
+    return m + ":" + pad(s);
+  }
+
+  function fmtIntervalLabel(ms) {
+    const h = Math.floor(ms / HOUR);
+    const m = Math.round((ms % HOUR) / MIN);
+    const parts = [];
+    if (h) parts.push(h + " hr");
+    if (m) parts.push(m + " min");
+    return parts.join(" ") || "0 min";
+  }
+
+  function fmtClock(ms) {
+    return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  // ---- Rendering ---------------------------------------------------------
+  const listEl = document.getElementById("med-list");
+  const bannerEl = document.getElementById("permission-banner");
+
+  function renderBanner() {
+    if (!notifySupported) {
+      bannerEl.innerHTML =
+        '<div class="banner warn"><span class="dot denied"></span>' +
+        '<span class="grow">This browser can’t show notifications. You’ll still see live countdowns and hear a chime.</span></div>';
+      return;
+    }
+    const p = permission();
+    if (p === "granted") {
+      bannerEl.innerHTML =
+        '<div class="banner"><span class="dot granted"></span>' +
+        '<span class="grow">Reminders are on. Keep this tab open to get alerts.</span></div>';
+    } else if (p === "denied") {
+      bannerEl.innerHTML =
+        '<div class="banner warn"><span class="dot denied"></span>' +
+        '<span class="grow">Notifications are blocked. Enable them for this site in your browser settings to get dose alerts.</span></div>';
+    } else {
+      bannerEl.innerHTML =
+        '<div class="banner warn"><span class="dot default"></span>' +
+        '<span class="grow">Turn on notifications to be alerted when a dose is due.</span>' +
+        '<button class="small" id="enable-notif">Enable Reminders</button></div>';
+      const btn = document.getElementById("enable-notif");
+      if (btn) btn.addEventListener("click", requestPermission);
+    }
+  }
+
+  function render() {
+    renderBanner();
+    const now = Date.now();
+
+    if (state.meds.length === 0) {
+      listEl.innerHTML =
+        '<div class="empty"><div class="big">💊</div>' +
+        "<div>No medications yet.</div>" +
+        '<div style="font-size:.85rem;margin-top:4px;">Add one above to start tracking doses.</div></div>';
+      return;
+    }
+
+    // Sort: due first (most overdue first), then waiting (soonest first), then ready.
+    const order = state.meds.map((m) => ({ m, s: statusOf(m, now) }));
+    order.sort((a, b) => {
+      const rank = (s) => (s.kind === "due" ? 0 : s.kind === "waiting" ? 1 : 2);
+      if (rank(a.s) !== rank(b.s)) return rank(a.s) - rank(b.s);
+      if (a.s.kind === "due") return b.s.overdue - a.s.overdue;
+      if (a.s.kind === "waiting") return a.s.remaining - b.s.remaining;
+      return 0;
+    });
+
+    const sectionTitle = '<div class="section-title">Your Medications</div>';
+    listEl.innerHTML = sectionTitle + order.map(({ m, s }) => cardHtml(m, s, now)).join("");
+
+    // Wire buttons (event delegation would work too; explicit is clearer here).
+    order.forEach(({ m }) => {
+      wire(m.id, "take", () => takeDose(m.id));
+      wire(m.id, "snooze", () => snooze(m.id, 10 * MIN));
+      wire(m.id, "reset", () => resetMed(m.id));
+      wire(m.id, "edit", () => openEdit(m.id));
+      wire(m.id, "delete", () => {
+        if (confirm("Delete " + m.name + "?")) deleteMed(m.id);
+      });
+    });
+  }
+
+  function wire(id, action, fn) {
+    const el = document.querySelector('[data-act="' + action + '"][data-id="' + id + '"]');
+    if (el) el.addEventListener("click", fn);
+  }
+
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function cardHtml(med, s, now) {
+    const name = esc(med.name);
+    const sub = [med.dose ? esc(med.dose) : "", "every " + fmtIntervalLabel(med.intervalMs)]
+      .filter(Boolean).join(" · ");
+
+    let cls = "med card", statusBlock = "", actions = "";
+    const btn = (act, label, klass) =>
+      '<button class="' + (klass || "secondary small") + '" data-act="' + act + '" data-id="' + med.id + '">' + label + "</button>";
+    const menu =
+      '<div class="med-menu">' +
+      btn("edit", "Edit", "ghost small") +
+      btn("delete", "Delete", "ghost small danger") +
+      "</div>";
+
+    if (s.kind === "ready") {
+      cls += " is-ready";
+      statusBlock =
+        '<div class="status"><div class="status-label">Ready to take</div>' +
+        '<div class="countdown">Not taken yet</div>' +
+        '<div class="due-clock">Tap “Take now” to start the ' + fmtIntervalLabel(med.intervalMs) + " timer.</div></div>";
+      actions = btn("take", "Take Now", "grow");
+    } else if (s.kind === "waiting") {
+      cls += " is-waiting";
+      const pct = Math.max(0, Math.min(100, ((med.intervalMs - s.remaining) / med.intervalMs) * 100));
+      statusBlock =
+        '<div class="status"><div class="status-label">Next dose in</div>' +
+        '<div class="countdown" data-countdown="' + med.id + '">' + fmtDuration(s.remaining) + "</div>" +
+        '<div class="due-clock">Due at ' + fmtClock(s.due) + " · Last taken " + fmtClock(med.lastTakenAt) + "</div>" +
+        '<div class="progress"><span style="width:' + pct.toFixed(1) + '%"></span></div></div>';
+      actions = btn("take", "Take Again Now", "grow secondary") + btn("reset", "Reset", "ghost small");
+    } else {
+      cls += " is-due";
+      statusBlock =
+        '<div class="status"><div class="status-label" style="color:var(--due)">Dose due now</div>' +
+        '<div class="countdown">' + fmtDuration(s.overdue) + " overdue</div>" +
+        '<div class="due-clock">Was due at ' + fmtClock(s.due) + "</div></div>";
+      actions =
+        btn("take", "Take Now", "grow") +
+        btn("snooze", "Snooze 10m", "secondary small") +
+        btn("reset", "Reset", "ghost small");
+    }
+
+    return (
+      '<div class="' + cls + '" data-card="' + med.id + '">' +
+      '<div class="accent-bar"></div>' +
+      '<div class="med-head"><div><h3 class="med-name">' + name + "</h3>" +
+      (sub ? '<p class="med-sub">' + sub + "</p>" : "") + "</div>" + menu + "</div>" +
+      statusBlock +
+      '<div class="actions">' + actions + "</div></div>"
+    );
+  }
+
+  // ---- Tick loop ---------------------------------------------------------
+  // One shared 1s loop updates countdowns and fires "due" alerts exactly
+  // once per dose (guarded by med.notified). A full re-render only happens
+  // when a status transition occurs; otherwise we cheaply patch countdown
+  // text so the list doesn't rebuild every second.
+  let lastSignature = "";
+
+  function tick() {
+    const now = Date.now();
+    let changed = false;
+
+    for (const med of state.meds) {
+      if (med.lastTakenAt != null && !med.notified) {
+        if (now >= med.lastTakenAt + med.intervalMs) {
+          med.notified = true;
+          changed = true;
+          fireNotification(med);
+        }
+      }
+    }
+    if (changed) save();
+
+    // Signature captures which "bucket" each med is in; a change means a
+    // status transition that needs a structural re-render.
+    const sig = state.meds
+      .map((m) => m.id + ":" + statusOf(m, now).kind + ":" + (m.notified ? 1 : 0))
+      .join("|") + "#" + state.meds.length;
+
+    if (sig !== lastSignature) {
+      lastSignature = sig;
+      render();
+    } else {
+      patchCountdowns(now);
+    }
+  }
+
+  function patchCountdowns(now) {
+    for (const med of state.meds) {
+      const s = statusOf(med, now);
+      if (s.kind !== "waiting") continue;
+      const el = document.querySelector('[data-countdown="' + med.id + '"]');
+      if (el) el.textContent = fmtDuration(s.remaining);
+      const card = document.querySelector('[data-card="' + med.id + '"] .progress > span');
+      if (card) {
+        const pct = Math.max(0, Math.min(100, ((med.intervalMs - s.remaining) / med.intervalMs) * 100));
+        card.style.width = pct.toFixed(1) + "%";
+      }
+    }
+  }
+
+  // Reset the tab title once the user comes back after an alert.
+  function clearTitleFlag() {
+    if (document.visibilityState === "visible") document.title = "Next Dose — Medication Reminders";
+  }
+  document.addEventListener("visibilitychange", () => { clearTitleFlag(); tick(); });
+  window.addEventListener("focus", () => { clearTitleFlag(); tick(); });
+
+  // ---- Add form ----------------------------------------------------------
+  const addForm = document.getElementById("add-form");
+  addForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("med-name").value.trim();
+    const dose = document.getElementById("med-dose").value.trim();
+    const hours = parseInt(document.getElementById("med-hours").value, 10) || 0;
+    const mins = parseInt(document.getElementById("med-mins").value, 10) || 0;
+    const intervalMs = hours * HOUR + mins * MIN;
+    if (!name) return;
+    if (intervalMs <= 0) {
+      alert("Set a reminder interval of at least 1 minute.");
+      return;
+    }
+    addMed(name, dose, intervalMs);
+    requestPermission(); // ask on first meaningful action
+    addForm.reset();
+    document.getElementById("med-hours").value = String(hours);
+    document.getElementById("med-mins").value = String(mins);
+    document.getElementById("med-name").focus();
+  });
+
+  // ---- Edit dialog -------------------------------------------------------
+  const editDialog = document.getElementById("edit-dialog");
+  const editForm = document.getElementById("edit-form");
+  let editingId = null;
+
+  function openEdit(id) {
+    const med = state.meds.find((m) => m.id === id);
+    if (!med) return;
+    editingId = id;
+    document.getElementById("edit-name").value = med.name;
+    document.getElementById("edit-dose").value = med.dose;
+    document.getElementById("edit-hours").value = Math.floor(med.intervalMs / HOUR);
+    document.getElementById("edit-mins").value = Math.round((med.intervalMs % HOUR) / MIN);
+    if (typeof editDialog.showModal === "function") editDialog.showModal();
+  }
+
+  document.getElementById("edit-cancel").addEventListener("click", () => editDialog.close());
+  editForm.addEventListener("submit", (e) => {
+    const med = state.meds.find((m) => m.id === editingId);
+    if (!med) return;
+    const name = document.getElementById("edit-name").value.trim();
+    const dose = document.getElementById("edit-dose").value.trim();
+    const hours = parseInt(document.getElementById("edit-hours").value, 10) || 0;
+    const mins = parseInt(document.getElementById("edit-mins").value, 10) || 0;
+    const intervalMs = hours * HOUR + mins * MIN;
+    if (!name || intervalMs <= 0) {
+      e.preventDefault();
+      alert("Enter a name and an interval of at least 1 minute.");
+      return;
+    }
+    med.name = name;
+    med.dose = dose;
+    med.intervalMs = intervalMs;
+    if (med.lastTakenAt != null && Date.now() < med.lastTakenAt + med.intervalMs) {
+      med.notified = false; // interval changed; re-arm if next dose is now in the future
+    }
+    save();
+    lastSignature = ""; // force re-render
+    render();
+  });
+
+  // ---- Boot --------------------------------------------------------------
+  render();
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
