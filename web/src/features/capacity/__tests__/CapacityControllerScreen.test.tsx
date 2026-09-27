@@ -34,7 +34,12 @@ describe('CapacityControllerScreen', () => {
     fireEvent.click(within(chips).getByRole('button', { name: /^Done$/i }));
     expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
-    expect(within(log).getByText(/Expected over 15 min:/i)).toBeInTheDocument();
+    // The block being programmed shows its own grade and the six meters now → after, before logging.
+    const preview = within(log).getByLabelText(/Before you log it/i);
+    expect(within(preview).getByLabelText(/^Grade [A-F]$/)).toBeInTheDocument();
+    expect(preview).toHaveTextContent(/Before you log it · 15 min/);
+    expect(within(preview).getByLabelText(/^Energy \d\.\d\d now, \d\.\d\d after the block$/)).toBeInTheDocument();
+    expect(preview).toHaveTextContent(/Then:/);
 
     // Start arms the top graded block; Log Block integrates it.
     fireEvent.click(within(next).getAllByRole('button', { name: /^Start$/ })[0]);
@@ -47,6 +52,12 @@ describe('CapacityControllerScreen', () => {
     expect(within(log).getByRole('radiogroup', { name: /Intensity/i })).toBeInTheDocument();
     fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
     expect(within(next).getAllByLabelText(/^Grade [A-F]$/).length).toBeGreaterThanOrEqual(15);
+
+    // Programming a churn block drops the preview grade to F before anything is logged.
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    expect(within(within(log).getByLabelText(/Before you log it/i)).getByLabelText(/^Grade F$/)).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).history).toHaveLength(1);
 
     // Show math reveals symbols and the diagnostics line.
     fireEvent.click(screen.getByRole('button', { name: /Show math/i }));
@@ -113,7 +124,7 @@ describe('CapacityControllerScreen', () => {
     const log = screen.getByRole('region', { name: /Log block/i });
     fireEvent.click(within(log).getByRole('button', { name: /^Length:/i }));
     fireEvent.change(within(log).getByLabelText(/Custom duration in minutes/i), { target: { value: '37' } });
-    expect(within(log).getByText(/Expected over 37 min:/i)).toBeInTheDocument();
+    expect(within(log).getByLabelText(/Before you log it/i)).toHaveTextContent(/Before you log it · 37 min/);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.customMinutes).toBe(37);
     fireEvent.click(within(log).getByRole('button', { name: /^Done$/i }));
 

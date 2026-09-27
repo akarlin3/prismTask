@@ -1534,24 +1534,13 @@ function fitTable(r: Routing, d: Diagnostics, F: number): FitRow {
   }
 }
 
-/** Grade every catalog entry (and any user presets) against the current state; sorted best first. */
-export function gradeCatalog(
-  x: StateVector,
-  hoursAwake: number,
-  d: Diagnostics,
-  r: Routing,
-  k: Constants,
-  presets: readonly UserPreset[] = [],
-  blockLength?: number,
-): GradedBlock[] {
+/** Grade one catalog entry against the current state. */
+function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): GradedBlock {
   const F = compositeStrain(x);
   const fits = fitTable(r, d, F);
   const g = d.guardrails;
   const U0 = stateUtility(x, k);
-  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG].map((e) =>
-    blockLength && e.kind !== 'sleep' ? { ...e, minutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(blockLength))) } : e,
-  );
-  const out: GradedBlock[] = entries.map((entry) => {
+  {
     const caps: string[] = [];
     const fit = fits[entry.kind];
     if (entry.kind === 'sleep' || !entry.spec) {
@@ -1609,13 +1598,14 @@ export function gradeCatalog(
       cap = Math.min(cap, v);
       caps.push(why);
     };
-    if (stopKind === 'violation' && bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
+    // Specific reasons first; the generic boundary cap last so the plain reason leads with the cause.
     if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'input prohibited: I*(t) ≤ 0');
     if (I1 > 0 && g.backlogSaturated) capTo(15, `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
     if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
     if (I1 > 0 && result.mean.phiIn < 0) capTo(30, `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
     if (kind === 'rest' && g.underArousal) capTo(35, `under-arousal gate: A = ${x.A.toFixed(2)} with E = ${x.E.toFixed(2)} — rest rejected`);
     if (kind === 'execute' && d.singularityMode === 'somatic') capTo(10, 'terminal strain: F ≥ F_term');
+    if (stopKind === 'violation' && bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
     score = Math.min(score, cap);
     score = Math.round(Math.max(0, Math.min(100, score)));
     return {
@@ -1634,8 +1624,37 @@ export function gradeCatalog(
       delta: result.delta,
       deltaUtility: dU,
     };
-  });
-  return out.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+  }
+}
+
+/** Grade every catalog entry (and any user presets) against the current state; sorted best first. */
+export function gradeCatalog(
+  x: StateVector,
+  hoursAwake: number,
+  d: Diagnostics,
+  r: Routing,
+  k: Constants,
+  presets: readonly UserPreset[] = [],
+  blockLength?: number,
+): GradedBlock[] {
+  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG].map((e) =>
+    blockLength && e.kind !== 'sleep' ? { ...e, minutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(blockLength))) } : e,
+  );
+  return entries.map((entry) => gradeEntry(entry, x, hoursAwake, d, r, k)).sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+}
+
+/**
+ * Grade an arbitrary block (the one being programmed or described) exactly as a
+ * catalog entry would be, at its own length.
+ */
+export function gradeBlock(spec: BlockSpec, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, name = 'This block'): GradedBlock {
+  const { cadence: _cadence, customMinutes: _cm, ...base } = spec;
+  void _cadence;
+  void _cm;
+  const entry: CatalogEntry = { id: 'armed', name, kind: inferKind(spec), detail: 'The block you are about to log', minutes: blockMinutes(spec), spec: base };
+  const graded = gradeEntry(entry, x, hoursAwake, d, r, k);
+  // The armed block keeps its own length: the grade already reflects any boundary inside it.
+  return { ...graded, spec };
 }
 
 // ---------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import {
   gammaArousal,
   integrateBlock,
   blockMinutes,
+  gradeBlock,
   gradeCatalog,
   inferKind,
   letterGrade,
@@ -511,6 +512,35 @@ describe('flexibility: intensity, custom duration, presets', () => {
     const back = decodePersisted(JSON.stringify({ presets: [preset, { id: 'bad' }, { id: 'p2', name: '   ' }] }));
     expect(back.presets).toHaveLength(1);
     expect(back.presets[0].name).toBe('Bass practice');
+  });
+});
+
+describe('gradeBlock (the block being programmed)', () => {
+  it('grades an armed block exactly like the matching catalog entry at the same length', () => {
+    const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    const d = diagnose(x, 4, 0.9, k);
+    const r = route(x, d, k);
+    const list = gradeCatalog(x, 4, d, r, k, [], 15);
+    const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
+    const armed = gradeBlock({ ...sprint.spec!, cadence: 'm15' }, x, 4, d, r, k);
+    expect(armed.grade).toBe(sprint.grade);
+    expect(armed.score).toBe(sprint.score);
+    expect(armed.entry.kind).toBe('execute');
+    expect(armed.spec!.cadence).toBe('m15');
+    expect(armed.predicted).not.toBeNull();
+  });
+
+  it('reflects the block as programmed: churn grades F, a custom length keeps its own horizon', () => {
+    const x = state({ E: 0.7, B: 0.25 });
+    const d = diagnose(x, 4, 0.4, k);
+    const r = route(x, d, k);
+    const churn = gradeBlock(spec({ modality: 'reading', valuation: 'churn', cadence: 'm15' }), x, 4, d, r, k);
+    expect(churn.grade).toBe('F');
+    expect(churn.caps.length).toBeGreaterThan(0);
+    const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k);
+    expect(long.spec!.customMinutes).toBe(40);
+    expect(long.entry.minutes).toBe(40);
+    expect(long.boundMinutes).toBeLessThanOrEqual(40);
   });
 });
 

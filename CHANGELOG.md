@@ -35,7 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for the simple flow, and the Seven Pillars filter row (Objective
   Impartiality as a Kalman-blended calibration, Curiosity, Intellectual
   Deconstruction, Somatic Grounding, Creativity, Strength Through Hardship
-  as σ_strength drag attenuation, Radical Empathy).
+  as σ_strength drag attenuation, Radical Empathy), and a before-you-log
+  preview of the programmed block (its own A–F grade, reason, and all six
+  meters now → after).
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

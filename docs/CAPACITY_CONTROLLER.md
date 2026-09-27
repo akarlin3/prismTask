@@ -211,6 +211,15 @@ thing*, *Density*, *Pressure*, *Tangents*, *Novelty*, *Intensity*). Tapping a ch
 for that field alone; a changed chip reads *← you*, a described one shows the cue word, an
 assumed one is dimmed. *Open the full form* still shows every group at once.
 
+### Before you log it
+
+The block being programmed (armed from the list, described in words, or adjusted chip by chip)
+is graded exactly like a catalog entry at its own length (`gradeBlock`), and the log card shows
+that grade with its reason, the score, and all six meters as *now → after the block* (bar with the
+current fill, the change band, and a marker at the predicted value), followed by the routed
+headline the state would land on. In Advanced mode the predicted-Δx panel carries the same grade.
+Everything updates live before anything is logged.
+
 ### The Seven Pillars
 
 Every evaluation of a block runs through seven constitutional filters (`pillars.ts`,

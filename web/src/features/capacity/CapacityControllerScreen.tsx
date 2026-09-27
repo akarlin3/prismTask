@@ -59,6 +59,7 @@ import {
   defaultPersisted,
   diagnose,
   encodePersisted,
+  gradeBlock,
   gradeCatalog,
   integrateBlock,
   nextBacklogLatch,
@@ -1238,6 +1239,74 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
 }
 
 // ---------------------------------------------------------------------------
+// Before-you-log preview: grade + six meters now → after
+// ---------------------------------------------------------------------------
+
+function BlockPreview({ graded, x, minutes, thenHeadline, showMath, k }: { graded: GradedBlock; x: StateVector; minutes: number; thenHeadline: string; showMath: boolean; k: Constants }) {
+  const after = graded.predicted ?? x;
+  return (
+    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2.5" aria-label="Before you log it">
+      <div className="flex items-start gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border font-mono text-xl font-bold ${GRADE_TONE[graded.grade]}`} aria-label={`Grade ${graded.grade}`}>
+          {graded.grade}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Before you log it · {minutes} min</span>
+            <span className="font-mono text-[10.5px] text-zinc-500">score {graded.score}</span>
+          </div>
+          <p className="mt-0.5 text-[12.5px] leading-snug text-zinc-200">{plainReason(graded, x)}</p>
+          {showMath && (
+            <p className="mt-0.5 font-mono text-[10px] text-zinc-500">
+              fit {graded.fit} · outcome {graded.outcome} · horizon {graded.horizon} · stop: {graded.stopReason}
+              {graded.deltaUtility !== null ? ` · ΔU ${fmtSigned(graded.deltaUtility, 3)}` : ''}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-6" aria-label="Effect on the meters">
+        {SERIES.map((sm) => {
+          const pl = PLAIN_BY_KEY[sm.key];
+          const before = x[sm.key];
+          const next = after[sm.key];
+          const delta = next - before;
+          const tone = deltaTone(sm.key, delta, before, k);
+          const Arrow = Math.abs(delta) < 0.005 ? Minus : delta > 0 ? ArrowUpRight : ArrowDownRight;
+          const lo = Math.min(before, next);
+          const hi = Math.max(before, next);
+          return (
+            <div key={sm.key} className="rounded-md border border-zinc-800 bg-zinc-900/50 px-2 py-1.5" title={pl.meaning}>
+              <div className="flex items-baseline justify-between gap-1">
+                <span className="truncate text-[10.5px] font-medium text-zinc-400">
+                  {pl.name}
+                  {showMath && <span className={`ml-1 font-mono ${sm.text}`}>{sm.symbol}</span>}
+                </span>
+                <span className={`inline-flex items-center gap-0.5 font-mono text-[10px] ${tone}`}>
+                  <Arrow className="h-3 w-3" aria-hidden="true" />
+                  {fmtSigned(delta)}
+                </span>
+              </div>
+              <div className="mt-0.5 font-mono text-[12px] text-zinc-100">
+                {fmt(before)} <span className="text-zinc-500">→</span> {fmt(next)}
+              </div>
+              <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800" role="img" aria-label={`${pl.name} ${fmt(before)} now, ${fmt(next)} after the block`}>
+                <div className={`absolute inset-y-0 left-0 rounded-full ${sm.bg} opacity-40`} style={{ width: `${(before * 100).toFixed(1)}%` }} />
+                <div className={`absolute inset-y-0 ${sm.bg}`} style={{ left: `${(lo * 100).toFixed(1)}%`, width: `${Math.max(1.5, (hi - lo) * 100).toFixed(1)}%` }} />
+                <div className="absolute inset-y-0 w-0.5 bg-zinc-50" style={{ left: `calc(${(next * 100).toFixed(1)}% - 1px)` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 text-[12px] text-zinc-300">
+        <span className="text-zinc-500">Then: </span>
+        {thenHeadline}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Seven pillars row
 // ---------------------------------------------------------------------------
 
@@ -1342,6 +1411,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength), [x, hoursAwake, diag, routing, k, presets, blockLength]);
   const plainQ = plainQuadrant(routing);
   const plainR = plainRegime(diag);
+  const armedGrade = useMemo(() => gradeBlock(spec, x, hoursAwake, diag, routing, k), [spec, x, hoursAwake, diag, routing, k]);
   const pillars = useMemo(
     () => evaluatePillars(spec, x, diag, k, { relational: described?.result.relational, relationalCue: described?.result.relationalCue, predicted: preview.x }),
     [spec, x, diag, k, described, preview.x],
@@ -1561,7 +1631,12 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           <PillarRow verdicts={pillars} showMath />
           <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Predicted Δx over {dt} m</span>
+              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                Predicted Δx over {dt} m
+                <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] normal-case tracking-normal ${GRADE_TONE[armedGrade.grade]}`} aria-label={`Grade ${armedGrade.grade}`}>
+                  grade {armedGrade.grade} · {armedGrade.score}
+                </span>
+              </span>
               <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${QUADRANT_TONE[previewRouting.quadrant]}`}>→ {previewRouting.quadrant}</span>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1967,23 +2042,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             <div className="mt-3 grid gap-3">
               {showFullForm && <div className="grid gap-4">{auditFormGroups(true)}</div>}
               <PillarRow verdicts={pillars} showMath={showMath} />
-              <div className="rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-[12px] text-zinc-300">
-                <span className="text-zinc-500">Expected over {dt} min: </span>
-                {joinEffects(plainEffect(x, preview.x))}
-                <span className="text-zinc-500"> → then: </span>
-                {plainQuadrant(previewRouting).headline}
-                {showMath && (
-                  <div className="mt-1 flex flex-wrap gap-1.5 font-mono text-[10.5px]">
-                    {STATE_KEYS.map((key) => (
-                      <span key={key} className="inline-flex items-center gap-1 rounded border border-zinc-800 px-1.5 py-0.5">
-                        <span className={SERIES_BY_KEY[key].text}>{SERIES_BY_KEY[key].symbol}</span>
-                        <span className={deltaTone(key, preview.delta[key], x[key], k)}>{fmtSigned(preview.delta[key], 3)}</span>
-                      </span>
-                    ))}
-                    <span className={`rounded border px-1.5 py-0.5 ${QUADRANT_TONE[previewRouting.quadrant]}`}>→ {previewRouting.quadrant}</span>
-                  </div>
-                )}
-              </div>
+              <BlockPreview graded={armedGrade} x={x} minutes={dt} thenHeadline={`${plainQuadrant(previewRouting).headline} — ${joinEffects(plainEffect(x, preview.x))}`} showMath={showMath} k={k} />
               {!valuation.admissible && !zeroVector && (
                 <p className="flex items-start gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[11.5px] text-rose-200">
                   <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
