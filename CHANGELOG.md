@@ -16,7 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   anchor, valuation, density, context, scratchpad discipline, somatic marker),
   quadrant-routed prescriptions with simulated hard time boundaries, a
   10-block trajectory chart, block log, manual override / constants / sleep
-  reset modals, and `localStorage` persistence. Engine + screen tests under
+  reset modals, and `localStorage` persistence. The v2 spec adds the
+  associative branching multiplier `(1 + γ_assoc)` on backlog accrual, the
+  `ξ_novelty` arousal term, the optical cutoff / backlog-saturation /
+  under-arousal-vs-depletion / terminal-strain guardrails, the revised
+  routing matrix with its parameter ranges, a per-block *State Vector
+  Update* report (with Markdown copy) and a single trailing operational
+  prompt. Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.
 

@@ -19,15 +19,22 @@ describe('CapacityControllerScreen', () => {
     expect(screen.getByRole('button', { name: /Integrate Discrete Flux/i })).toBeInTheDocument();
   });
 
-  it('integrates a block, advances the counter, logs it and persists to localStorage', () => {
+  it('integrates a block, advances the counter, logs it, reports the transition and persists to localStorage', () => {
     render(<CapacityControllerScreen />);
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
+    expect(within(form).getByRole('radiogroup', { name: /Novelty/i })).toBeInTheDocument();
+    expect(within(form).getByRole('radio', { name: /Unbuffered Speculative Intake/i })).toBeInTheDocument();
     fireEvent.click(within(form).getByRole('radio', { name: /Zero-Vector/i }));
     fireEvent.click(within(form).getByRole('radio', { name: /^25m/i }));
     fireEvent.click(screen.getByRole('button', { name: /Integrate Discrete Flux/i }));
 
     expect(screen.getByText(/block k1 · t_awake 0\.4 h/i)).toBeInTheDocument();
     expect(screen.getByText(/Block Log · 1 entries/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/State vector update/i)).toHaveTextContent(/block k1 · Δt 25 m/i);
+    expect(screen.getByRole('button', { name: /Copy Report/i })).toBeInTheDocument();
+    // Exactly one trailing operational prompt.
+    expect(screen.getAllByLabelText(/Operational prompt/i)).toHaveLength(1);
+    expect(screen.getByLabelText(/Operational prompt/i)).toHaveTextContent(/Lock in «|Terminate the session/);
 
     const persisted = decodePersisted(localStorage.getItem(STORAGE_KEY));
     expect(persisted.blockIndex).toBe(1);
@@ -69,6 +76,26 @@ describe('CapacityControllerScreen', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('Zero-Input Flush')).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).x.B).toBeCloseTo(0.9, 6);
+  });
+
+  it('surfaces guardrail violations for the armed block', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        x: { E: 0.7, B: 0.7, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.8 },
+        hoursAwake: 3,
+        blockIndex: 2,
+        history: [],
+        spec: { modality: 'reading', cadence: 'm25' },
+      }),
+    );
+    render(<CapacityControllerScreen />);
+    const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
+    expect(within(form).getByText(/Optical cutoff: F_vis = 0\.65 ≥ 0\.60 forces I_vis = 0/i)).toBeInTheDocument();
+    expect(within(form).getByText(/Backlog saturated \(B = 0\.70, lock at 0\.65\)/i)).toBeInTheDocument();
+    // Routed to I-B: backlog jammed with reserves available.
+    expect(screen.getByText('Expressive Digestion')).toBeInTheDocument();
   });
 
   it('flags the burnout singularity late in the circadian phase', () => {

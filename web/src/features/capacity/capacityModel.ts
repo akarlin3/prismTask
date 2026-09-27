@@ -30,6 +30,18 @@
  *     collapses to zero during a zero-vector block.
  *   • σ_load (postural cost of output) and κ_A / κ_V (relaxation gains) are
  *     not given by the spec; defaults are documented in DEFAULT_CONSTANTS.
+ *
+ * Extended specification (v2):
+ *   • A_inst gains an additive novelty term ξ_novelty (high-entropy,
+ *     cross-domain stimulation) so under-arousal can be distinguished from
+ *     depletion.
+ *   • Backlog accrual carries the associative branching multiplier
+ *     (1 + γ_assoc); γ_assoc ∈ [0.5, 1.0] during unbuffered speculative
+ *     intake and 0 once tangents are tokenized to a scratchpad.
+ *   • Guardrails: optical cutoff (F_vis ≥ 0.60 ⇒ I_vis = 0), backlog
+ *     saturation lock (B ≥ 0.65 ⇒ I₁ = 0 until an output block digests it),
+ *     the depletion-vs-under-arousal gate on A < 0.35, and a terminal sleep
+ *     reset at F ≥ 0.80.
  */
 
 export type StateKey = 'E' | 'B' | 'Fvis' | 'Fbody' | 'A' | 'V';
@@ -71,6 +83,10 @@ export interface BlockInputs {
   theta: ContextVector;
   Vtarget: number;
   omegaSwitch: number;
+  /** Associative branching factor γ_assoc on backlog accrual. */
+  gammaAssoc: number;
+  /** Novelty stimulation ξ_novelty added to A_inst. */
+  xiNovelty: number;
   somatic: SomaticFlags;
 }
 
@@ -104,6 +120,12 @@ export interface Constants {
   tauPsiHours: number;
   lateHours: number;
   Vmin: number;
+  // — High-capacity guardrails (§4) —
+  FvisCutoff: number;
+  BsatLock: number;
+  AunderArousal: number;
+  Fterminal: number;
+  absorbCapFraction: number;
 }
 
 export const DEFAULT_CONSTANTS: Constants = Object.freeze({
@@ -133,13 +155,18 @@ export const DEFAULT_CONSTANTS: Constants = Object.freeze({
   tauPsiHours: 4,
   lateHours: 16,
   Vmin: 0.25,
+  FvisCutoff: 0.6,
+  BsatLock: 0.65,
+  AunderArousal: 0.35,
+  Fterminal: 0.8,
+  absorbCapFraction: 0.7,
 });
 
 export interface ConstantMeta {
   key: keyof Constants;
   symbol: string;
   label: string;
-  group: 'spec' | 'closure';
+  group: 'spec' | 'closure' | 'guardrail';
   min: number;
   max: number;
   step: number;
@@ -172,6 +199,11 @@ export const CONSTANT_META: readonly ConstantMeta[] = [
   { key: 'tauPsiHours', symbol: 'τ_ψ', label: 'Drag e-folding time (h)', group: 'closure', min: 0.5, max: 24, step: 0.5 },
   { key: 'lateHours', symbol: 't_late', label: 'Late-phase threshold (h awake)', group: 'closure', min: 8, max: 30, step: 0.5 },
   { key: 'Vmin', symbol: 'V_min', label: 'Admissibility floor', group: 'closure', min: 0.01, max: 0.9, step: 0.01 },
+  { key: 'FvisCutoff', symbol: 'F_vis^cut', label: 'Optical cutoff (force I_vis = 0)', group: 'guardrail', min: 0.2, max: 1, step: 0.01 },
+  { key: 'BsatLock', symbol: 'B_sat', label: 'Backlog saturation (lock I₁ = 0)', group: 'guardrail', min: 0.2, max: 1, step: 0.01 },
+  { key: 'AunderArousal', symbol: 'A_under', label: 'Under-arousal gate on A', group: 'guardrail', min: 0.05, max: 0.5, step: 0.01 },
+  { key: 'Fterminal', symbol: 'F_term', label: 'Terminal sleep reset on F', group: 'guardrail', min: 0.5, max: 1, step: 0.01 },
+  { key: 'absorbCapFraction', symbol: 'c_II', label: 'Quadrant II cap fraction of I*', group: 'guardrail', min: 0.1, max: 1, step: 0.05 },
 ];
 
 export const DEFAULT_STATE: StateVector = Object.freeze({
@@ -193,7 +225,8 @@ export type AnchorKey = 'none' | 'brown' | 'music' | 'fidget' | 'treadmill';
 export type ValuationKey = 'churn' | 'utility' | 'art' | 'architecture';
 export type DensityKey = 'null' | 'fiction' | 'analysis' | 'manuals' | 'proofs';
 export type ContextKey = 'agency' | 'soft' | 'sprint' | 'scrutiny';
-export type ScratchpadKey = 'single' | 'tokenized' | 'rabbit';
+export type ScratchpadKey = 'single' | 'tokenized' | 'speculative' | 'rabbit';
+export type NoveltyKey = 'monotonous' | 'routine' | 'novel';
 export type SomaticKey = 'supine' | 'seated' | 'ocular' | 'slump';
 
 export interface BlockSpec {
@@ -204,6 +237,7 @@ export interface BlockSpec {
   density: DensityKey;
   context: ContextKey;
   scratchpad: ScratchpadKey;
+  novelty: NoveltyKey;
   somatic: SomaticKey;
 }
 
@@ -236,8 +270,8 @@ export const ANCHORS: readonly (Option<AnchorKey> & { Ianchor: number; Oanchor: 
   { key: 'none', label: 'None / Silence', detail: 'No secondary channel', params: 'I_a=0 O_a=0', Ianchor: 0, Oanchor: 0, kinetic: false },
   { key: 'brown', label: 'Ambient Brown Noise', detail: 'Broadband masking', params: 'I_a=0.30', Ianchor: 0.3, Oanchor: 0, kinetic: false },
   { key: 'music', label: 'Familiar Lyrical Music', detail: 'On repeat, C_in,2 ≤ 0.15', params: 'I_a=0.55', Ianchor: 0.55, Oanchor: 0, kinetic: false },
-  { key: 'fidget', label: 'Tactile Fidget', detail: 'Hand-scale kinetic', params: 'O_a=0.25', Ianchor: 0, Oanchor: 0.25, kinetic: false },
-  { key: 'treadmill', label: 'Walking Treadmill', detail: 'Pacing, kinetic deload', params: 'O_a=0.55', Ianchor: 0, Oanchor: 0.55, kinetic: true },
+  { key: 'fidget', label: 'Tactile Fidget', detail: 'Hand-scale kinetic', params: 'O_a=0.20', Ianchor: 0, Oanchor: 0.2, kinetic: false },
+  { key: 'treadmill', label: 'Walking Treadmill', detail: '2.5–2.8 mph, kinetic deload', params: 'O_a=0.35', Ianchor: 0, Oanchor: 0.35, kinetic: true },
 ];
 
 export const VALUATIONS: readonly (Option<ValuationKey> & { V: number; admissible: boolean })[] = [
@@ -262,10 +296,17 @@ export const CONTEXTS: readonly (Option<ContextKey> & { P: number; S: number })[
   { key: 'scrutiny', label: 'External Scrutiny', detail: 'Evaluation threat', params: 'P=0.90 S=0.25', P: 0.9, S: 0.25 },
 ];
 
-export const SCRATCHPADS: readonly (Option<ScratchpadKey> & { omega: number })[] = [
-  { key: 'single', label: 'Single Thread Flow', detail: 'No tangents surfaced', params: 'Ω=0', omega: 0 },
-  { key: 'tokenized', label: 'Tokenized To Scratchpad', detail: 'Tangent written, then dropped', params: 'Ω=0', omega: 0 },
-  { key: 'rabbit', label: 'Unbuffered Rabbit Hole', detail: 'Divergent context switch', params: 'Ω=0.25', omega: 0.25 },
+export const SCRATCHPADS: readonly (Option<ScratchpadKey> & { omega: number; gammaAssoc: number })[] = [
+  { key: 'single', label: 'Single Thread Flow', detail: 'No tangents surfaced', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
+  { key: 'tokenized', label: 'Tokenized To Scratchpad', detail: 'Tangent written, then dropped', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
+  { key: 'speculative', label: 'Unbuffered Speculative Intake', detail: 'Sub-threads spawned, not externalized', params: 'γ_a=0.5 Ω=0', omega: 0, gammaAssoc: 0.5 },
+  { key: 'rabbit', label: 'Unbuffered Rabbit Hole', detail: 'Divergent context switch', params: 'γ_a=1.0 Ω=0.25', omega: 0.25, gammaAssoc: 1 },
+];
+
+export const NOVELTIES: readonly (Option<NoveltyKey> & { xi: number })[] = [
+  { key: 'monotonous', label: 'Monotonous', detail: 'Low-entropy, repetitive', params: 'ξ=0.00', xi: 0 },
+  { key: 'routine', label: 'Routine', detail: 'Familiar domain', params: 'ξ=0.05', xi: 0.05 },
+  { key: 'novel', label: 'Novel Cross-Domain', detail: 'High-entropy associative stimulation', params: 'ξ=0.15', xi: 0.15 },
 ];
 
 export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
@@ -320,13 +361,14 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
 ];
 
 export const DEFAULT_SPEC: BlockSpec = Object.freeze({
-  cadence: 'm45',
+  cadence: 'm25',
   modality: 'execution',
   anchor: 'music',
   valuation: 'architecture',
   density: 'proofs',
   context: 'agency',
   scratchpad: 'tokenized',
+  novelty: 'routine',
   somatic: 'seated',
 });
 
@@ -348,6 +390,7 @@ export function resolveSpec(spec: BlockSpec): BlockInputs {
   const density = find(DENSITIES, spec.density);
   const context = find(CONTEXTS, spec.context);
   const scratch = find(SCRATCHPADS, spec.scratchpad);
+  const novelty = find(NOVELTIES, spec.novelty);
   const somatic = find(SOMATICS, spec.somatic);
   const kinetic = anchor.kinetic;
   return {
@@ -361,6 +404,8 @@ export function resolveSpec(spec: BlockSpec): BlockInputs {
     theta: { Cin: density.Cin, P: context.P, S: context.S },
     Vtarget: valuation.V,
     omegaSwitch: scratch.omega,
+    gammaAssoc: scratch.gammaAssoc,
+    xiNovelty: novelty.xi,
     somatic: {
       // A walking anchor is incompatible with a static seat: the kinetic
       // indicator wins and the seated indicator is released.
@@ -407,10 +452,10 @@ export function gammaArousal(A: number, k: Constants): number {
   return Math.exp(-(d * d) / (2 * k.sigmaA * k.sigmaA));
 }
 
-/** A_inst(u) = 0.45 I_1 + 0.25 I_anchor + 0.40 O_1 + 0.15 O_anchor. */
-export function arousalPotential(u: ControlVector): number {
+/** A_inst(u) = 0.45 I_1 + 0.25 I_anchor + 0.40 O_1 + 0.15 O_anchor + ξ_novelty. */
+export function arousalPotential(u: ControlVector, xiNovelty = 0): number {
   const I1 = clamp01(u.Ivis + u.Iaud);
-  return clamp01(0.45 * I1 + 0.25 * u.Ianchor + 0.4 * u.O1 + 0.15 * u.Oanchor);
+  return clamp01(0.45 * I1 + 0.25 * u.Ianchor + 0.4 * u.O1 + 0.15 * u.Oanchor + xiNovelty);
 }
 
 export interface Derivatives {
@@ -426,6 +471,12 @@ export interface Derivatives {
   gamma: number;
   Ainst: number;
   I1: number;
+  /** Backlog accrual κ (C_in/V) I₁ (1 + γ_assoc) + Ω_switch. */
+  accrual: number;
+  /** Backlog clearance λB. */
+  decay: number;
+  /** Backlog digestion μ V S (1−P) O₁. */
+  digestion: number;
   /** Numerator of I*(t) with the live Γ. */
   numerator: number;
   /** Numerator of I*(t) evaluated at Γ = 1 (best achievable arousal). */
@@ -457,11 +508,10 @@ export function derivatives(x: StateVector, b: BlockInputs, psi: number, k: Cons
 
   const dE = phiIn + yieldOut * (1 - x.E) - costOut + rest - k.cBasal - psi * u.O1;
 
-  const dB =
-    k.kappa * (theta.Cin / Vsafe) * I1 +
-    b.omegaSwitch -
-    k.lambda * x.B -
-    k.mu * x.V * theta.S * (1 - theta.P) * u.O1;
+  const accrual = k.kappa * (theta.Cin / Vsafe) * I1 * (1 + b.gammaAssoc) + b.omegaSwitch;
+  const decay = k.lambda * x.B;
+  const digestion = k.mu * x.V * theta.S * (1 - theta.P) * u.O1;
+  const dB = accrual - decay - digestion;
 
   const IvisEff = Math.max(u.Ivis, somatic.ocularFloor);
   const dFvis = k.gammaVis * somatic.ocularGain * IvisEff - k.rhoVis * (1 - IvisEff);
@@ -471,7 +521,7 @@ export function derivatives(x: StateVector, b: BlockInputs, psi: number, k: Cons
     k.sigmaLoad * load2 -
     k.rhoBody * (somatic.kineticOrSupported ? 1 : 0);
 
-  const Ainst = arousalPotential(u);
+  const Ainst = arousalPotential(u, b.xiNovelty);
   const dA = k.kappaA * (Math.max(Ainst, k.Arest) - x.A);
 
   const active = I1 + u.O1 > 0;
@@ -481,7 +531,7 @@ export function derivatives(x: StateVector, b: BlockInputs, psi: number, k: Cons
   const numeratorOpt = k.alphaIn * x.V * (1 - x.E) - k.deltaIn * x.B - psi;
   const Istar = numerator / (k.betaIn * Math.max(theta.Cin, 0.01));
 
-  return { dE, dB, dFvis, dFbody, dA, dV, phiIn, phiOut, rest, gamma, Ainst, I1, numerator, numeratorOpt, Istar, psi };
+  return { dE, dB, dFvis, dFbody, dA, dV, phiIn, phiOut, rest, gamma, Ainst, I1, accrual, decay, digestion, numerator, numeratorOpt, Istar, psi };
 }
 
 /** I*(t) for a prospective intake of density C_in from state x. */
@@ -509,6 +559,9 @@ export interface BlockResult {
     gamma: number;
     Istar: number;
     psi: number;
+    accrual: number;
+    decay: number;
+    digestion: number;
   };
   /** Per-minute trajectory (x at each substep boundary, including x₀). */
   trace: StateVector[];
@@ -531,7 +584,7 @@ export function integrateBlock(
   let x = clampState(x0);
   let hoursAwake = hoursAwake0;
   const trace: StateVector[] = [x];
-  const acc = { dE: 0, dB: 0, dFvis: 0, dFbody: 0, dA: 0, dV: 0, phiIn: 0, phiOut: 0, rest: 0, gamma: 0, Istar: 0, psi: 0 };
+  const acc = { dE: 0, dB: 0, dFvis: 0, dFbody: 0, dA: 0, dV: 0, phiIn: 0, phiOut: 0, rest: 0, gamma: 0, Istar: 0, psi: 0, accrual: 0, decay: 0, digestion: 0 };
   for (let i = 0; i < steps; i += 1) {
     const psi = circadianDrag(hoursAwake, k);
     const d = derivatives(x, b, psi, k);
@@ -547,6 +600,9 @@ export function integrateBlock(
     acc.gamma += d.gamma;
     acc.Istar += d.Istar;
     acc.psi += d.psi;
+    acc.accrual += d.accrual;
+    acc.decay += d.decay;
+    acc.digestion += d.digestion;
     x = clampState({
       E: x.E + h * d.dE,
       B: x.B + h * d.dB,
@@ -572,6 +628,9 @@ export function integrateBlock(
     gamma: acc.gamma / n,
     Istar: acc.Istar / n,
     psi: acc.psi / n,
+    accrual: acc.accrual / n,
+    decay: acc.decay / n,
+    digestion: acc.digestion / n,
   };
   const delta: StateVector = {
     E: x.E - x0.E,
@@ -582,6 +641,18 @@ export function integrateBlock(
     V: x.V - x0.V,
   };
   return { x, hoursAwake, delta, mean, trace };
+}
+
+/**
+ * Backlog saturation latch (§4): set once B ≥ B_sat, released by an output
+ * block (O₁ > 0 with I₁ = 0 — expressive digestion or execution) or once the
+ * backlog has objectively cleared below 0.40.
+ */
+export function nextBacklogLatch(latch: boolean, xAfter: StateVector, b: BlockInputs | null, k: Constants): boolean {
+  if (xAfter.B >= k.BsatLock) return true;
+  if (xAfter.B < 0.4) return false;
+  if (b && b.u.O1 > 0 && b.u.Ivis + b.u.Iaud === 0) return false;
+  return latch;
 }
 
 /** Biological sleep reset applied to the state vector. */
@@ -618,11 +689,25 @@ export interface Diagnostics {
   hoursAwake: number;
   latePhase: boolean;
   regime: InputRegime;
-  /** Late-phase singularities mandate sleep; structural ones mandate zero-input rest first. */
-  singularityMode: 'late' | 'structural' | null;
+  /** Late-phase and somatic singularities mandate sleep; structural ones mandate zero-input rest first. */
+  singularityMode: 'late' | 'structural' | 'somatic' | null;
+  guardrails: Guardrails;
 }
 
-export function diagnose(x: StateVector, hoursAwake: number, plannedCin: number, k: Constants): Diagnostics {
+export interface Guardrails {
+  /** F_vis ≥ F_vis^cut ⇒ force I_vis = 0. */
+  opticalCutoff: boolean;
+  /** B ≥ B_sat (or latched since) ⇒ prohibit I₁ > 0 until an output block digests it. */
+  backlogSaturated: boolean;
+  /** E ≥ 0.50 ∧ A < A_under ⇒ reject rest; ramp arousal. */
+  underArousal: boolean;
+  /** E < 0.40 ∧ A < A_under ⇒ true depletion; supine sensory isolation. */
+  trueDepletion: boolean;
+  /** F ≥ F_term ⇒ terminal sleep reset. */
+  terminalSomatic: boolean;
+}
+
+export function diagnose(x: StateVector, hoursAwake: number, plannedCin: number, k: Constants, backlogLatch = false): Diagnostics {
   const psi = circadianDrag(hoursAwake, k);
   const gamma = gammaArousal(x.A, k);
   const numerator = k.alphaIn * x.V * (1 - x.E) * gamma - k.deltaIn * x.B - psi;
@@ -631,11 +716,22 @@ export function diagnose(x: StateVector, hoursAwake: number, plannedCin: number,
   const IstarFiction = numerator / (k.betaIn * 0.2);
   const IstarFictionOpt = numeratorOpt / (k.betaIn * 0.2);
   const latePhase = hoursAwake >= k.lateHours;
+  const F = compositeStrain(x);
+  const guardrails: Guardrails = {
+    opticalCutoff: x.Fvis >= k.FvisCutoff,
+    backlogSaturated: x.B >= k.BsatLock || backlogLatch,
+    underArousal: x.E >= 0.5 && x.A < k.AunderArousal,
+    trueDepletion: x.E < 0.4 && x.A < k.AunderArousal,
+    terminalSomatic: F >= k.Fterminal,
+  };
   let regime: InputRegime = 'nominal';
   let singularityMode: Diagnostics['singularityMode'] = null;
   if (latePhase) {
     regime = 'singularity';
     singularityMode = 'late';
+  } else if (guardrails.terminalSomatic) {
+    regime = 'singularity';
+    singularityMode = 'somatic';
   } else if (numeratorOpt <= 0 && x.E < 0.5) {
     regime = 'singularity';
     singularityMode = 'structural';
@@ -644,7 +740,7 @@ export function diagnose(x: StateVector, hoursAwake: number, plannedCin: number,
   return {
     psi,
     gamma,
-    F: compositeStrain(x),
+    F,
     numerator,
     numeratorOpt,
     Istar,
@@ -654,6 +750,7 @@ export function diagnose(x: StateVector, hoursAwake: number, plannedCin: number,
     latePhase,
     regime,
     singularityMode,
+    guardrails,
   };
 }
 
@@ -677,6 +774,11 @@ export function route(x: StateVector, d: Diagnostics, k: Constants): Routing {
   if (F >= 0.5) flags.push(`F = ${f2(F)} ≥ 0.50 — somatic constraint: keep the block kinetic or supported, zero ocular accommodation.`);
   if (d.regime === 'arousal-limited')
     flags.push(`Γ = ${f2(d.gamma)} — arousal off tone (A = ${f2(x.A)}, A* = ${f2(k.Astar)}). Intake is depleting until A is ramped; lead with a kinetic or music anchor.`);
+  if (d.guardrails.opticalCutoff) flags.push(`Optical cutoff: F_vis = ${f2(x.Fvis)} ≥ ${f2(k.FvisCutoff)} — I_vis forced to 0 (audio narrative or darkness only).`);
+  if (d.guardrails.backlogSaturated)
+    flags.push(`Backlog saturated: B = ${f2(x.B)} (lock at ${f2(k.BsatLock)}) — I₁ > 0 prohibited until an expressive digestion block runs.`);
+  if (d.guardrails.underArousal)
+    flags.push(`Under-arousal gate: E = ${f2(x.E)} ≥ 0.50 with A = ${f2(x.A)} < ${f2(k.AunderArousal)} — low felt energy is dopamine friction, not depletion. Reject rest; prescribe a sensory anchor, kinetic movement, or novel cross-domain stimulation.`);
   if (d.regime === 'saturated' && x.B < 0.6)
     flags.push(`I* ≤ 0 at E = ${f2(x.E)} — reserves cannot absorb more input; route to output.`);
   if (x.V < k.Vmin) flags.push(`V = ${f2(x.V)} < V_min = ${f2(k.Vmin)} — recent intake was inadmissible churn; restore substantive depth before dense input.`);
@@ -690,6 +792,16 @@ export function route(x: StateVector, d: Diagnostics, k: Constants): Routing {
       trigger: `t_awake = ${d.hoursAwake.toFixed(1)} h ≥ t_late = ${k.lateHours} h · ψ(t) = ${f2(d.psi)}`,
       summary:
         'Late-phase circadian threshold tripped: passive rest can no longer lift E above E_cap = 1 − ψ(t). Prohibit input (I = 0), terminate the session, and transition to biological sleep. Do not negotiate one more block.',
+      flags,
+    };
+  }
+  if (d.singularityMode === 'somatic') {
+    return {
+      quadrant: 'SINGULARITY',
+      title: 'Terminal Sleep Reset',
+      trigger: `F = max(F_vis, F_body) = ${f2(d.F)} ≥ F_term = ${f2(k.Fterminal)}`,
+      summary:
+        'Composite somatic strain has crossed the terminal threshold; hyper-focus masking has likely hidden the accumulation. Full shutdown: I = 0, O = 0, then biological sleep to reset [E → 1.0, B → 0.0, F → 0.0].',
       flags,
     };
   }
@@ -710,6 +822,16 @@ export function route(x: StateVector, d: Diagnostics, k: Constants): Routing {
       trigger: `B = ${f2(x.B)} ≥ 0.60 ∧ E = ${f2(x.E)} ≥ 0.40`,
       summary:
         'Backlog is jammed but reserves can drive the −μ V S (1−P) O₁ digestion term. Low-stakes journaling, instrument improv, analog scratchpad synthesis at P ≤ 0.1, S_agency = 1.0.',
+      flags,
+    };
+  }
+  if (d.guardrails.trueDepletion) {
+    return {
+      quadrant: 'I-A',
+      title: 'Zero-Input Flush · True Depletion',
+      trigger: `E = ${f2(x.E)} < 0.40 ∧ A = ${f2(x.A)} < ${f2(k.AunderArousal)}`,
+      summary:
+        'Low arousal with depleted reserves is biological depletion, not under-arousal. Enforce supine sensory isolation: I = 0, O = 0, P = 0, eye mask, no anchors. Re-audit at 15–25 m.',
       flags,
     };
   }
@@ -738,8 +860,7 @@ export function route(x: StateVector, d: Diagnostics, k: Constants): Routing {
       quadrant: 'II',
       title: 'Controlled Absorption',
       trigger: `E = ${f2(x.E)} < 0.50 ∧ I*(C_in = 0.20) = ${f2(d.regime === 'arousal-limited' ? d.IstarFictionOpt : d.IstarFiction)} > 0`,
-      summary:
-        'Reserves are low but restorative intake exists. Narrative fiction or an audiobook with eyes closed, intensity capped strictly below I*(t). Stop the moment Φ_in turns negative.',
+      summary: `Reserves are low but restorative intake exists. Substantive literature or an audio narrative with eye mask, intensity capped at I₁ ≤ ${f2(k.absorbCapFraction)}·I*(t), C_in ≤ 0.30, V ≥ 0.85. Stop the moment Φ_in turns negative.`,
       flags,
     };
   }
@@ -882,16 +1003,18 @@ const STOP_RULES: Record<Exclude<ConfigKind, 'sleep'>, { text: string; check: St
   },
 };
 
-function withCadence(spec: Omit<BlockSpec, 'cadence'>, minutes: number): BlockSpec {
+type SpecBase = Omit<BlockSpec, 'cadence' | 'novelty'> & { novelty?: NoveltyKey };
+
+function withCadence(spec: SpecBase, minutes: number): BlockSpec {
   const cadence = CADENCES.find((c) => c.minutes === minutes)?.key ?? 'm15';
-  return { ...spec, cadence };
+  return { novelty: 'routine', ...spec, cadence };
 }
 
 function buildPrescription(
   kind: Exclude<ConfigKind, 'sleep'>,
   name: string,
   rationale: string,
-  base: Omit<BlockSpec, 'cadence'>,
+  base: SpecBase,
   x: StateVector,
   hoursAwake: number,
   k: Constants,
@@ -922,19 +1045,48 @@ function buildPrescription(
   };
 }
 
+const REST_BASE: SpecBase = { modality: 'zero', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' };
+
 export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): Prescription[] {
   const F = compositeStrain(x);
   const out: Prescription[] = [];
-  const push = (
-    kind: Exclude<ConfigKind, 'sleep'>,
-    name: string,
-    rationale: string,
-    base: Omit<BlockSpec, 'cadence'>,
-    preferredMax = 90,
-  ) => out.push(buildPrescription(kind, name, rationale, base, x, hoursAwake, k, preferredMax));
+  const g = d.guardrails;
+  const push = (kind: Exclude<ConfigKind, 'sleep'>, name: string, rationale: string, base: SpecBase, preferredMax = 90) => {
+    const m = MODALITIES.find((o) => o.key === base.modality)!;
+    // Guardrails: the optical cutoff forbids any visual intake, the backlog
+    // lock forbids any intake at all. Candidates that violate them are dropped.
+    if (g.opticalCutoff && m.Ivis > 0) return;
+    if (g.backlogSaturated && m.Ivis + m.Iaud > 0) return;
+    out.push(buildPrescription(kind, name, rationale, base, x, hoursAwake, k, preferredMax));
+  };
+  const arousalRamp = () =>
+    push(
+      'express',
+      'Arousal ramp: free-write over familiar music, novel domain',
+      `A = ${x.A.toFixed(2)} < ${k.AunderArousal.toFixed(2)} with E = ${x.E.toFixed(2)}: under-arousal, not depletion. Expressive output plus the music anchor and cross-domain novelty lift A_inst to ≈ ${arousalPotential(resolveSpec(withCadence({ modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' }, 15)).u, 0.15).toFixed(2)} before the main block.`,
+      { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' },
+      15,
+    );
 
   switch (r.quadrant) {
     case 'SINGULARITY': {
+      if (d.singularityMode === 'somatic') {
+        push('somatic', 'Shutdown bridge: supine, dark, zero input', 'I = 0, O = 0. Spinal deload and closed eyes while the session is terminated; this is the bridge to sleep, not a recovery block.', REST_BASE, 15);
+        out.push({
+          kind: 'sleep',
+          name: 'Terminal sleep reset',
+          rationale: `F = ${F.toFixed(2)} ≥ ${k.Fterminal.toFixed(2)}. Somatic afferents were masked by output immersion; only a full sleep reset clears F and B together.`,
+          spec: null,
+          sleepHours: 7.5,
+          boundMinutes: 0,
+          stopRule: 'Session terminated. Log the sleep reset on waking; the next audit starts at t_awake = 0.',
+          horizonMinutes: 0,
+          predicted: applySleepReset(x, 7.5),
+          predictedDelta: null,
+          admissible: true,
+        });
+        break;
+      }
       if (d.singularityMode === 'structural') {
         push(
           'rest',
@@ -980,16 +1132,16 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
       push(
         'rest',
         'Sensory isolation: dark room, eye mask',
-        'I = 0, O = 0. Backlog decays at λB with no new accrual; passive recovery runs at the supine gain.',
-        { modality: 'zero', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' },
-        45,
+        'I = 0, O = 0, P = 0. Backlog decays at λB with no new accrual; passive recovery runs at the supine gain. Micro-cadence: re-audit at 15–25 m.',
+        REST_BASE,
+        25,
       );
       push(
         'rest',
         'Zero-input flush under brown noise',
         'Broadband masking suppresses intrusive intake without adding cognitive density (C_in,2 ≤ 0.15).',
-        { modality: 'zero', anchor: 'brown', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' },
-        45,
+        { ...REST_BASE, anchor: 'brown' },
+        25,
       );
       if (F >= 0.4)
         push(
@@ -1002,6 +1154,7 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
       break;
     }
     case 'I-B': {
+      if (g.underArousal) arousalRamp();
       push(
         'express',
         'Analog scratchpad synthesis, familiar music',
@@ -1040,32 +1193,33 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
         { modality: 'zero', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' },
         25,
       );
-      if (d.IstarFiction > 0.35 && x.E < 0.7)
+      if (d.IstarFiction * k.absorbCapFraction > 0.35 && x.E < 0.7)
         push(
           'absorb',
           'Audiobook on the treadmill',
-          `Auditory narrative (I_aud = 0.35) is under the fiction cap I* = ${d.IstarFiction.toFixed(2)}; the walk keeps F_body falling.`,
+          `Auditory narrative (I_aud = 0.35) is under ${k.absorbCapFraction.toFixed(1)}·I* = ${(d.IstarFiction * k.absorbCapFraction).toFixed(2)}; the walk keeps F_body falling.`,
           { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' },
           45,
         );
       break;
     }
     case 'II': {
-      const cap = d.regime === 'arousal-limited' ? d.IstarFictionOpt : d.IstarFiction;
+      const Istar = d.regime === 'arousal-limited' ? d.IstarFictionOpt : d.IstarFiction;
+      const cap = Istar * k.absorbCapFraction;
       if (cap > 0.35)
         push(
           'absorb',
-          'Audiobook, eyes closed, supine',
-          `I_aud = 0.35 < I*(C_in = 0.20) = ${cap.toFixed(2)}. Fiction density keeps the β_in C_in I₁² cost minimal.`,
+          'Audio narrative, eye mask, supine',
+          `I_aud = 0.35 ≤ ${k.absorbCapFraction.toFixed(1)}·I*(C_in = 0.20) = ${cap.toFixed(2)}. I_vis = 0 dissipates ocular strain while fiction density keeps the β_in C_in I₁² cost minimal.`,
           { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' },
-          60,
+          45,
         );
       if (cap > 0.5 && x.Fvis < 0.4)
         push(
           'absorb',
-          'Narrative fiction on the page',
-          `I_vis = 0.50 < I* = ${cap.toFixed(2)} and F_vis = ${x.Fvis.toFixed(2)} leaves ocular headroom.`,
-          { modality: 'reading', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' },
+          'Substantive literature on the page, familiar music',
+          `I_vis = 0.50 ≤ ${k.absorbCapFraction.toFixed(1)}·I* = ${cap.toFixed(2)} and F_vis = ${x.Fvis.toFixed(2)} leaves ocular headroom; the music anchor holds A near tone.`,
+          { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' },
           45,
         );
       if (d.regime === 'arousal-limited' || out.length === 0)
@@ -1077,27 +1231,22 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
           25,
         );
       if (out.length < 2)
-        push(
-          'rest',
-          'Zero-vector rest, supine',
-          'Fallback when no intake vector clears the cap: passive recovery only.',
-          { modality: 'zero', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' },
-          45,
-        );
+        push('rest', 'Zero-vector rest, supine', 'Fallback when no intake vector clears the cap: passive recovery only.', REST_BASE, 25);
       break;
     }
     case 'IV': {
+      if (g.underArousal) arousalRamp();
       push(
         'execute',
-        'Core generative sprint, familiar music',
-        'O₁ = 0.80 with I_anchor = 0.55 puts A_inst at 0.46 ≈ A*. Deep-architecture valuation, code/proof density.',
+        'Core generative sprint, familiar music loop',
+        'O₁ = 0.80, I₁ = 0, I_anchor = 0.55 puts A_inst at ≈ 0.51 ≈ A*. Deep-architecture valuation, code/proof density, every tangent tokenized. Somatic afferents are masked above O₁ = 0.80: the boundary is enforced by the integrated F, not by felt strain.',
         { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' },
         90,
       );
       push(
         'execute',
         'Walking-desk execution',
-        'Same output vector on the treadmill: trades a little arousal (A_inst = 0.40) for a falling F_body.',
+        'Same output vector on the treadmill: trades some arousal (A_inst ≈ 0.42) for a falling F_body.',
         { modality: 'execution', anchor: 'treadmill', valuation: 'architecture', density: 'proofs', context: 'soft', scratchpad: 'tokenized', somatic: 'supine' },
         60,
       );
@@ -1112,6 +1261,7 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
       break;
     }
     case 'IV-B': {
+      if (g.underArousal) arousalRamp();
       push(
         'execute',
         'Buffered execution sprint',
@@ -1131,6 +1281,15 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
     default:
       break;
   }
+  if (out.length < 2 && !out.some((p) => p.kind === 'express') && !g.trueDepletion && x.E >= 0.4)
+    push(
+      'express',
+      'Expressive digestion, silence',
+      'Fallback under the intake lock: output digests backlog while nothing new is ingested.',
+      { modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' },
+      25,
+    );
+  if (out.length < 2) push('rest', 'Zero-vector rest, supine', 'Fallback: passive recovery only.', REST_BASE, 25);
   return out.slice(0, 3);
 }
 
@@ -1157,6 +1316,8 @@ export interface PersistedState {
   version: 1;
   x: StateVector;
   hoursAwake: number;
+  /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
+  backlogLatch: boolean;
   blockIndex: number;
   history: HistoryEntry[];
   constants: Constants;
@@ -1172,6 +1333,7 @@ export function defaultPersisted(): PersistedState {
     version: 1,
     x: { ...DEFAULT_STATE },
     hoursAwake: 0,
+    backlogLatch: false,
     blockIndex: 0,
     history: [],
     constants: { ...DEFAULT_CONSTANTS },
@@ -1207,7 +1369,7 @@ function sanitizeConstants(raw: unknown): Constants {
   return out;
 }
 
-const SPEC_KEYS: readonly (keyof BlockSpec)[] = ['cadence', 'modality', 'anchor', 'valuation', 'density', 'context', 'scratchpad', 'somatic'];
+const SPEC_KEYS: readonly (keyof BlockSpec)[] = ['cadence', 'modality', 'anchor', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'somatic'];
 const SPEC_CATALOG: Record<keyof BlockSpec, readonly Option<string>[]> = {
   cadence: CADENCES,
   modality: MODALITIES,
@@ -1216,6 +1378,7 @@ const SPEC_CATALOG: Record<keyof BlockSpec, readonly Option<string>[]> = {
   density: DENSITIES,
   context: CONTEXTS,
   scratchpad: SCRATCHPADS,
+  novelty: NOVELTIES,
   somatic: SOMATICS,
 };
 
@@ -1259,6 +1422,7 @@ export function decodePersisted(json: string | null): PersistedState {
     version: 1,
     x,
     hoursAwake,
+    backlogLatch: r.backlogLatch === true,
     blockIndex,
     history,
     constants: sanitizeConstants(r.constants),

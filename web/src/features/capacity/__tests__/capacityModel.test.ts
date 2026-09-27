@@ -17,6 +17,7 @@ import {
   encodePersisted,
   gammaArousal,
   integrateBlock,
+  nextBacklogLatch,
   prescribe,
   resolveSpec,
   route,
@@ -138,13 +139,27 @@ describe('integration', () => {
     expect(churn.x.V).toBeLessThan(art.x.V);
   });
 
-  it('an unbuffered rabbit hole adds Ω_switch·Δt of backlog versus a tokenized tangent', () => {
-    const x0 = state({ E: 0.6, B: 0.2 });
-    const tokenized = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'dense', scratchpad: 'tokenized' })), 60, k);
-    const rabbit = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'dense', scratchpad: 'rabbit' })), 60, k);
-    // The extra accrual is 0.25/h minus its own λ-decay over the hour.
-    expect(rabbit.x.B - tokenized.x.B).toBeGreaterThan(0.2);
-    expect(rabbit.x.B - tokenized.x.B).toBeLessThanOrEqual(0.25);
+  it('unbuffered intake branches backlog through (1 + γ_assoc), and a rabbit hole adds Ω_switch on top', () => {
+    const x0 = state({ E: 0.6, B: 0.2, V: 1 });
+    const run = (scratchpad: BlockSpec['scratchpad']) => integrateBlock(x0, 4, resolveSpec(spec({ modality: 'dense', density: 'proofs', scratchpad })), 60, k);
+    const tokenized = run('tokenized');
+    const speculative = run('speculative');
+    const rabbit = run('rabbit');
+    expect(tokenized.mean.accrual).toBeCloseTo(0.35 * 0.9 * 0.85, 1);
+    expect(speculative.mean.accrual).toBeGreaterThan(tokenized.mean.accrual * 1.4);
+    expect(rabbit.mean.accrual).toBeGreaterThan(speculative.mean.accrual + 0.2);
+    expect(rabbit.x.B).toBeGreaterThan(speculative.x.B);
+    expect(speculative.x.B).toBeGreaterThan(tokenized.x.B);
+    // The report decomposition is exact: dB = accrual − decay − digestion.
+    expect(rabbit.mean.dB).toBeCloseTo(rabbit.mean.accrual - rabbit.mean.decay - rabbit.mean.digestion, 10);
+  });
+
+  it('novel cross-domain stimulation lifts arousal through ξ_novelty', () => {
+    const x0 = state({ A: 0.2 });
+    const flat = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'expressive', anchor: 'none', novelty: 'monotonous' })), 25, k);
+    const novel = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'expressive', anchor: 'none', novelty: 'novel' })), 25, k);
+    expect(arousalPotential(resolveSpec(spec({ modality: 'expressive', anchor: 'none' })).u, 0.15)).toBeCloseTo(0.4 * 0.35 + 0.15, 10);
+    expect(novel.x.A).toBeGreaterThan(flat.x.A + 0.05);
   });
 
   it('somatic markers modulate F_body: slump > seated > treadmill', () => {
@@ -211,6 +226,35 @@ describe('diagnostics and routing', () => {
     expect(route(x, d, k).quadrant).toBe('II');
   });
 
+  it('raises the high-capacity guardrails from the state vector', () => {
+    const optical = diagnose(state({ Fvis: 0.65 }), 4, 0.4, k);
+    expect(optical.guardrails.opticalCutoff).toBe(true);
+    const saturated = diagnose(state({ B: 0.7, E: 0.8 }), 4, 0.4, k);
+    expect(saturated.guardrails.backlogSaturated).toBe(true);
+    expect(diagnose(state({ B: 0.5 }), 4, 0.4, k, true).guardrails.backlogSaturated).toBe(true);
+    const under = diagnose(state({ E: 0.7, A: 0.2 }), 4, 0.4, k);
+    expect(under.guardrails.underArousal).toBe(true);
+    expect(under.guardrails.trueDepletion).toBe(false);
+    const depleted = diagnose(state({ E: 0.3, A: 0.2, B: 0.2, V: 0.9 }), 4, 0.4, k);
+    expect(depleted.guardrails.trueDepletion).toBe(true);
+    expect(route(state({ E: 0.3, A: 0.2, B: 0.2, V: 0.9 }), depleted, k).quadrant).toBe('I-A');
+    const terminal = diagnose(state({ Fbody: 0.85, E: 0.8 }), 4, 0.4, k);
+    expect(terminal.regime).toBe('singularity');
+    expect(terminal.singularityMode).toBe('somatic');
+    expect(route(state({ Fbody: 0.85, E: 0.8 }), terminal, k).title).toBe('Terminal Sleep Reset');
+  });
+
+  it('latches the backlog lock until an output block digests it or B clears', () => {
+    const rest = resolveSpec(spec({ modality: 'zero' }));
+    const express = resolveSpec(spec({ modality: 'expressive' }));
+    const intake = resolveSpec(spec({ modality: 'reading' }));
+    expect(nextBacklogLatch(false, state({ B: 0.7 }), intake, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), rest, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), intake, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), express, k)).toBe(false);
+    expect(nextBacklogLatch(true, state({ B: 0.3 }), rest, k)).toBe(false);
+  });
+
   it('routes each quadrant from its trigger predicate', () => {
     const cases: Array<[Partial<StateVector>, string]> = [
       [{ E: 0.3, B: 0.7, A: 0.5, V: 0.8 }, 'I-A'],
@@ -267,6 +311,45 @@ describe('prescription engine', () => {
     });
   });
 
+  it('never prescribes intake under the backlog lock or visual intake under the optical cutoff', () => {
+    const locked = state({ E: 0.45, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const dl = diagnose(locked, 4, 0.2, k, true);
+    const rl = route(locked, dl, k);
+    expect(rl.quadrant).toBe('II');
+    const pl = prescribe(locked, 4, dl, rl, k);
+    expect(pl.length).toBeGreaterThanOrEqual(2);
+    for (const p of pl) if (p.spec) expect(resolveSpec(p.spec).u.Ivis + resolveSpec(p.spec).u.Iaud).toBe(0);
+
+    const blurred = state({ E: 0.45, B: 0.2, Fvis: 0.62, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const db = diagnose(blurred, 4, 0.2, k);
+    const rb = route(blurred, db, k);
+    expect(rb.quadrant).toBe('III');
+    const pb = prescribe(blurred, 4, db, rb, k);
+    expect(pb.length).toBeGreaterThanOrEqual(2);
+    for (const p of pb) if (p.spec) expect(resolveSpec(p.spec).u.Ivis).toBe(0);
+  });
+
+  it('caps Quadrant II intake at c_II · I*(t) and leads with an arousal ramp when under-aroused', () => {
+    // num = 0.85·0.85·0.55 − 0.4·0.59 − 0.1 = 0.0614 → I*(0.20) = 0.68 → 0.7·I* = 0.48:
+    // audio (0.35) admissible, page reading (0.50) not.
+    const x = state({ E: 0.45, B: 0.59, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 });
+    const d = diagnose(x, 4, 0.2, k);
+    const cap = d.IstarFiction * k.absorbCapFraction;
+    expect(cap).toBeGreaterThan(0.35);
+    expect(cap).toBeLessThan(0.5);
+    const ps = prescribe(x, 4, d, route(x, d, k), k);
+    expect(ps.some((p) => p.spec?.modality === 'auditory')).toBe(true);
+    expect(ps.some((p) => p.spec?.modality === 'reading')).toBe(false);
+
+    const under = state({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.2, V: 0.9 });
+    const du = diagnose(under, 4, 0.9, k);
+    expect(du.guardrails.underArousal).toBe(true);
+    const pu = prescribe(under, 4, du, route(under, du, k), k);
+    expect(pu[0].name).toMatch(/Arousal ramp/);
+    expect(pu[0].spec?.novelty).toBe('novel');
+    expect(pu.some((p) => p.kind === 'rest')).toBe(false);
+  });
+
   it('caps the execution horizon before somatic strain crosses the gate', () => {
     const x = state({ E: 0.9, B: 0.1, Fvis: 0.1, Fbody: 0.45, A: 0.5, V: 1 });
     const d = diagnose(x, 4, 0.9, k);
@@ -295,10 +378,12 @@ describe('persistence codec', () => {
   it('falls back to defaults on corrupt or hostile payloads', () => {
     expect(decodePersisted(null)).toEqual(defaultPersisted());
     expect(decodePersisted('{not json')).toEqual(defaultPersisted());
-    const hostile = JSON.stringify({ x: { E: 7, B: -1, Fvis: 'x', Fbody: 0, A: 0, V: 0 }, spec: { modality: 'evil' }, constants: { alphaIn: 99 } });
+    const hostile = JSON.stringify({ x: { E: 7, B: -1, Fvis: 'x', Fbody: 0, A: 0, V: 0 }, spec: { modality: 'evil', novelty: 'weird' }, constants: { alphaIn: 99 }, backlogLatch: 'yes' });
     const d = decodePersisted(hostile);
     expect(d.x).toEqual(DEFAULT_STATE);
     expect(d.spec.modality).toBe(DEFAULT_SPEC.modality);
+    expect(d.spec.novelty).toBe('routine');
     expect(d.constants.alphaIn).toBe(2);
+    expect(d.backlogLatch).toBe(false);
   });
 });

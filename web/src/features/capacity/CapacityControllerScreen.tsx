@@ -16,6 +16,7 @@ import {
   PenLine,
   Play,
   Settings2,
+  Sigma,
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
@@ -33,12 +34,14 @@ import {
   DENSITIES,
   HISTORY_LIMIT,
   MODALITIES,
+  NOVELTIES,
   SCRATCHPADS,
   SOMATICS,
   STATE_KEYS,
   STORAGE_KEY,
   VALUATIONS,
   applySleepReset,
+  arousalPotential,
   cadenceMinutes,
   compositeStrain,
   decodePersisted,
@@ -46,6 +49,7 @@ import {
   diagnose,
   encodePersisted,
   integrateBlock,
+  nextBacklogLatch,
   prescribe,
   resolveSpec,
   route,
@@ -141,8 +145,49 @@ function describeSpec(spec: BlockSpec): string {
   const d = DENSITIES.find((o) => o.key === spec.density)!;
   const c = CONTEXTS.find((o) => o.key === spec.context)!;
   const s = SCRATCHPADS.find((o) => o.key === spec.scratchpad)!;
+  const n = NOVELTIES.find((o) => o.key === spec.novelty)!;
   const so = SOMATICS.find((o) => o.key === spec.somatic)!;
-  return `T₁ ${m.label} · T₂ ${a.label} · V ${v.V.toFixed(2)} · C_in ${d.Cin.toFixed(2)} · P ${c.P.toFixed(2)} S ${c.S.toFixed(2)} · Ω ${s.omega.toFixed(2)} · ${so.label}`;
+  return `T₁ ${m.label} · T₂ ${a.label} · V ${v.V.toFixed(2)} · C_in ${d.Cin.toFixed(2)} · P ${c.P.toFixed(2)} S ${c.S.toFixed(2)} · γ_a ${s.gammaAssoc.toFixed(1)} Ω ${s.omega.toFixed(2)} · ξ ${n.xi.toFixed(2)} · ${so.label}`;
+}
+
+/** Step-2 / Step-3 report in the copilot's Markdown protocol, for pasting into a chat thread. */
+function buildMarkdownReport(entry: HistoryEntry, diag: Diagnostics, routing: Routing, prescriptions: Prescription[], k: Constants): string {
+  const m = entry.mean;
+  const line = (key: StateKey, note: string) => `- **${SERIES_BY_KEY[key].label} (${SERIES_BY_KEY[key].symbol}):** \`${fmt(entry.xBefore[key], 3)}\` → \`${fmt(entry.xAfter[key], 3)}\` (${note})`;
+  const guards = Object.entries(diag.guardrails)
+    .filter(([, v]) => v)
+    .map(([g]) => g);
+  const lines = [
+    `## State Vector Update · block k${entry.k} · Δt = ${entry.dtMinutes} m`,
+    entry.spec ? `Telemetry: ${describeSpec(entry.spec)}` : '',
+    '',
+    line('E', m ? `ΔE ${fmtSigned(m.dE, 3)} / h · Φ_in ${fmtSigned(m.phiIn, 3)} · Φ_out ${fmtSigned(m.phiOut, 3)}` : 'calibration'),
+    line('B', m ? `associative load +${fmt(m.accrual, 3)} / h vs digested −${fmt(m.digestion, 3)} / h, decay −${fmt(m.decay, 3)} / h` : 'calibration'),
+    line('Fvis', m ? `${fmtSigned(m.dFvis, 3)} / h` : 'calibration'),
+    line('Fbody', m ? `${fmtSigned(m.dFbody, 3)} / h` : 'calibration'),
+    line('A', m ? `Γ_arousal efficiency ${fmt(m.gamma, 3)}` : 'calibration'),
+    line('V', m ? `${fmtSigned(m.dV, 3)} / h` : 'calibration'),
+    '',
+    `**Diagnostics:** I*(t) = ${fmt(diag.Istar)} · Γ = ${fmt(diag.gamma, 3)} · ψ(t) = ${fmt(diag.psi, 3)} · regime **${diag.regime}**${diag.singularityMode ? ` (${diag.singularityMode})` : ''} · guardrails: ${guards.length ? guards.join(', ') : 'none'}`,
+    '',
+    `## Prescription · ${routing.quadrant} ${routing.title}`,
+    `Trigger: ${routing.trigger}`,
+    '',
+    ...prescriptions.map((p, i) => `${i + 1}. **${p.name}** — ${p.kind === 'sleep' ? `${p.sleepHours ?? 7.5} h sleep` : `hard boundary ${p.boundMinutes} m`}. ${p.spec ? describeSpec(p.spec) + '. ' : ''}${p.stopRule}`),
+    '',
+    prescriptions[0]
+      ? prescriptions[0].kind === 'sleep'
+        ? `Terminate the session and log the ${prescriptions[0].sleepHours ?? 7.5} h sleep reset on waking?`
+        : `Lock in «${prescriptions[0].name}» with the boundary at ${prescriptions[0].boundMinutes} m?`
+      : '',
+  ];
+  void k;
+  return lines.filter((l, i, arr) => !(l === '' && arr[i - 1] === '')).join('\n');
+}
+
+function lastDeltaEntry(history: HistoryEntry[]): HistoryEntry | null {
+  const last = history.length ? history[history.length - 1] : null;
+  return last && last.kind === 'block' ? last : null;
 }
 
 function loadPersisted(): PersistedState {
@@ -281,7 +326,9 @@ function RegimeBadge({ regime, Istar, mode }: { regime: InputRegime; Istar: numb
         <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
         <div>
           <div className="text-[11px] font-bold uppercase tracking-[0.16em]">Burnout Singularity</div>
-          <div className="font-mono text-[10.5px]">{mode === 'late' ? 'I*(t) ≤ 0 · terminate session · sleep reset' : 'I*(t) ≤ 0 · prohibit input · zero-input rest'}</div>
+          <div className="font-mono text-[10.5px]">
+            {mode === 'late' ? 'I*(t) ≤ 0 · terminate session · sleep reset' : mode === 'somatic' ? 'F ≥ F_term · terminal sleep reset' : 'I*(t) ≤ 0 · prohibit input · zero-input rest'}
+          </div>
         </div>
       </div>
     );
@@ -713,7 +760,7 @@ function OverrideModal({
 // ---------------------------------------------------------------------------
 
 function ConstantsModal({ constants, onChange, onReset, onClose }: { constants: Constants; onChange: (c: Constants) => void; onReset: () => void; onClose: () => void }) {
-  const group = (g: 'spec' | 'closure') => CONSTANT_META.filter((m) => m.group === g);
+  const group = (g: 'spec' | 'closure' | 'guardrail') => CONSTANT_META.filter((m) => m.group === g);
   const field = (m: (typeof CONSTANT_META)[number]) => (
     <label key={m.key} className="grid grid-cols-[4.5rem_1fr_5rem] items-center gap-2 text-[11px]">
       <span className="font-mono text-zinc-200">{m.symbol}</span>
@@ -759,6 +806,8 @@ function ConstantsModal({ constants, onChange, onReset, onClose }: { constants: 
             Φ_out = Y_out − K_out reported exactly as specified.
           </p>
           {group('closure').map(field)}
+          <h4 className="mt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">High-capacity guardrails (§4)</h4>
+          {group('guardrail').map(field)}
         </div>
       </div>
     </Panel>
@@ -878,7 +927,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [logOpen, setLogOpen] = useState(true);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch } = store;
 
   useEffect(() => {
     try {
@@ -896,11 +945,15 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const inputs = useMemo(() => resolveSpec(spec), [spec]);
   const dt = cadenceMinutes(spec.cadence);
-  const diag: Diagnostics = useMemo(() => diagnose(x, hoursAwake, inputs.theta.Cin, k), [x, hoursAwake, inputs.theta.Cin, k]);
+  const diag: Diagnostics = useMemo(() => diagnose(x, hoursAwake, inputs.theta.Cin, k, backlogLatch), [x, hoursAwake, inputs.theta.Cin, k, backlogLatch]);
   const routing = useMemo(() => route(x, diag, k), [x, diag, k]);
   const prescriptions = useMemo(() => prescribe(x, hoursAwake, diag, routing, k), [x, hoursAwake, diag, routing, k]);
   const preview = useMemo(() => integrateBlock(x, hoursAwake, inputs, dt, k), [x, hoursAwake, inputs, dt, k]);
-  const previewRouting = useMemo(() => route(preview.x, diagnose(preview.x, preview.hoursAwake, inputs.theta.Cin, k), k), [preview, inputs.theta.Cin, k]);
+  const previewRouting = useMemo(
+    () => route(preview.x, diagnose(preview.x, preview.hoursAwake, inputs.theta.Cin, k, nextBacklogLatch(backlogLatch, preview.x, inputs, k)), k),
+    [preview, inputs, k, backlogLatch],
+  );
+  const report = useMemo(() => (lastDeltaEntry(history) ? buildMarkdownReport(lastDeltaEntry(history)!, diag, routing, prescriptions, k) : null), [history, diag, routing, prescriptions, k]);
 
   const lastBlock = useMemo(() => [...history].reverse().find((h) => h.kind === 'block') ?? null, [history]);
   const lastEntry = history.length ? history[history.length - 1] : null;
@@ -919,7 +972,11 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const valuation = VALUATIONS.find((o) => o.key === spec.valuation)!;
   const zeroVector = spec.modality === 'zero';
   const armedI1 = inputs.u.Ivis + inputs.u.Iaud;
-  const inputProhibited = diag.regime === 'singularity' && armedI1 > 0;
+  const inputProhibited = diag.regime === 'singularity' && diag.singularityMode !== 'somatic' && armedI1 > 0;
+  const opticalViolation = diag.guardrails.opticalCutoff && inputs.u.Ivis > 0;
+  const backlogViolation = diag.guardrails.backlogSaturated && armedI1 > 0;
+  const maskingActive = inputs.u.O1 >= 0.8;
+  const topPrescription = prescriptions[0] ?? null;
 
   const update = (patch: Partial<PersistedState>) => setStore((s) => ({ ...s, ...patch, updatedAt: new Date().toISOString() }));
   const setSpec = (patch: Partial<BlockSpec>) => update({ spec: { ...spec, ...patch } });
@@ -930,7 +987,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const integrate = () => {
     const result = integrateBlock(x, hoursAwake, inputs, dt, k);
     const nextIndex = blockIndex + 1;
-    const q = route(result.x, diagnose(result.x, result.hoursAwake, inputs.theta.Cin, k), k).quadrant;
+    const latch = nextBacklogLatch(backlogLatch, result.x, inputs, k);
+    const q = route(result.x, diagnose(result.x, result.hoursAwake, inputs.theta.Cin, k, latch), k).quadrant;
     pushHistory(
       {
         k: nextIndex,
@@ -945,7 +1003,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
         mean: result.mean,
         quadrant: q,
       },
-      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex },
+      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex, backlogLatch: latch },
     );
     setNotice(`Block k${nextIndex} integrated (Δt = ${dt} m) → ${q}`);
   };
@@ -955,6 +1013,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     update({
       x: lastEntry.xBefore,
       hoursAwake: lastEntry.hoursAwakeBefore,
+      backlogLatch: nextBacklogLatch(false, lastEntry.xBefore, null, k),
       blockIndex: lastEntry.kind === 'block' ? Math.max(0, blockIndex - 1) : blockIndex,
       history: history.slice(0, -1),
     });
@@ -963,8 +1022,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const applyOverride = (nx: StateVector, nh: number) => {
     pushHistory(
-      { k: blockIndex, at: new Date().toISOString(), kind: 'override', dtMinutes: 0, spec: null, xBefore: x, xAfter: nx, hoursAwakeBefore: hoursAwake, hoursAwakeAfter: nh, mean: null, quadrant: route(nx, diagnose(nx, nh, inputs.theta.Cin, k), k).quadrant },
-      { x: nx, hoursAwake: nh },
+      { k: blockIndex, at: new Date().toISOString(), kind: 'override', dtMinutes: 0, spec: null, xBefore: x, xAfter: nx, hoursAwakeBefore: hoursAwake, hoursAwakeAfter: nh, mean: null, quadrant: route(nx, diagnose(nx, nh, inputs.theta.Cin, k, nextBacklogLatch(backlogLatch, nx, null, k)), k).quadrant },
+      { x: nx, hoursAwake: nh, backlogLatch: nextBacklogLatch(backlogLatch, nx, null, k) },
     );
     setModal(null);
     setNotice('State vector calibrated');
@@ -973,8 +1032,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const confirmSleep = (hours: number) => {
     const nx = applySleepReset(x, hours);
     pushHistory(
-      { k: blockIndex, at: new Date().toISOString(), kind: 'sleep', dtMinutes: 0, spec: null, sleepHours: hours, xBefore: x, xAfter: nx, hoursAwakeBefore: hoursAwake, hoursAwakeAfter: 0, mean: null, quadrant: route(nx, diagnose(nx, 0, inputs.theta.Cin, k), k).quadrant },
-      { x: nx, hoursAwake: 0 },
+      { k: blockIndex, at: new Date().toISOString(), kind: 'sleep', dtMinutes: 0, spec: null, sleepHours: hours, xBefore: x, xAfter: nx, hoursAwakeBefore: hoursAwake, hoursAwakeAfter: 0, mean: null, quadrant: route(nx, diagnose(nx, 0, inputs.theta.Cin, k, false), k).quadrant },
+      { x: nx, hoursAwake: 0, backlogLatch: false },
     );
     setModal(null);
     setNotice(`Sleep reset logged (${hours} h) · t_awake = 0`);
@@ -992,18 +1051,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const exportJson = () => {
-    const json = encodePersisted(store);
-    const done = () => setNotice(`Copied ${history.length} entries to the clipboard`);
+  const copyText = (text: string, done: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       navigator.clipboard
-        .writeText(json)
-        .then(done)
-        .catch(() => setNotice('Clipboard unavailable — export blocked by the browser'));
+        .writeText(text)
+        .then(() => setNotice(done))
+        .catch(() => setNotice('Clipboard unavailable — copy blocked by the browser'));
     } else {
-      setNotice('Clipboard unavailable — export blocked by the browser');
+      setNotice('Clipboard unavailable — copy blocked by the browser');
     }
   };
+  const exportJson = () => copyText(encodePersisted(store), `Copied ${history.length} entries to the clipboard`);
+  const copyReport = () => report && copyText(report, 'Copied the block report as Markdown');
 
   const toggleSeries = (key: StateKey) =>
     setHidden((h) => {
@@ -1115,7 +1174,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             />
             <Segmented legend="Cognitive Density" symbol="C_in" options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? 'I₁ = 0 for this modality: density only sets the I*(t) readout.' : undefined} />
             <Segmented legend="Operational Context" symbol="P, S_agency" options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} dimmed={zeroVector} />
-            <Segmented legend="ADHD Scratchpad Discipline" symbol="Ω_switch" options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} columns={3} dimmed={zeroVector} />
+            <Segmented legend="ADHD Scratchpad Discipline" symbol="γ_assoc, Ω_switch" options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} dimmed={zeroVector} />
+            <Segmented legend="Novelty / Entropy Stimulation" symbol="ξ_novelty" options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} dimmed={zeroVector} />
             <Segmented legend="Somatic & Biomechanical Marker" symbol="𝟙seat, 𝟙kin" options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} />
 
             <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2.5">
@@ -1132,7 +1192,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 ))}
               </div>
               <div className="mt-1.5 font-mono text-[10.5px] text-zinc-500">
-                A_inst {fmt(0.45 * armedI1 + 0.25 * inputs.u.Ianchor + 0.4 * inputs.u.O1 + 0.15 * inputs.u.Oanchor)} · I₁ {fmt(armedI1)} vs I* {fmt(diag.Istar)} ·{' '}
+                A_inst {fmt(arousalPotential(inputs.u, inputs.xiNovelty))} · I₁ {fmt(armedI1)} vs I* {fmt(diag.Istar)} ·{' '}
                 {armedI1 === 0 ? 'no intake' : armedI1 < diag.Istar ? 'restorative zone' : 'depleting zone'}
               </div>
             </div>
@@ -1149,6 +1209,24 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 I*(t) ≤ 0: input is prohibited in this regime. The armed block carries I₁ = {fmt(armedI1)}.
               </p>
             )}
+            {opticalViolation && (
+              <p className="flex items-start gap-2 rounded-md border border-rose-500/50 bg-rose-500/10 px-2.5 py-2 text-[11px] text-rose-200">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Optical cutoff: F_vis = {fmt(x.Fvis)} ≥ {fmt(k.FvisCutoff)} forces I_vis = 0. The armed block carries I_vis = {fmt(inputs.u.Ivis)}; switch to audio narrative or darkness.
+              </p>
+            )}
+            {backlogViolation && (
+              <p className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-2.5 py-2 text-[11px] text-amber-100">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Backlog saturated (B = {fmt(x.B)}, lock at {fmt(k.BsatLock)}): I₁ &gt; 0 is prohibited until an expressive digestion block runs. The armed block carries I₁ = {fmt(armedI1)}.
+              </p>
+            )}
+            {maskingActive && (
+              <p className="flex items-start gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11px] text-zinc-300">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-300" aria-hidden="true" />
+                Hyper-focus somatic masking: at O₁ = {fmt(inputs.u.O1)} ≥ 0.80 felt strain under-reports F. The marker is logged, but the boundary is enforced by the integrated F = {fmt(compositeStrain(preview.x))} at Δt.
+              </p>
+            )}
 
             <button
               type="button"
@@ -1162,6 +1240,54 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
         {/* Prescription engine */}
         <section aria-label="Dynamic prescription engine" className="min-w-0">
+          {lastDelta && lastDelta.mean && (
+            <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3" aria-label="State vector update">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                  <Sigma className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+                  State Vector Update · block k{lastDelta.k} · Δt {lastDelta.dtMinutes} m
+                </h3>
+                <button type="button" onClick={copyReport} className="inline-flex items-center gap-1 rounded border border-zinc-800 px-2 py-1 text-[10.5px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                  <ClipboardCopy className="h-3 w-3" aria-hidden="true" /> Copy Report
+                </button>
+              </div>
+              <dl className="grid gap-1 font-mono text-[11px]">
+                {STATE_KEYS.map((key) => {
+                  const m = lastDelta.mean!;
+                  const s = SERIES_BY_KEY[key];
+                  const before = lastDelta.xBefore[key];
+                  const after = lastDelta.xAfter[key];
+                  const note =
+                    key === 'E'
+                      ? `ΔE ${fmtSigned(m.dE)} /h · Φ_in ${fmtSigned(m.phiIn)} · Φ_out ${fmtSigned(m.phiOut)}`
+                      : key === 'B'
+                        ? `load +${fmt(m.accrual)} · digested −${fmt(m.digestion)} · decay −${fmt(m.decay)} /h`
+                        : key === 'A'
+                          ? `Γ̄ = ${fmt(m.gamma, 3)}`
+                          : `${fmtSigned(key === 'Fvis' ? m.dFvis : key === 'Fbody' ? m.dFbody : m.dV)} /h`;
+                  return (
+                    <div key={key} className="grid grid-cols-[3.2rem_7.5rem_1fr] items-baseline gap-2">
+                      <dt className={s.text}>{s.symbol}</dt>
+                      <dd className="text-zinc-200">
+                        {fmt(before, 3)} → {fmt(after, 3)}
+                      </dd>
+                      <dd className={`truncate ${deltaTone(key, after - before, before, k)}`} title={note}>
+                        {note}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+              <div className="mt-2 font-mono text-[10.5px] text-zinc-500">
+                I*(t) {fmt(diag.Istar)} · Γ {fmt(diag.gamma, 3)} · ψ {fmt(diag.psi, 3)} · regime {diag.regime}
+                {diag.singularityMode ? ` (${diag.singularityMode})` : ''} · guardrails:{' '}
+                {Object.entries(diag.guardrails)
+                  .filter(([, v]) => v)
+                  .map(([g]) => g)
+                  .join(', ') || 'none'}
+              </div>
+            </div>
+          )}
           <SectionTitle icon={Zap} aside={<span className="font-mono text-[10.5px] text-zinc-500">x_k+1 → quadrant routing</span>}>
             Dynamic Prescription Engine
           </SectionTitle>
@@ -1199,6 +1325,28 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             ))}
           </div>
 
+          {topPrescription && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/5 px-3 py-2.5" aria-label="Operational prompt">
+              <span className="text-[12px] text-cyan-100">
+                {topPrescription.kind === 'sleep'
+                  ? `Terminate the session and log the ${topPrescription.sleepHours ?? 7.5} h sleep reset on waking?`
+                  : `Lock in «${topPrescription.name}» with the boundary at ${topPrescription.boundMinutes} m?`}
+              </span>
+              {topPrescription.kind === 'sleep' ? (
+                <PrimaryButton
+                  onClick={() => {
+                    setSleepHours(topPrescription.sleepHours ?? 7.5);
+                    setModal('sleep');
+                  }}
+                >
+                  Log Sleep Reset
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton onClick={() => topPrescription.spec && arm(topPrescription.spec)}>Lock In</PrimaryButton>
+              )}
+            </div>
+          )}
+
           {/* Block log */}
           <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/40">
             <button
@@ -1215,7 +1363,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 <table className="w-full min-w-[640px] border-collapse font-mono text-[10.5px] tabular-nums">
                   <thead>
                     <tr className="text-left text-zinc-500">
-                      {['k', 'Δt', 'T₁', 'T₂', 'V', 'C_in', 'P/S', 'Ω', 'soma', 'ΔE', 'ΔB', 'ΔF', 'Q'].map((h) => (
+                      {['k', 'Δt', 'T₁', 'T₂', 'V', 'C_in', 'P/S', 'γ_a/Ω', 'ξ', 'soma', 'ΔE', 'ΔB', 'ΔF', 'Q'].map((h) => (
                         <th key={h} className="whitespace-nowrap px-2 py-1.5 font-medium">
                           {h}
                         </th>
@@ -1225,7 +1373,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                   <tbody>
                     {history.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="px-2 py-3 text-zinc-500">
+                        <td colSpan={14} className="px-2 py-3 text-zinc-500">
                           No blocks integrated yet.
                         </td>
                       </tr>
@@ -1240,6 +1388,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                       const d = h.spec ? DENSITIES.find((o) => o.key === h.spec!.density)! : null;
                       const c = h.spec ? CONTEXTS.find((o) => o.key === h.spec!.context)! : null;
                       const s = h.spec ? SCRATCHPADS.find((o) => o.key === h.spec!.scratchpad)! : null;
+                      const nv = h.spec ? NOVELTIES.find((o) => o.key === h.spec!.novelty)! : null;
                       const so = h.spec ? SOMATICS.find((o) => o.key === h.spec!.somatic)! : null;
                       return (
                         <tr key={`${h.at}-${i}`} className="border-t border-zinc-800/80 text-zinc-300 [&>td]:whitespace-nowrap">
@@ -1250,7 +1399,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                           <td className="px-2 py-1">{v ? fmt(v.V) : '—'}</td>
                           <td className="px-2 py-1">{d ? fmt(d.Cin) : '—'}</td>
                           <td className="px-2 py-1">{c ? `${fmt(c.P)}/${fmt(c.S)}` : '—'}</td>
-                          <td className="px-2 py-1">{s ? fmt(s.omega) : '—'}</td>
+                          <td className="px-2 py-1">{s ? `${s.gammaAssoc.toFixed(1)}/${fmt(s.omega)}` : '—'}</td>
+                          <td className="px-2 py-1">{nv ? fmt(nv.xi) : '—'}</td>
                           <td className="max-w-[7rem] truncate px-2 py-1">{so?.label ?? '—'}</td>
                           <td className={`px-2 py-1 ${deltaTone('E', dE, h.xBefore.E, k)}`}>{fmtSigned(dE)}</td>
                           <td className={`px-2 py-1 ${deltaTone('B', dB, h.xBefore.B, k)}`}>{fmtSigned(dB)}</td>
