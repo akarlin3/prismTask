@@ -61,7 +61,7 @@ describe('plain-language copy', () => {
     const d = diagnose(x, 4, 0.9, k);
     const list = gradeCatalog(x, 4, d, route(x, d, k), k);
     const best = list[0];
-    expect(plainComparison(best)).toBe('The best option for your state right now.');
+    expect(plainComparison(best)).toBe('This is the recommended block: the best fit for your state right now.');
     for (const g of list.slice(1)) {
       const text = plainComparison(g);
       expect(text).not.toMatch(/\b[A-F]\b(?! )|grade/i);

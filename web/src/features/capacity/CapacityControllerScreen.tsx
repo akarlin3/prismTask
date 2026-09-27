@@ -63,7 +63,7 @@ import {
   gradeBlock,
   gradeCatalog,
   integrateBlock,
-  modalityHasIntake,
+  modalityIsPlayback,
   nextBacklogLatch,
   prescribe,
   resolveSpec,
@@ -191,7 +191,7 @@ function describeSpec(spec: BlockSpec): string {
   const n = NOVELTIES.find((o) => o.key === spec.novelty)!;
   const so = SOMATICS.find((o) => o.key === spec.somatic)!;
   const sp = PLAYBACK_SPEEDS.find((o) => o.key === (spec.speed ?? 'x1'))!;
-  const speed = sp.factor !== 1 && modalityHasIntake(spec.modality) ? ` ${sp.label}` : '';
+  const speed = sp.factor !== 1 && modalityIsPlayback(spec.modality) ? ` ${sp.label}` : '';
   return `T₁ ${m.label}${speed} · T₂ ${a.label} · V ${v.V.toFixed(2)} · C_in ${d.Cin.toFixed(2)} · P ${c.P.toFixed(2)} S ${c.S.toFixed(2)} · γ_a ${s.gammaAssoc.toFixed(1)} Ω ${s.omega.toFixed(2)} · ξ ${n.xi.toFixed(2)} · ${so.label}`;
 }
 
@@ -1175,7 +1175,7 @@ function PresetSaver({ onSave }: { onSave: (name: string) => void }) {
 // Graded catalog card
 // ---------------------------------------------------------------------------
 
-function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVector; k: Constants; onArm: (spec: BlockSpec) => void; onSleep: () => void }) {
+function CatalogCard({ g, x, k, onArm, onSleep, onDelete }: { g: GradedBlock; x: StateVector; k: Constants; onArm: (spec: BlockSpec) => void; onSleep: () => void; onDelete?: () => void }) {
   const Icon = KIND_ICON[g.entry.kind];
   const [open, setOpen] = useState(false);
   return (
@@ -1187,6 +1187,11 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
               <div className="flex items-center gap-1.5 text-[12.5px] font-semibold leading-tight text-zinc-100">
                 <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
                 <span className="truncate">{g.entry.name}</span>
+                {g.entry.presetId && onDelete && (
+                  <button type="button" onClick={onDelete} aria-label={`Delete preset ${g.entry.name}`} className="rounded p-0.5 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                )}
               </div>
               <div className="mt-0.5 truncate text-[10.5px] text-zinc-500">{g.entry.detail}</div>
             </div>
@@ -1391,14 +1396,13 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [notice, setNotice] = useState<string | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<StateKey>>(() => new Set());
   const [logOpen, setLogOpen] = useState(true);
-  const [catalogOpen, setCatalogOpen] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
   const [described, setDescribed] = useState<{ text: string; result: DescribedBlock } | null>(null);
   const [adjustField, setAdjustField] = useState<DescribedField | null>(null);
   const [adjusted, setAdjusted] = useState<ReadonlySet<DescribedField>>(() => new Set());
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength, listeningSpeed } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength, listeningSpeed, suggested } = store;
 
   useEffect(() => {
     try {
@@ -1428,7 +1432,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength, listeningSpeed), [x, hoursAwake, diag, routing, k, presets, blockLength, listeningSpeed]);
   const plainQ = plainQuadrant(routing);
   const plainR = plainRegime(diag);
-  const armedGrade = useMemo(() => gradeBlock(spec, x, hoursAwake, diag, routing, k, 'This block', catalog[0]), [spec, x, hoursAwake, diag, routing, k, catalog]);
+  const recommended: GradedBlock | null = catalog[0] ?? null;
+  const armedGrade = useMemo(() => gradeBlock(spec, x, hoursAwake, diag, routing, k, 'Your block', catalog[0]), [spec, x, hoursAwake, diag, routing, k, catalog]);
   const pillars = useMemo(
     () => evaluatePillars(spec, x, diag, k, { relational: described?.result.relational, relationalCue: described?.result.relationalCue, predicted: preview.x }),
     [spec, x, diag, k, described, preview.x],
@@ -1484,7 +1489,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
         mean: result.mean,
         quadrant: q,
       },
-      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex, backlogLatch: latch },
+      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex, backlogLatch: latch, suggested: false },
     );
     setNotice(
       `Block k${nextIndex} logged (Δt ${dt} m) · E ${fmt(x.E)}→${fmt(result.x.E)} · B ${fmt(x.B)}→${fmt(result.x.B)} · F ${fmt(compositeStrain(x))}→${fmt(compositeStrain(result.x))} → ${q}`,
@@ -1499,7 +1504,15 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     setAdjusted(new Set());
     setAdjustField(result.confidence < 0.5 ? 'modality' : null);
     setShowFullForm(false);
-    update({ spec: result.spec });
+    update({ spec: result.spec, suggested: true });
+  };
+
+  const clearSuggestion = () => {
+    setDescribed(null);
+    setAdjusted(new Set());
+    setAdjustField(null);
+    setShowFullForm(false);
+    update({ suggested: false });
   };
 
   const adjust = (field: DescribedField, patch: Partial<BlockSpec>) => {
@@ -1587,8 +1600,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     setDescribed(null);
     setAdjusted(new Set());
     setAdjustField(null);
-    update({ spec: s });
-    setNotice(`Armed: ${describeSpec(s)} · Δt = ${blockMinutes(s)} m`);
+    update({ spec: s, suggested: true });
+    setNotice(simple ? `Using the recommended block · ${blockMinutes(s)} min · adjust anything, then log it` : `Armed: ${describeSpec(s)} · Δt = ${blockMinutes(s)} m`);
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
@@ -1632,8 +1645,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             columns={4}
             plain={plain}
             showParams={!plain || showMath}
-            dimmed={armedI1 === 0}
-            note={armedI1 === 0 ? (plain ? 'Nothing is playing in this block: speed has no effect.' : 'I₁ = 0 for this modality: speed has no effect.') : plain ? 'Faster playback means more comes in per minute.' : undefined}
+            dimmed={!modalityIsPlayback(spec.modality)}
+            note={!modalityIsPlayback(spec.modality) ? (plain ? 'Nothing is being played back in this block: speed has no effect.' : 'Not a playback modality: speed has no effect.') : plain ? 'Faster playback means more comes in per minute.' : undefined}
           />
           <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} plain={plain} showParams={!plain || showMath} />
           <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} plain={plain} showParams={!plain || showMath} />
@@ -1799,8 +1812,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </summary>
             <ol className="mt-2 grid list-decimal gap-1 pl-5 leading-relaxed">
               <li>The six meters are a model of your current capacity, updated every time you log a block of work or rest.</li>
-              <li>“What to do next” compares every kind of block with the best one for this exact state: Best now, Nearly as good, A step behind, Well behind, or Not now when a rule locks it out.</li>
-              <li>Press Start on a block, do it, then log how long it ran and whether tangents or strain crept in. The meters update and the comparisons refresh.</li>
+              <li>“Recommended now” is the single block that fits this exact state best, chosen from every kind of block the model knows.</li>
+              <li>Describe the block you did or plan to do. It is compared with the recommendation (Best now, Nearly as good, A step behind, Well behind, or Not now when a rule locks it out) and every meter is shown now → after, before you log it. Nothing is assumed until you describe something or use the recommendation.</li>
             </ol>
             <p className="mt-2 text-[11.5px] text-zinc-500">Calibrate sets the meters by hand when the model drifts from how you feel. Show math reveals the symbols and the rules behind every number.</p>
             <label className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-zinc-400">
@@ -1910,112 +1923,76 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </div>
           </section>
 
-          <section aria-label="Next block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <section aria-label="Recommended block" className="rounded-xl border border-cyan-400/40 bg-cyan-400/5 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">What to do next</h2>
-              <span className="text-[10.5px] text-zinc-500">every block compared with the best one for your state right now</span>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">Recommended now</h2>
+              <span className="text-[10.5px] text-zinc-500">the one block that fits your state best</span>
             </div>
-            <div className="mt-2 grid gap-2">
-              {catalog.slice(0, 3).map((g, i) => (
-                <div key={g.entry.id} className={`rounded-lg border p-3 ${i === 0 ? 'border-cyan-400/50 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/40'}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <StandingPill standing={g.comparison.standing} size="sm" />
-                        <span className="text-[13.5px] font-semibold text-zinc-100">{g.entry.name}</span>
-                        {g.entry.presetId && (
-                          <>
-                            <span className="rounded bg-indigo-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-indigo-200">your preset</span>
-                            <button type="button" onClick={() => deletePreset(g.entry.presetId!)} aria-label={`Delete preset ${g.entry.name}`} className="rounded p-0.5 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-0.5 text-[11.5px] text-zinc-500">{g.entry.detail}</div>
-                      <div className="mt-1 text-[12px] leading-snug text-zinc-200">{i === 0 ? plainReason(g, x) : plainComparison(g)}</div>
-                      {i > 0 && <div className="mt-0.5 text-[11px] leading-snug text-zinc-500">{plainReason(g, x, g.comparison.standing === 'blocked')}</div>}
-                      {showMath && (
-                        <div className="mt-1 font-mono text-[10px] text-zinc-500">
-                          score {g.score} ({fmtSigned(g.comparison.margin, 0)} vs best) · fit {g.fit} · outcome {g.outcome} · horizon {g.horizon} · stop: {g.stopReason}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <span className="font-mono text-lg font-semibold leading-none text-zinc-100">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</span>
-                      {g.entry.kind === 'sleep' ? (
-                        <PrimaryButton
-                          onClick={() => {
-                            setSleepHours(7.5);
-                            setModal('sleep');
-                          }}
-                        >
-                          Log Sleep
-                        </PrimaryButton>
-                      ) : i === 0 ? (
-                        <PrimaryButton onClick={() => g.spec && arm(g.spec)}>Start</PrimaryButton>
-                      ) : (
-                        <GhostButton onClick={() => g.spec && arm(g.spec)}>Start</GhostButton>
-                      )}
-                    </div>
+            {recommended && (
+              <div className="mt-2 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="text-[15px] font-semibold text-zinc-50">{recommended.entry.name}</span>
+                    {recommended.entry.presetId && (
+                      <>
+                        <span className="rounded bg-indigo-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-indigo-200">your preset</span>
+                        <button type="button" onClick={() => deletePreset(recommended.entry.presetId!)} aria-label={`Delete preset ${recommended.entry.name}`} className="rounded p-0.5 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </>
+                    )}
                   </div>
+                  <div className="mt-0.5 text-[11.5px] text-zinc-500">{recommended.entry.detail}</div>
+                  <div className="mt-1 text-[12px] leading-snug text-zinc-200">{plainReason(recommended, x)}</div>
+                  {showMath && (
+                    <div className="mt-1 font-mono text-[10px] text-zinc-500">
+                      score {recommended.score} · fit {recommended.fit} · outcome {recommended.outcome} · horizon {recommended.horizon} · stop: {recommended.stopReason}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              aria-expanded={catalogOpen}
-              onClick={() => setCatalogOpen((o) => !o)}
-              className="mt-3 text-[11.5px] text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400"
-            >
-              {catalogOpen ? 'Show fewer' : `Show all ${catalog.length} blocks`}
-            </button>
-            {catalogOpen && (
-              <ul className="mt-2 grid gap-1" aria-label="Graded blocks">
-                {catalog.slice(3).map((g) => (
-                  <li key={g.entry.id} className="flex items-center gap-2 rounded-md border border-zinc-800 px-2 py-1.5">
-                    <StandingPill standing={g.comparison.standing} size="sm" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12px] text-zinc-200">
-                        {g.entry.name}
-                        {g.entry.presetId && <span className="ml-1.5 rounded bg-indigo-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-200">preset</span>}
-                      </span>
-                      <span className="block truncate text-[10.5px] text-zinc-500" title={`${plainComparison(g)} ${plainReason(g, x, g.comparison.standing === 'blocked')}`}>
-                        {plainComparison(g)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 font-mono text-[10.5px] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</span>
-                    {g.entry.presetId && (
-                      <button type="button" onClick={() => deletePreset(g.entry.presetId!)} aria-label={`Delete preset ${g.entry.name}`} className="rounded p-1 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                    {g.entry.kind === 'sleep' ? (
-                      <GhostButton
-                        onClick={() => {
-                          setSleepHours(7.5);
-                          setModal('sleep');
-                        }}
-                      >
-                        Log
-                      </GhostButton>
-                    ) : (
-                      <GhostButton onClick={() => g.spec && arm(g.spec)}>Start</GhostButton>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="font-mono text-lg font-semibold leading-none text-zinc-100">{recommended.entry.kind === 'sleep' ? 'sleep' : recommended.boundMinutes < 15 ? '<15 m' : `${recommended.boundMinutes} m`}</span>
+                  {recommended.entry.kind === 'sleep' ? (
+                    <PrimaryButton
+                      onClick={() => {
+                        setSleepHours(7.5);
+                        setModal('sleep');
+                      }}
+                    >
+                      Log Sleep
+                    </PrimaryButton>
+                  ) : (
+                    <PrimaryButton onClick={() => recommended.spec && arm(recommended.spec)}>Use this</PrimaryButton>
+                  )}
+                </div>
+              </div>
             )}
           </section>
 
-          <section aria-label="Log block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4" ref={formRef}>
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log the {blockLength}-minute block you just did</h2>
+          <section aria-label="Your block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4" ref={formRef}>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Your block</h2>
+              {suggested ? (
+                <button type="button" onClick={clearSuggestion} className="text-[11px] text-zinc-500 hover:text-zinc-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                  Clear
+                </button>
+              ) : (
+                <span className="text-[10.5px] text-zinc-500">{blockLength} min unless you say otherwise</span>
+              )}
+            </div>
             <div className="mt-3">
               <DescribeBox defaultMinutes={blockLength} defaultSpeed={listeningSpeed} onDescribed={applyDescribed} />
             </div>
-            <div className={`mt-2 rounded-md border px-3 py-2 ${described ? 'border-cyan-400/30 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/60'}`} aria-label={described ? 'Understood as' : 'This block'}>
+            {!suggested && (
+              <p className="mt-2 text-[12px] leading-snug text-zinc-500">
+                Describe a block you did or plan to do, or use the recommendation above. It is compared with the recommended block and every meter is shown now → after before you log it. Nothing is assumed until you do.
+              </p>
+            )}
+            {suggested && (
+            <>
+            <div className={`mt-2 rounded-md border px-3 py-2 ${described ? 'border-cyan-400/30 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/60'}`} aria-label={described ? 'Understood as' : 'Block details'}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${described ? 'text-cyan-200' : 'text-zinc-400'}`}>{described ? 'Understood as' : 'This block'}</span>
+                <span className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${described ? 'text-cyan-200' : 'text-zinc-400'}`}>{described ? 'Understood as' : 'Details'}</span>
                 <span className="text-[10.5px] text-zinc-500">
                   {described
                     ? described.result.confidence >= 0.75
@@ -2027,7 +2004,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 </span>
               </div>
               <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'intensity', ...(modalityHasIntake(spec.modality) ? (['speed'] as DescribedField[]) : [])] as DescribedField[]).map((field) => {
+                {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'intensity', ...(modalityIsPlayback(spec.modality) ? (['speed'] as DescribedField[]) : [])] as DescribedField[]).map((field) => {
                   const cue = described?.result.cues.find((c) => c.field === field);
                   const isAdjusted = adjusted.has(field);
                   const assumed = !!described && !cue && !isAdjusted;
@@ -2128,6 +2105,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               </button>
               <PresetSaver onSave={savePreset} />
             </div>
+            </>
+            )}
           </section>
         </div>
       )}
@@ -2392,6 +2371,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 setSleepHours(7.5);
                 setModal('sleep');
               }}
+              onDelete={g.entry.presetId ? () => deletePreset(g.entry.presetId!) : undefined}
             />
           ))}
         </div>

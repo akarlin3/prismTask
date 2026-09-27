@@ -180,31 +180,31 @@ export interface ConstantMeta {
 }
 
 export const CONSTANT_META: readonly ConstantMeta[] = [
-  { key: 'alphaIn', symbol: 'α_in', label: 'Restorative input gain', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'betaIn', symbol: 'β_in', label: 'Density cost of input', group: 'spec', min: 0.01, max: 2, step: 0.01 },
-  { key: 'deltaIn', symbol: 'δ_in', label: 'Backlog drag on input', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'etaFlow', symbol: 'η_flow', label: 'Flow yield gain', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'betaOut', symbol: 'β_out', label: 'Pressure cost of output', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'omega', symbol: 'ω', label: 'Somatic cost of output', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'cBasal', symbol: 'c_basal', label: 'Basal drain', group: 'spec', min: 0, max: 0.5, step: 0.005 },
-  { key: 'kappa', symbol: 'κ', label: 'Backlog accrual', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'lambda', symbol: 'λ', label: 'Backlog decay', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'mu', symbol: 'μ', label: 'Backlog digestion by output', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'gammaVis', symbol: 'γ_vis', label: 'Ocular strain rate', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'rhoVis', symbol: 'ρ_vis', label: 'Ocular recovery rate', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'gammaPosture', symbol: 'γ_posture', label: 'Static posture strain', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'rhoBody', symbol: 'ρ_body', label: 'Kinetic recovery rate', group: 'spec', min: 0, max: 2, step: 0.01 },
-  { key: 'psi0', symbol: 'ψ_0', label: 'Baseline circadian drag', group: 'spec', min: 0, max: 1, step: 0.01 },
+  { key: 'alphaIn', symbol: 'α_in', label: 'Restorative input gain', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'betaIn', symbol: 'β_in', label: 'Density cost of input', group: 'spec', min: 0.01, max: 5, step: 0.01 },
+  { key: 'deltaIn', symbol: 'δ_in', label: 'Backlog drag on input', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'etaFlow', symbol: 'η_flow', label: 'Flow yield gain', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'betaOut', symbol: 'β_out', label: 'Pressure cost of output', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'omega', symbol: 'ω', label: 'Somatic cost of output', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'cBasal', symbol: 'c_basal', label: 'Basal drain', group: 'spec', min: 0, max: 1, step: 0.005 },
+  { key: 'kappa', symbol: 'κ', label: 'Backlog accrual', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'lambda', symbol: 'λ', label: 'Backlog decay', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'mu', symbol: 'μ', label: 'Backlog digestion by output', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'gammaVis', symbol: 'γ_vis', label: 'Ocular strain rate', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'rhoVis', symbol: 'ρ_vis', label: 'Ocular recovery rate', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'gammaPosture', symbol: 'γ_posture', label: 'Static posture strain', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'rhoBody', symbol: 'ρ_body', label: 'Kinetic recovery rate', group: 'spec', min: 0, max: 5, step: 0.01 },
+  { key: 'psi0', symbol: 'ψ_0', label: 'Baseline circadian drag', group: 'spec', min: 0, max: 2, step: 0.01 },
   { key: 'Astar', symbol: 'A*', label: 'Optimal arousal tone', group: 'spec', min: 0.1, max: 0.9, step: 0.01 },
   { key: 'sigmaA', symbol: 'σ_A', label: 'Arousal tolerance', group: 'spec', min: 0.05, max: 0.6, step: 0.01 },
-  { key: 'sigmaLoad', symbol: 'σ_load', label: 'Postural cost of output', group: 'closure', min: 0, max: 2, step: 0.01 },
-  { key: 'kappaA', symbol: 'κ_A', label: 'Arousal relaxation gain', group: 'closure', min: 0.1, max: 10, step: 0.1 },
-  { key: 'kappaV', symbol: 'κ_V', label: 'Substance relaxation gain', group: 'closure', min: 0.1, max: 10, step: 0.1 },
-  { key: 'rhoE', symbol: 'ρ_E', label: 'Passive energy recovery', group: 'closure', min: 0, max: 2, step: 0.01 },
+  { key: 'sigmaLoad', symbol: 'σ_load', label: 'Postural cost of output', group: 'closure', min: 0, max: 5, step: 0.01 },
+  { key: 'kappaA', symbol: 'κ_A', label: 'Arousal relaxation gain', group: 'closure', min: 0.1, max: 20, step: 0.1 },
+  { key: 'kappaV', symbol: 'κ_V', label: 'Substance relaxation gain', group: 'closure', min: 0.1, max: 20, step: 0.1 },
+  { key: 'rhoE', symbol: 'ρ_E', label: 'Passive energy recovery', group: 'closure', min: 0, max: 5, step: 0.01 },
   { key: 'Arest', symbol: 'A_rest', label: 'Tonic arousal floor', group: 'closure', min: 0, max: 0.5, step: 0.01 },
-  { key: 'psiOnsetHours', symbol: 't_onset', label: 'Drag onset (h awake)', group: 'closure', min: 0, max: 24, step: 0.5 },
-  { key: 'tauPsiHours', symbol: 'τ_ψ', label: 'Drag e-folding time (h)', group: 'closure', min: 0.5, max: 24, step: 0.5 },
-  { key: 'lateHours', symbol: 't_late', label: 'Late-phase threshold (h awake)', group: 'closure', min: 8, max: 30, step: 0.5 },
+  { key: 'psiOnsetHours', symbol: 't_onset', label: 'Drag onset (h awake)', group: 'closure', min: 0, max: 36, step: 0.5 },
+  { key: 'tauPsiHours', symbol: 'τ_ψ', label: 'Drag e-folding time (h)', group: 'closure', min: 0.25, max: 48, step: 0.25 },
+  { key: 'lateHours', symbol: 't_late', label: 'Late-phase threshold (h awake)', group: 'closure', min: 8, max: 48, step: 0.5 },
   { key: 'Vmin', symbol: 'V_min', label: 'Admissibility floor', group: 'closure', min: 0.01, max: 0.9, step: 0.01 },
   { key: 'FvisCutoff', symbol: 'F_vis^cut', label: 'Optical cutoff (force I_vis = 0)', group: 'guardrail', min: 0.2, max: 1, step: 0.01 },
   { key: 'BsatLock', symbol: 'B_sat', label: 'Backlog saturation (lock I₁ = 0)', group: 'guardrail', min: 0.2, max: 1, step: 0.01 },
@@ -229,10 +229,10 @@ export const DEFAULT_STATE: StateVector = Object.freeze({
 // ---------------------------------------------------------------------------
 
 export type CadenceKey = 'm15' | 'm25' | 'm45' | 'm60' | 'm90';
-export type IntensityKey = 'light' | 'standard' | 'heavy';
+export type IntensityKey = 'minimal' | 'light' | 'standard' | 'heavy' | 'max';
 export const CUSTOM_CADENCE = 'custom';
 export const MIN_CUSTOM_MINUTES = 5;
-export const MAX_CUSTOM_MINUTES = 240;
+export const MAX_CUSTOM_MINUTES = 480;
 /** Every block is fifteen minutes unless the user says otherwise. */
 export const DEFAULT_BLOCK_LENGTH = 15;
 
@@ -247,15 +247,15 @@ export function withMinutes(spec: BlockSpec, minutes: number): BlockSpec {
   }
   return { ...spec, cadence: CUSTOM_CADENCE, customMinutes: m };
 }
-export type ModalityKey = 'zero' | 'auditory' | 'reading' | 'dense' | 'expressive' | 'execution';
-export type AnchorKey = 'none' | 'brown' | 'music' | 'fidget' | 'treadmill';
-export type ValuationKey = 'churn' | 'utility' | 'art' | 'architecture';
-export type DensityKey = 'null' | 'fiction' | 'analysis' | 'manuals' | 'proofs';
-export type ContextKey = 'agency' | 'soft' | 'sprint' | 'scrutiny';
-export type ScratchpadKey = 'single' | 'tokenized' | 'speculative' | 'rabbit';
-export type NoveltyKey = 'monotonous' | 'routine' | 'novel';
-export type SomaticKey = 'supine' | 'seated' | 'ocular' | 'slump';
-export type SpeedKey = 'x075' | 'x1' | 'x125' | 'x15' | 'x175' | 'x2' | 'x25' | 'x3';
+export type ModalityKey = 'zero' | 'auditory' | 'watching' | 'skimming' | 'reading' | 'dense' | 'social' | 'speaking' | 'interactive' | 'manual' | 'expressive' | 'execution';
+export type AnchorKey = 'none' | 'brown' | 'music' | 'voices' | 'screen' | 'fidget' | 'treadmill' | 'vigorous';
+export type ValuationKey = 'numbing' | 'churn' | 'utility' | 'connection' | 'art' | 'architecture';
+export type DensityKey = 'null' | 'chatter' | 'fiction' | 'analysis' | 'manuals' | 'proofs' | 'frontier';
+export type ContextKey = 'agency' | 'soft' | 'sprint' | 'imposed' | 'scrutiny' | 'crisis';
+export type ScratchpadKey = 'single' | 'tokenized' | 'mild' | 'speculative' | 'rabbit' | 'chaos';
+export type NoveltyKey = 'deadening' | 'monotonous' | 'routine' | 'novel' | 'frontier';
+export type SomaticKey = 'supine' | 'moving' | 'standing' | 'seated' | 'ocular' | 'slump' | 'wrecked';
+export type SpeedKey = 'x05' | 'x075' | 'x1' | 'x125' | 'x15' | 'x175' | 'x2' | 'x25' | 'x3';
 
 export interface BlockSpec {
   /** A standard cadence, or `custom` with `customMinutes`. */
@@ -296,71 +296,121 @@ export const CADENCES: readonly (Option<CadenceKey> & { minutes: number })[] = [
   { key: 'm90', label: '90m', detail: 'Ultradian', params: 'Δt=1.50h', minutes: 90 },
 ];
 
-export const MODALITIES: readonly (Option<ModalityKey> & { Ivis: number; Iaud: number; O1: number })[] = [
-  { key: 'zero', label: 'Nothing / Rest', plain: 'Rest, nothing going in', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0 },
-  { key: 'auditory', label: 'Auditory Narrative', plain: 'Listening', detail: 'Audiobook, podcast, conversation', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0 },
-  { key: 'reading', label: 'Visual Reading', plain: 'Reading or watching', detail: 'Prose on page, screens', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0 },
-  { key: 'dense', label: 'Dense Technical In', plain: 'Studying dense material', detail: 'Papers, docs, code review', params: 'I_vis=0.85', Ivis: 0.85, Iaud: 0, O1: 0 },
-  { key: 'expressive', label: 'Expressive Out', plain: 'Expressing (writing, playing)', detail: 'Journal, improv, sketching, chores', params: 'O_1=0.35', Ivis: 0, Iaud: 0, O1: 0.35 },
-  { key: 'execution', label: 'Deep Execution', plain: 'Focused work (making things)', detail: 'Code, drafting, building', params: 'O_1=0.80', Ivis: 0, Iaud: 0, O1: 0.8 },
+/**
+ * Primary activity. Spans the control space from pure rest through intake-only, mixed
+ * intake/output (talking, games, hands-on work) to pure output. `playback` marks the
+ * modalities a playback speed applies to.
+ */
+export const MODALITIES: readonly (Option<ModalityKey> & { Ivis: number; Iaud: number; O1: number; playback: boolean })[] = [
+  { key: 'zero', label: 'Nothing / Rest', plain: 'Rest, nothing going in', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0, playback: false },
+  { key: 'auditory', label: 'Auditory Narrative', plain: 'Listening (audiobook, podcast)', detail: 'Audiobook, podcast, radio', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0, playback: true },
+  { key: 'watching', label: 'Passive Video', plain: 'Watching (video, TV, film)', detail: 'Screen plus sound, no output', params: 'I_vis=0.35 I_aud=0.15', Ivis: 0.35, Iaud: 0.15, O1: 0, playback: true },
+  { key: 'skimming', label: 'Light Scanning', plain: 'Browsing, skimming, feeds', detail: 'Low-effort scanning of screens', params: 'I_vis=0.30', Ivis: 0.3, Iaud: 0, O1: 0, playback: false },
+  { key: 'reading', label: 'Visual Reading', plain: 'Reading', detail: 'Prose on page or screen', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0, playback: false },
+  { key: 'dense', label: 'Dense Technical In', plain: 'Studying dense material', detail: 'Papers, docs, code review', params: 'I_vis=0.85', Ivis: 0.85, Iaud: 0, O1: 0, playback: false },
+  { key: 'social', label: 'Conversation', plain: 'Talking with people', detail: 'Listening and answering: calls, meetings, company', params: 'I_aud=0.30 O_1=0.30', Ivis: 0, Iaud: 0.3, O1: 0.3, playback: false },
+  { key: 'speaking', label: 'Speaking / Leading', plain: 'Presenting, teaching, leading', detail: 'Mostly output through speech', params: 'I_aud=0.15 O_1=0.55', Ivis: 0, Iaud: 0.15, O1: 0.55, playback: false },
+  { key: 'interactive', label: 'Interactive Screen', plain: 'Games, interactive screens', detail: 'Fast visual intake with continuous input', params: 'I_vis=0.55 O_1=0.30', Ivis: 0.55, Iaud: 0, O1: 0.3, playback: false },
+  { key: 'manual', label: 'Hands-On Task', plain: 'Hands-on (cooking, crafts, fixing)', detail: 'Light output with the hands, some looking', params: 'I_vis=0.15 O_1=0.30', Ivis: 0.15, Iaud: 0, O1: 0.3, playback: false },
+  { key: 'expressive', label: 'Expressive Out', plain: 'Expressing (writing, playing)', detail: 'Journal, improv, sketching, music', params: 'O_1=0.35', Ivis: 0, Iaud: 0, O1: 0.35, playback: false },
+  { key: 'execution', label: 'Deep Execution', plain: 'Focused work (making things)', detail: 'Code, drafting, building', params: 'O_1=0.80', Ivis: 0, Iaud: 0, O1: 0.8, playback: false },
 ];
 
 export const ANCHORS: readonly (Option<AnchorKey> & { Ianchor: number; Oanchor: number; kinetic: boolean })[] = [
   { key: 'none', label: 'None / Silence', plain: 'Silence', detail: 'No secondary channel', params: 'I_a=0 O_a=0', Ianchor: 0, Oanchor: 0, kinetic: false },
   { key: 'brown', label: 'Ambient Brown Noise', plain: 'Background noise', detail: 'Brown or white noise, rain, ambient', params: 'I_a=0.30', Ianchor: 0.3, Oanchor: 0, kinetic: false },
   { key: 'music', label: 'Familiar Lyrical Music', plain: 'Familiar music', detail: 'On repeat, low cognitive density', params: 'I_a=0.55', Ianchor: 0.55, Oanchor: 0, kinetic: false },
+  { key: 'voices', label: 'Background Speech', plain: 'Podcast or people talking in the background', detail: 'Speech you are not following closely', params: 'I_a=0.75', Ianchor: 0.75, Oanchor: 0, kinetic: false },
+  { key: 'screen', label: 'Background Video', plain: 'TV or video playing in the background', detail: 'A second screen you glance at', params: 'I_a=0.85', Ianchor: 0.85, Oanchor: 0, kinetic: false },
   { key: 'fidget', label: 'Tactile Fidget', plain: 'Fidget or hands busy', detail: 'Hand-scale kinetic', params: 'O_a=0.20', Ianchor: 0, Oanchor: 0.2, kinetic: false },
-  { key: 'treadmill', label: 'Walking Treadmill', plain: 'Walking or moving', detail: 'Walk, treadmill, pacing, workout', params: 'O_a=0.35', Ianchor: 0, Oanchor: 0.35, kinetic: true },
+  { key: 'treadmill', label: 'Walking Treadmill', plain: 'Walking or gentle movement', detail: 'Walk, treadmill, pacing, stretching', params: 'O_a=0.35', Ianchor: 0, Oanchor: 0.35, kinetic: true },
+  { key: 'vigorous', label: 'Vigorous Exercise', plain: 'Hard exercise (running, lifting)', detail: 'Whole-body effort: run, lift, ride, swim', params: 'O_a=0.65', Ianchor: 0, Oanchor: 0.65, kinetic: true },
 ];
 
 export const VALUATIONS: readonly (Option<ValuationKey> & { V: number; admissible: boolean })[] = [
+  { key: 'numbing', label: 'Numbing', plain: 'Zoning out, killing time', detail: 'Dissociative time-filling — inadmissible', params: 'V=0.00', V: 0, admissible: false },
   { key: 'churn', label: 'Churn', plain: 'Scrolling, feeds, inbox', detail: 'Feeds, inbox, scrolling — inadmissible', params: 'V=0.10', V: 0.1, admissible: false },
   { key: 'utility', label: 'Utility', plain: 'Necessary stuff', detail: 'Chores, admin, meetings, errands', params: 'V=0.50', V: 0.5, admissible: true },
-  { key: 'art', label: 'Literature / Art', plain: 'Books, art, music, people', detail: 'Generative or restorative', params: 'V=0.85', V: 0.85, admissible: true },
+  { key: 'connection', label: 'Connection / Care', plain: 'People, care, helping', detail: 'Relational stewardship', params: 'V=0.70', V: 0.7, admissible: true },
+  { key: 'art', label: 'Literature / Art', plain: 'Books, art, music', detail: 'Generative or restorative', params: 'V=0.85', V: 0.85, admissible: true },
   { key: 'architecture', label: 'Deep Architecture', plain: 'Real work or craft', detail: 'Structural yield', params: 'V=1.00', V: 1.0, admissible: true },
 ];
 
 export const DENSITIES: readonly (Option<DensityKey> & { Cin: number })[] = [
   { key: 'null', label: 'Null', plain: 'Nothing to take in', detail: 'No intake', params: 'C_in=0.05', Cin: 0.05 },
+  { key: 'chatter', label: 'Chatter', plain: 'Very light: small talk, memes', detail: 'Near-zero entropy', params: 'C_in=0.10', Cin: 0.1 },
   { key: 'fiction', label: 'Fiction Narrative', plain: 'Light: stories, chat', detail: 'Low-entropy prose', params: 'C_in=0.20', Cin: 0.2 },
   { key: 'analysis', label: 'Structured Analysis', plain: 'Medium: articles, meetings', detail: 'Essays, reports', params: 'C_in=0.40', Cin: 0.4 },
   { key: 'manuals', label: 'System Manuals', plain: 'Dense: manuals, textbooks', detail: 'Reference, specs', params: 'C_in=0.65', Cin: 0.65 },
   { key: 'proofs', label: 'Abstract Proofs / Code', plain: 'Very dense: math, code', detail: 'Maximal entropy', params: 'C_in=0.90', Cin: 0.9 },
+  { key: 'frontier', label: 'Frontier Formalism', plain: 'Extreme: new research, unfamiliar formalism', detail: 'Unfamiliar notation, no scaffolding', params: 'C_in=1.00', Cin: 1 },
 ];
 
 export const CONTEXTS: readonly (Option<ContextKey> & { P: number; S: number })[] = [
   { key: 'agency', label: 'Pure Agency', plain: 'My own choice', detail: 'Self-directed', params: 'P=0.00 S=1.00', P: 0, S: 1 },
   { key: 'soft', label: 'Soft Goal', plain: 'A soft goal', detail: 'Intent without stakes', params: 'P=0.25 S=0.85', P: 0.25, S: 0.85 },
-  { key: 'sprint', label: 'Sprint Deliverable', plain: 'A real deadline', detail: 'Committed date', params: 'P=0.60 S=0.70', P: 0.6, S: 0.7 },
+  { key: 'sprint', label: 'Sprint Deliverable', plain: 'A real deadline I own', detail: 'Committed date, owned', params: 'P=0.60 S=0.70', P: 0.6, S: 0.7 },
+  { key: 'imposed', label: 'Imposed Task', plain: 'Told to, little say', detail: 'Assigned without ownership', params: 'P=0.70 S=0.35', P: 0.7, S: 0.35 },
   { key: 'scrutiny', label: 'External Scrutiny', plain: 'Being judged', detail: 'Evaluation threat', params: 'P=0.90 S=0.25', P: 0.9, S: 0.25 },
+  { key: 'crisis', label: 'Crisis', plain: 'Emergency, no control', detail: 'Maximal pressure, no agency', params: 'P=1.00 S=0.05', P: 1, S: 0.05 },
 ];
 
 export const SCRATCHPADS: readonly (Option<ScratchpadKey> & { omega: number; gammaAssoc: number })[] = [
   { key: 'single', label: 'Single Thread Flow', plain: 'Stayed on track', detail: 'No tangents surfaced', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
   { key: 'tokenized', label: 'Tokenized To Scratchpad', plain: 'Wrote tangents down', detail: 'Tangent written, then dropped', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
+  { key: 'mild', label: 'Mild Drift', plain: 'A few tangents, let go', detail: 'Brief sub-threads, released', params: 'γ_a=0.25 Ω=0', omega: 0, gammaAssoc: 0.25 },
   { key: 'speculative', label: 'Unbuffered Speculative Intake', plain: 'Ideas kept branching', detail: 'Sub-threads spawned, not externalized', params: 'γ_a=0.5 Ω=0', omega: 0, gammaAssoc: 0.5 },
   { key: 'rabbit', label: 'Unbuffered Rabbit Hole', plain: 'Fell down a rabbit hole', detail: 'Divergent context switch', params: 'γ_a=1.0 Ω=0.25', omega: 0.25, gammaAssoc: 1 },
+  { key: 'chaos', label: 'Continuous Switching', plain: 'Constant switching, scattered', detail: 'No thread held for long', params: 'γ_a=1.5 Ω=0.50', omega: 0.5, gammaAssoc: 1.5 },
 ];
 
 export const NOVELTIES: readonly (Option<NoveltyKey> & { xi: number })[] = [
+  { key: 'deadening', label: 'Deadening', plain: 'Mind-numbing', detail: 'Below monotony: actively dulling', params: 'ξ=−0.05', xi: -0.05 },
   { key: 'monotonous', label: 'Monotonous', plain: 'Boring, repetitive', detail: 'Low-entropy, repetitive', params: 'ξ=0.00', xi: 0 },
   { key: 'routine', label: 'Routine', plain: 'Familiar', detail: 'Familiar domain', params: 'ξ=0.05', xi: 0.05 },
   { key: 'novel', label: 'Novel Cross-Domain', plain: 'New territory', detail: 'High-entropy associative stimulation', params: 'ξ=0.15', xi: 0.15 },
+  { key: 'frontier', label: 'Overwhelming Novelty', plain: 'Overwhelmingly new', detail: 'Everything unfamiliar at once', params: 'ξ=0.30', xi: 0.3 },
 ];
 
 export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   {
     key: 'supine',
     label: 'Supported / Supine',
-    plain: 'Lying down or moving',
-    detail: 'Supported, supine, standing or moving: no static seat',
-    params: '𝟙seat=0 𝟙kin=1',
+    plain: 'Lying down',
+    detail: 'Supported or supine: spine unloaded, best passive recovery',
+    params: '𝟙seat=0 𝟙kin=1 R×1.25',
     staticSeated: false,
     kineticOrSupported: true,
     postureGain: 1,
     ocularGain: 1,
     ocularFloor: 0,
     restGain: 1.25,
+  },
+  {
+    key: 'moving',
+    label: 'Moving',
+    plain: 'Moving around, walking',
+    detail: 'On your feet and moving: kinetic recovery, normal rest',
+    params: '𝟙seat=0 𝟙kin=1',
+    staticSeated: false,
+    kineticOrSupported: true,
+    postureGain: 1,
+    ocularGain: 1,
+    ocularFloor: 0,
+    restGain: 1,
+  },
+  {
+    key: 'standing',
+    label: 'Standing Still',
+    plain: 'Standing still (standing desk)',
+    detail: 'Upright and static: no seated load, no kinetic recovery',
+    params: '𝟙seat=0 𝟙kin=0',
+    staticSeated: false,
+    kineticOrSupported: false,
+    postureGain: 1,
+    ocularGain: 1,
+    ocularFloor: 0,
+    restGain: 1,
   },
   {
     key: 'seated',
@@ -401,12 +451,27 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
     ocularFloor: 0,
     restGain: 1,
   },
+  {
+    key: 'wrecked',
+    label: 'Ocular Strain + Slump',
+    plain: 'Eyes and back both hurting',
+    detail: 'Accommodation fatigue and collapsed posture together',
+    params: 'γ_vis×1.6 γ_post×2.0',
+    staticSeated: true,
+    kineticOrSupported: false,
+    postureGain: 2,
+    ocularGain: 1.6,
+    ocularFloor: 0.35,
+    restGain: 1,
+  },
 ];
 
 export const INTENSITIES: readonly (Option<IntensityKey> & { factor: number })[] = [
+  { key: 'minimal', label: 'Minimal', plain: 'Barely', detail: 'Going through the motions, ×0.4 intensity', params: '×0.40', factor: 0.4 },
   { key: 'light', label: 'Light', plain: 'Easy', detail: 'Easy pace, ×0.7 intensity', params: '×0.70', factor: 0.7 },
   { key: 'standard', label: 'Standard', plain: 'Normal', detail: 'As modelled', params: '×1.00', factor: 1 },
   { key: 'heavy', label: 'Heavy', plain: 'Hard', detail: 'Pushing, ×1.25 intensity', params: '×1.25', factor: 1.25 },
+  { key: 'max', label: 'Maximal', plain: 'All out', detail: 'Everything you have, ×1.6 intensity', params: '×1.60', factor: 1.6 },
 ];
 
 /**
@@ -416,6 +481,7 @@ export const INTENSITIES: readonly (Option<IntensityKey> & { factor: number })[]
  * playback tips past I*(t) sooner. Output channels are untouched.
  */
 export const PLAYBACK_SPEEDS: readonly (Option<SpeedKey> & { factor: number })[] = [
+  { key: 'x05', label: '0.5×', plain: 'Half speed (0.5×)', detail: 'Half the words per minute', params: 'I×0.50', factor: 0.5 },
   { key: 'x075', label: '0.75×', plain: 'Slower (0.75×)', detail: 'Slowed down: three quarters of the words per minute', params: 'I×0.75', factor: 0.75 },
   { key: 'x1', label: '1×', plain: 'Normal speed', detail: 'As recorded', params: 'I×1.00', factor: 1 },
   { key: 'x125', label: '1.25×', plain: '1.25×', detail: 'A little faster', params: 'I×1.25', factor: 1.25 },
@@ -428,8 +494,14 @@ export const PLAYBACK_SPEEDS: readonly (Option<SpeedKey> & { factor: number })[]
 
 export const DEFAULT_SPEED: SpeedKey = 'x1';
 
-/** Playback factor of a spec (1 when unset). */
+/** True for modalities that are played back (audio, video), the only ones a speed applies to. */
+export function modalityIsPlayback(modality: ModalityKey): boolean {
+  return MODALITIES.find((o) => o.key === modality)?.playback ?? false;
+}
+
+/** Playback factor of a spec (1 when unset or when nothing is played back). */
 export function speedFactor(spec: BlockSpec): number {
+  if (!modalityIsPlayback(spec.modality)) return 1;
   return PLAYBACK_SPEEDS.find((o) => o.key === (spec.speed ?? DEFAULT_SPEED))?.factor ?? 1;
 }
 
@@ -1460,10 +1532,11 @@ export interface CatalogEntry {
 /** Block kind implied by a spec's control vector (used for user presets). */
 export function inferKind(spec: BlockSpec): Exclude<ConfigKind, 'sleep'> {
   const m = MODALITIES.find((o) => o.key === spec.modality)!;
+  const I1 = m.Ivis + m.Iaud;
   if (m.O1 >= 0.6) return 'execute';
-  if (m.O1 > 0) return 'express';
-  if (m.Ivis + m.Iaud > 0) return 'absorb';
-  return spec.anchor === 'treadmill' || spec.anchor === 'fidget' ? 'somatic' : 'rest';
+  if (m.O1 > 0 && m.O1 >= I1) return 'express';
+  if (I1 > 0) return 'absorb';
+  return spec.anchor === 'treadmill' || spec.anchor === 'vigorous' || spec.anchor === 'fidget' ? 'somatic' : 'rest';
 }
 
 export function presetEntry(p: UserPreset): CatalogEntry {
@@ -1497,23 +1570,23 @@ export const BLOCK_CATALOG: readonly CatalogEntry[] = [
   { id: 'nap', name: 'Short nap', kind: 'rest', detail: 'Twenty minutes, eye mask, silence', minutes: 25, spec: { ...REST_BASE } },
   { id: 'meditate', name: 'Meditate or breathe', kind: 'rest', detail: 'Sit or lie still with your breath', minutes: 15, spec: { ...REST_BASE } },
   { id: 'somatic-walk', name: 'Walk without input', kind: 'somatic', detail: 'A walk with no screens and no audio', minutes: 25, spec: { ...REST_BASE, anchor: 'treadmill' } },
-  { id: 'gym', name: 'Gym, run or stretch', kind: 'somatic', detail: 'Any workout; the body works, the head rests', minutes: 45, spec: { ...REST_BASE, anchor: 'treadmill' } },
+  { id: 'gym', name: 'Gym, run or stretch', kind: 'somatic', detail: 'A real workout; the body works, the head rests', minutes: 45, spec: { ...REST_BASE, anchor: 'vigorous', somatic: 'moving' } },
   { id: 'somatic-fidget', name: 'Lie down with a fidget', kind: 'somatic', detail: 'Unload your spine, eyes closed, hands busy', minutes: 25, spec: { ...REST_BASE, anchor: 'fidget' } },
   { id: 'absorb-audio', name: 'Audiobook with eyes closed', kind: 'absorb', detail: 'A story, lying down, screen off', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-audio-walk', name: 'Audiobook on a walk', kind: 'absorb', detail: 'A story while you walk', minutes: 45, spec: { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
-  { id: 'call-friend', name: 'Call or hang out with a friend', kind: 'absorb', detail: 'Easy conversation, no agenda', minutes: 25, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'call-friend', name: 'Call or hang out with a friend', kind: 'express', detail: 'Easy conversation, no agenda', minutes: 25, spec: { modality: 'social', anchor: 'none', valuation: 'connection', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-literature', name: 'Read a book with music on', kind: 'absorb', detail: 'Fiction or literature, lying down', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-analysis', name: 'Read articles or essays', kind: 'absorb', detail: 'Non-fiction at a desk, tangents noted', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'analysis', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'tv', name: 'TV or streaming', kind: 'absorb', detail: 'An episode on the couch', minutes: 45, spec: { modality: 'reading', anchor: 'none', valuation: 'utility', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'tv', name: 'TV or streaming', kind: 'absorb', detail: 'An episode on the couch', minutes: 45, spec: { modality: 'watching', anchor: 'none', valuation: 'utility', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-dense', name: 'Study dense material', kind: 'absorb', detail: 'Textbooks, papers, documentation, with music', minutes: 45, spec: { modality: 'dense', anchor: 'music', valuation: 'architecture', density: 'manuals', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'meeting', name: 'Meeting or work call', kind: 'absorb', detail: 'Listening and answering, with a deadline in the room', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'sprint', scratchpad: 'single', somatic: 'seated' } },
+  { id: 'meeting', name: 'Meeting or work call', kind: 'express', detail: 'Listening and answering, with a deadline in the room', minutes: 45, spec: { modality: 'social', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'sprint', scratchpad: 'single', somatic: 'seated' } },
   { id: 'emails', name: 'Emails and admin', kind: 'absorb', detail: 'Inbox, messages, forms', minutes: 25, spec: { modality: 'reading', anchor: 'none', valuation: 'churn', density: 'analysis', context: 'sprint', scratchpad: 'speculative', somatic: 'seated' } },
-  { id: 'social', name: 'Social media', kind: 'absorb', detail: 'Feeds and scrolling', minutes: 15, spec: { modality: 'reading', anchor: 'none', valuation: 'churn', density: 'fiction', context: 'agency', scratchpad: 'speculative', somatic: 'seated' } },
-  { id: 'gaming', name: 'Video games', kind: 'absorb', detail: 'Screen, fast input, some output', minutes: 45, spec: { modality: 'reading', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'agency', scratchpad: 'single', novelty: 'routine', somatic: 'seated', intensity: 'heavy' } },
+  { id: 'social', name: 'Social media', kind: 'absorb', detail: 'Feeds and scrolling', minutes: 15, spec: { modality: 'skimming', anchor: 'none', valuation: 'churn', density: 'chatter', context: 'agency', scratchpad: 'speculative', somatic: 'seated' } },
+  { id: 'gaming', name: 'Video games', kind: 'absorb', detail: 'Screen, fast input, some output', minutes: 45, spec: { modality: 'interactive', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'agency', scratchpad: 'single', novelty: 'routine', somatic: 'seated', intensity: 'heavy' } },
   { id: 'express-journal', name: 'Journal with music on', kind: 'express', detail: 'Get it onto paper; note the tangents', minutes: 25, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
   { id: 'express-silence', name: 'Free-write or play in silence', kind: 'express', detail: 'Journal, improvise, sketch; no input', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
   { id: 'express-walk', name: 'Think out loud on a walk', kind: 'express', detail: 'Dictate or talk it through while walking', minutes: 25, spec: { modality: 'expressive', anchor: 'treadmill', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
-  { id: 'chores', name: 'Cook or do chores', kind: 'express', detail: 'Hands busy, low stakes, moving around', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', novelty: 'monotonous', somatic: 'supine', intensity: 'light' } },
+  { id: 'chores', name: 'Cook or do chores', kind: 'express', detail: 'Hands busy, low stakes, moving around', minutes: 25, spec: { modality: 'manual', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', novelty: 'monotonous', somatic: 'moving', intensity: 'light' } },
   { id: 'ramp', name: 'Warm-up: free-write about something new', kind: 'express', detail: 'Fifteen minutes with music on, in unfamiliar territory', minutes: 15, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' } },
   { id: 'execute-sprint', name: 'Deep work with music on repeat', kind: 'execute', detail: 'Build, code, write or design; your own choice of what', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
   { id: 'execute-walk', name: 'Deep work at a walking desk', kind: 'execute', detail: 'The same work, on your feet', minutes: 45, spec: { modality: 'execution', anchor: 'treadmill', valuation: 'architecture', density: 'proofs', context: 'soft', scratchpad: 'tokenized', somatic: 'supine' } },
@@ -1527,6 +1600,8 @@ export type Standing = 'best' | 'close' | 'behind' | 'far' | 'blocked';
 export interface Comparison {
   /** The reference block: the best option right now (or the block itself). */
   against: { id: string; name: string };
+  /** True when this block is the reference itself (same entry, or the same block by content). */
+  self: boolean;
   /** score − reference score; 0 for the reference itself. */
   margin: number;
   standing: Standing;
@@ -1607,6 +1682,7 @@ export function compareBlocks(g: ScoredBlock, against: ScoredBlock, k: Constants
   const both = a && b;
   return {
     against: { id: against.entry.id, name: against.entry.name },
+    self,
     margin,
     standing,
     deltas: both ? { E: a.E - b.E, B: a.B - b.B, Fvis: a.Fvis - b.Fvis, Fbody: a.Fbody - b.Fbody, A: a.A - b.A, V: a.V - b.V } : null,
@@ -1708,7 +1784,9 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
     if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'input prohibited: I*(t) ≤ 0');
     if (I1 > 0 && g.backlogSaturated) capTo(15, `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
     if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
-    if (I1 > 0 && result.mean.phiIn < 0) capTo(30, `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
+    // Only intake-led blocks are capped for a negative Φ_in: talking, presenting or hands-on work carry
+    // incidental intake whose cost is already in the outcome score.
+    if (I1 > 0 && kind === 'absorb' && result.mean.phiIn < 0) capTo(30, `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
     if (kind === 'rest' && g.underArousal) capTo(35, `under-arousal gate: A = ${x.A.toFixed(2)} with E = ${x.E.toFixed(2)} — rest rejected`);
     if (kind === 'execute' && d.singularityMode === 'somatic') capTo(10, 'terminal strain: F ≥ F_term');
     if (stopKind === 'violation' && bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
@@ -1748,7 +1826,7 @@ export function gradeCatalog(
   listeningSpeed: SpeedKey = DEFAULT_SPEED,
 ): GradedBlock[] {
   const builtIn: CatalogEntry[] = BLOCK_CATALOG.map((e) =>
-    e.spec && e.spec.modality === 'auditory' && !e.spec.speed && listeningSpeed !== DEFAULT_SPEED ? { ...e, spec: { ...e.spec, speed: listeningSpeed } } : e,
+    e.spec && modalityIsPlayback(e.spec.modality) && !e.spec.speed && listeningSpeed !== DEFAULT_SPEED ? { ...e, spec: { ...e.spec, speed: listeningSpeed } } : e,
   );
   const entries: CatalogEntry[] = [...presets.map(presetEntry), ...builtIn].map((e) =>
     blockLength && e.kind !== 'sleep' ? { ...e, minutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(blockLength))) } : e,
@@ -1813,6 +1891,8 @@ export interface PersistedState {
   blockLength: number;
   /** Usual playback speed for listening blocks: applied to the catalog's listening entries and described listening blocks. */
   listeningSpeed: SpeedKey;
+  /** Simple mode: a block has been described or taken from the recommendation (nothing is assumed otherwise). */
+  suggested: boolean;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
   /** Simple (single-column flow) or advanced (full instrument panel) interface. */
@@ -1836,6 +1916,7 @@ export function defaultPersisted(): PersistedState {
     showMath: false,
     blockLength: DEFAULT_BLOCK_LENGTH,
     listeningSpeed: DEFAULT_SPEED,
+    suggested: false,
     backlogLatch: false,
     uiMode: 'simple',
     blockIndex: 0,
@@ -1942,6 +2023,7 @@ export function decodePersisted(json: string | null): PersistedState {
     showMath: r.showMath === true,
     blockLength: isFiniteNumber(r.blockLength) ? Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.blockLength))) : DEFAULT_BLOCK_LENGTH,
     listeningSpeed: typeof r.listeningSpeed === 'string' && PLAYBACK_SPEEDS.some((o) => o.key === r.listeningSpeed) ? (r.listeningSpeed as SpeedKey) : DEFAULT_SPEED,
+    suggested: r.suggested === true,
     backlogLatch: r.backlogLatch === true,
     uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,

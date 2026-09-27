@@ -52,9 +52,9 @@ Telemetry mappings for the associative and novelty terms:
 | Routine | 0.05 |
 | Novel Cross-Domain | 0.15 |
 
-Anchors: brown noise `I_anchor = 0.30`, familiar lyrical music `0.55`, tactile fidget
-`O_anchor = 0.20`, walking treadmill `O_anchor = 0.35` (the Quadrant III range is
-`[0.2, 0.4]`).
+Anchors: brown noise `I_anchor = 0.30`, familiar lyrical music `0.55`, background speech
+`0.75`, background video `0.85`, tactile fidget `O_anchor = 0.20`, walking treadmill
+`O_anchor = 0.35`, vigorous exercise `O_anchor = 0.65` (the Quadrant III range is `[0.2, 0.4]`).
 
 ## Closures (terms the spec references but does not pin)
 
@@ -152,7 +152,8 @@ horizon = 100 · min(1, first-violation minute / catalog cadence)
 
 Caps (with the reason shown on the card): input in a non-somatic singularity → 10, intake under
 the backlog lock → 15, visual intake under the optical cutoff → 15, depleting intake
-(`Φ_in < 0`) → 30, rest under the under-arousal gate → 35, execution at terminal strain → 10,
+(`Φ_in < 0`, intake-led blocks only: talking, presenting and hands-on work carry incidental
+intake whose cost is already in the outcome) → 30, rest under the under-arousal gate → 35, execution at terminal strain → 10,
 a boundary that trips inside 15 m → 25. The sleep entry scores 100 in a late-phase or somatic
 singularity, 70 in a structural one, and 15 otherwise.
 
@@ -193,17 +194,17 @@ diagnostics beside the plain copy.
    in words (*Intake helps right now* / *Wake up first* / *Nothing to refill* / *Intake drains
    you*), one sentence of guidance, six meters with plain names and a "higher / lower is better"
    hint (definitions on hover), and the awake time / block count.
-3. **What to do next** — the top three blocks (built-in catalog plus your presets) as cards:
-   standing pill (*Best now* / *Nearly as good* / *A step behind* / *Well behind* / *Not now*),
-   name, the comparison with the best block in words, a one-sentence reason (fit, predicted
-   effect, safe duration, or the cap that applies), the boundary, and **Start**. *Show all N
-   blocks* lists the rest with their comparison.
-4. **Log the block you just did** — the armed block summarised in one line with *Change what you
-   did* (opens the full form with plain legends: How long, Intensity, What you did, Background
-   anchor, How substantive, How dense, Pressure and control, Tangents, Novelty, Body and posture),
-   then duration (standard cadences or a custom 5–240 min), Tangents and Body, an expected-effect
-   sentence (*restores energy, clears backlog → then: Good to build*), warnings in words, **Log
-   Block**, and *Save this block as a preset*.
+3. **Recommended now** — exactly one block: the best-scoring entry of the catalog (built-in
+   archetypes plus your presets) for this state, with its detail, a one-sentence reason (fit,
+   predicted effect, safe duration, or the cap that applies), the boundary, and **Use this**.
+   No other blocks are listed in the simple flow; the full compared catalog lives in Advanced.
+4. **Your block** — starts empty: *nothing is assumed* until you describe a block or press
+   **Use this** (`suggested` in the persisted state). Then the block's details are adjustable
+   chips, the Seven Pillars row and the *Before you log it* comparison appear, followed by
+   warnings in words, **Log Block** (which empties the card again) and *Save this block as a
+   preset*. **Clear** empties it by hand. The full form (How long, Intensity, Playback speed,
+   What you did, Background anchor, How substantive, How dense, Pressure and control, Tangents,
+   Novelty, Body and posture) is one link away.
 
 The copy layer lives in `capacityCopy.ts` (`PLAIN_SERIES`, `plainQuadrant`, `plainRegime`,
 `plainCap`, `plainEffect`, `plainReason`).
@@ -236,16 +237,44 @@ is playing). Tapping a chip opens a picker
 for that field alone; a changed chip reads *← you*, a described one shows the cue word, an
 assumed one is dimmed. *Open the full form* still shows every group at once.
 
+### Wider parameter ranges
+
+Every axis of a block spans a wider range of options, with plain labels in the simple flow:
+
+| Axis | Options (model value) |
+|---|---|
+| Activity `T₁` | Rest (0) · Listening (`I_aud` 0.35, playback) · Watching (`I_vis` 0.35 + `I_aud` 0.15, playback) · Browsing / skimming (`I_vis` 0.30) · Reading (0.50) · Studying dense material (0.85) · Talking with people (`I_aud` 0.30 + `O₁` 0.30) · Presenting / teaching (`I_aud` 0.15 + `O₁` 0.55) · Games / interactive (`I_vis` 0.55 + `O₁` 0.30) · Hands-on (`I_vis` 0.15 + `O₁` 0.30) · Expressing (`O₁` 0.35) · Focused work (`O₁` 0.80) |
+| Background `T₂` | Silence · Background noise (`I_a` 0.30) · Familiar music (0.55) · Podcast / people talking (0.75) · TV / video in the background (0.85) · Fidget (`O_a` 0.20) · Walking (`O_a` 0.35, kinetic) · Hard exercise (`O_a` 0.65, kinetic) |
+| Kind of thing `V_target` | Numbing (0, inadmissible) · Churn (0.10, inadmissible) · Necessary stuff (0.50) · People and care (0.70) · Books / art / music (0.85) · Real work or craft (1.00) |
+| Density `C_in` | Nothing (0.05) · Small talk, memes (0.10) · Light (0.20) · Medium (0.40) · Dense (0.65) · Very dense (0.90) · Extreme: new research (1.00) |
+| Pressure `P, S` | My own choice (0, 1) · A soft goal (0.25, 0.85) · A real deadline I own (0.60, 0.70) · Told to, little say (0.70, 0.35) · Being judged (0.90, 0.25) · Emergency, no control (1.00, 0.05) |
+| Tangents `γ_assoc, Ω` | Stayed on track (0, 0) · Wrote tangents down (0, 0) · A few tangents, let go (0.25, 0) · Ideas kept branching (0.5, 0) · Rabbit hole (1.0, 0.25) · Constant switching (1.5, 0.50) |
+| Novelty `ξ` | Mind-numbing (−0.05) · Boring (0) · Familiar (0.05) · New territory (0.15) · Overwhelmingly new (0.30) |
+| Body | Lying down (rest ×1.25) · Moving around (kinetic) · Standing still · Sitting · Eyes hurting · Slouching or stiff · Eyes and back both hurting |
+| Intensity | Barely ×0.4 · Easy ×0.7 · Normal ×1 · Hard ×1.25 · All out ×1.6 |
+| Playback speed | 0.5× … 3× (listening and watching only) |
+| Length | 5–480 min (custom), standard cadences 15 / 25 / 45 / 60 / 90 |
+
+The block kind used by the routing-fit table follows the control vector: `O₁ ≥ 0.6` execute;
+`O₁ > 0` and `O₁ ≥ I₁` express (talking, presenting, hands-on); `I₁ > 0` absorb (including games
+and video); otherwise a kinetic anchor is somatic and the rest is rest. The describer maps
+everyday phrases onto the wider ends (*gave a talk* → presenting, standing, being judged; *family
+dinner* → talking with people, people and care; *production outage, on call* → emergency;
+*kept switching tabs* → constant switching; *eyes are tired and my neck hurts* → eyes and back;
+*zoned out, mind-numbing* → numbing, mind-numbing; *flat out* → all out; *at my standing desk* →
+standing still; *lifting weights* → hard exercise). The Constants panel's slider ranges were
+widened in step (gains to 5, drag schedule to 48 h).
+
 ### Before you log it
 
-The block being programmed (armed from the list, described in words, or adjusted chip by chip)
-is scored exactly like a catalog entry at its own length and compared with the best block in the
-list (`gradeBlock(spec, …, against)`), and the log card shows its standing pill, the comparison
-sentence, its reason, and all six meters as *now → after the block* (bar with the current fill,
-the change band, and a marker at the predicted value), followed by the routed headline the state
-would land on. Arming the best block itself reads *Best now* (`sameBlock` matches it by content,
-not id). In Advanced mode the predicted-Δx panel carries the same standing and margin. Everything
-updates live before anything is logged.
+The block you suggest (described in words, taken from the recommendation, or adjusted chip by
+chip) is scored exactly like a catalog entry at its own length and compared with the recommended
+block (`gradeBlock(spec, …, against)`, `Comparison.self` when it is that block by content), and
+the card shows its standing pill, the comparison sentence, its reason, and all six meters as
+*now → after the block* (bar with the current fill, the change band, and a marker at the
+predicted value), followed by the routed headline the state would land on. In Advanced mode the
+predicted-Δx panel carries the same standing and margin. Everything updates live before anything
+is logged.
 
 ### The Seven Pillars
 
@@ -280,13 +309,14 @@ habits the spec never named.
 
 ### Flexibility
 
-- **Custom duration**: `cadence: 'custom'` with `customMinutes` (5–240) anywhere a block is logged;
+- **Custom duration**: `cadence: 'custom'` with `customMinutes` (5–480) anywhere a block is logged;
   prescriptions and catalog boundaries still snap to the standard cadences.
-- **Intensity**: Light ×0.7 / Standard ×1 / Heavy ×1.25 scales the modality's `I_vis`, `I_aud` and
-  `O₁` (clamped to 1) before integration.
-- **Playback speed** (`speed`, `PLAYBACK_SPEEDS`: 0.75× / 1× / 1.25× / 1.5× / 1.75× / 2× / 2.5× /
-  3×): the factor multiplies the intake channels `I_vis` and `I_aud` only (clamped to 1,
-  compounding with intensity), never the output. At 2× an audiobook delivers twice the words per
+- **Intensity**: Minimal ×0.4 / Light ×0.7 / Standard ×1 / Heavy ×1.25 / Maximal ×1.6 scales the
+  modality's `I_vis`, `I_aud` and `O₁` (clamped to 1) before integration.
+- **Playback speed** (`speed`, `PLAYBACK_SPEEDS`: 0.5× / 0.75× / 1× / 1.25× / 1.5× / 1.75× / 2× /
+  2.5× / 3×): the factor multiplies the intake channels `I_vis` and `I_aud` of the played-back
+  modalities (listening, watching) only, clamped to 1 and compounding with intensity; never the
+  output, and never a page you read yourself. At 2× an audiobook delivers twice the words per
   minute, so restoration rises linearly with `I₁` while the quadratic `β_in C_in I₁²` cost, the
   `δ_in B I₁` drag and the backlog accrual rise faster: a fast playback crosses `I*(t)` sooner and
   reads as *depleting intake* earlier. The describer reads *at 1.5x*, *2× speed*, *double speed*,

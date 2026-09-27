@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   ANCHORS,
   CADENCES,
+  CONTEXTS,
+  DENSITIES,
+  INTENSITIES,
+  MODALITIES,
+  NOVELTIES,
+  PLAYBACK_SPEEDS,
+  SCRATCHPADS,
+  SOMATICS,
+  VALUATIONS,
   DEFAULT_CONSTANTS,
   DEFAULT_SPEC,
   DEFAULT_STATE,
@@ -22,6 +31,7 @@ import {
   gradeBlock,
   gradeCatalog,
   inferKind,
+  modalityIsPlayback,
   nearestSpeed,
   sameBlock,
   nextBacklogLatch,
@@ -489,7 +499,7 @@ describe('flexibility: intensity, custom duration, presets', () => {
   it('honours custom durations within bounds', () => {
     expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 37 }))).toBe(37);
     expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 1 }))).toBe(5);
-    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 999 }))).toBe(240);
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 999 }))).toBe(480);
     expect(blockMinutes(spec({ cadence: 'm45' }))).toBe(45);
     expect(decodePersisted(JSON.stringify({ blockLength: 20 })).blockLength).toBe(20);
     expect(decodePersisted(JSON.stringify({})).blockLength).toBe(15);
@@ -570,6 +580,76 @@ describe('gradeBlock (the block being programmed)', () => {
   });
 });
 
+describe('wide-ranging parameters', () => {
+  it('offers wider option ranges on every axis, with unique keys and monotone values', () => {
+    const keys = <K extends string>(list: readonly { key: K }[]) => list.map((o) => o.key);
+    const unique = <K extends string>(list: readonly { key: K }[]) => expect(new Set(keys(list)).size).toBe(list.length);
+    for (const list of [MODALITIES, ANCHORS, VALUATIONS, DENSITIES, CONTEXTS, SCRATCHPADS, NOVELTIES, SOMATICS, INTENSITIES, PLAYBACK_SPEEDS]) unique(list);
+    expect(MODALITIES.length).toBeGreaterThanOrEqual(12);
+    expect(ANCHORS.length).toBeGreaterThanOrEqual(8);
+    expect(VALUATIONS.map((o) => o.V)).toEqual([...VALUATIONS.map((o) => o.V)].sort((a, b) => a - b));
+    expect(VALUATIONS[0].V).toBe(0);
+    expect(VALUATIONS[VALUATIONS.length - 1].V).toBe(1);
+    expect(DENSITIES.map((o) => o.Cin)).toEqual([...DENSITIES.map((o) => o.Cin)].sort((a, b) => a - b));
+    expect(DENSITIES[DENSITIES.length - 1].Cin).toBe(1);
+    expect(CONTEXTS.map((o) => o.P)).toEqual([...CONTEXTS.map((o) => o.P)].sort((a, b) => a - b));
+    expect(CONTEXTS[CONTEXTS.length - 1].P).toBe(1);
+    expect(CONTEXTS[CONTEXTS.length - 1].S).toBeLessThan(0.1);
+    expect(SCRATCHPADS.map((o) => o.gammaAssoc)).toEqual([...SCRATCHPADS.map((o) => o.gammaAssoc)].sort((a, b) => a - b));
+    expect(SCRATCHPADS[SCRATCHPADS.length - 1].gammaAssoc).toBe(1.5);
+    expect(NOVELTIES.map((o) => o.xi)).toEqual([...NOVELTIES.map((o) => o.xi)].sort((a, b) => a - b));
+    expect(NOVELTIES[0].xi).toBeLessThan(0);
+    expect(NOVELTIES[NOVELTIES.length - 1].xi).toBe(0.3);
+    expect(INTENSITIES.map((o) => o.factor)).toEqual([0.4, 0.7, 1, 1.25, 1.6]);
+    expect(PLAYBACK_SPEEDS[0].factor).toBe(0.5);
+    expect(PLAYBACK_SPEEDS[PLAYBACK_SPEEDS.length - 1].factor).toBe(3);
+    expect(SOMATICS.map((o) => o.key)).toEqual(['supine', 'moving', 'standing', 'seated', 'ocular', 'slump', 'wrecked']);
+    // Every option resolves to inputs on the unit interval.
+    for (const m of MODALITIES) for (const a of ANCHORS) {
+      const u = resolveSpec(spec({ modality: m.key, anchor: a.key, intensity: 'max' })).u;
+      for (const v of Object.values(u)) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('infers the block kind from mixed intake/output modalities', () => {
+    expect(inferKind(spec({ modality: 'social' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'speaking' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'interactive' }))).toBe('absorb');
+    expect(inferKind(spec({ modality: 'watching' }))).toBe('absorb');
+    expect(inferKind(spec({ modality: 'manual' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'vigorous' }))).toBe('somatic');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'screen' }))).toBe('rest');
+  });
+
+  it('models the extremes: a crisis costs more than owned pressure, and deadening novelty lowers activation', () => {
+    const x = state({ E: 0.7, B: 0.3, Fvis: 0.1, Fbody: 0.3, A: 0.5, V: 0.9 });
+    const run = (over: Partial<BlockSpec>) => integrateBlock(x, 4, resolveSpec(spec({ modality: 'execution', anchor: 'none', ...over })), 15, k);
+    expect(run({ context: 'crisis' }).delta.E).toBeLessThan(run({ context: 'sprint' }).delta.E);
+    expect(run({ context: 'imposed' }).delta.E).toBeLessThan(run({ context: 'sprint' }).delta.E);
+    const quiet = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', novelty: 'deadening' })), 15, k);
+    const wild = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', novelty: 'frontier' })), 15, k);
+    expect(wild.x.A).toBeGreaterThan(quiet.x.A);
+    const chaos = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', scratchpad: 'chaos' })), 15, k);
+    const single = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', scratchpad: 'single' })), 15, k);
+    expect(chaos.delta.B).toBeGreaterThan(single.delta.B);
+    const wrecked = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', somatic: 'wrecked' })), 15, k);
+    const seated = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', somatic: 'seated' })), 15, k);
+    expect(wrecked.delta.Fvis).toBeGreaterThan(seated.delta.Fvis);
+    expect(wrecked.delta.Fbody).toBeGreaterThan(seated.delta.Fbody);
+  });
+
+  it('persists whether a block has been suggested', () => {
+    expect(defaultPersisted().suggested).toBe(false);
+    const store = defaultPersisted();
+    store.suggested = true;
+    expect(decodePersisted(encodePersisted(store)).suggested).toBe(true);
+    expect(decodePersisted(JSON.stringify({ suggested: 'yes' })).suggested).toBe(false);
+  });
+});
+
 describe('playback speed', () => {
   it('scales the intake channels only, clamped to [0, 1]', () => {
     const base = resolveSpec(spec({ modality: 'auditory', anchor: 'none' })).u;
@@ -579,7 +659,13 @@ describe('playback speed', () => {
     expect(fast.Iaud).toBeCloseTo(0.7, 10);
     expect(slow.Iaud).toBeCloseTo(0.2625, 10);
     expect(resolveSpec(spec({ modality: 'auditory', speed: 'x3' })).u.Iaud).toBe(1);
-    expect(resolveSpec(spec({ modality: 'reading', speed: 'x2' })).u.Ivis).toBe(1);
+    // Only played-back modalities take a speed: video does, reading a page does not.
+    const video = resolveSpec(spec({ modality: 'watching', speed: 'x2' })).u;
+    expect(video.Ivis).toBeCloseTo(0.7, 10);
+    expect(video.Iaud).toBeCloseTo(0.3, 10);
+    expect(resolveSpec(spec({ modality: 'reading', speed: 'x2' })).u.Ivis).toBe(0.5);
+    expect(modalityIsPlayback('watching')).toBe(true);
+    expect(modalityIsPlayback('social')).toBe(false);
     // Output is untouched; a zero-vector block ignores the speed entirely.
     const out = resolveSpec(spec({ modality: 'execution', speed: 'x2' })).u;
     expect(out.O1).toBe(0.8);
@@ -589,7 +675,8 @@ describe('playback speed', () => {
     expect(resolveSpec(spec({ modality: 'auditory', intensity: 'light', speed: 'x2' })).u.Iaud).toBeCloseTo(0.35 * 0.7 * 2, 10);
     expect(nearestSpeed(1.6)).toBe('x15');
     expect(nearestSpeed(2.2)).toBe('x2');
-    expect(nearestSpeed(0.5)).toBe('x075');
+    expect(nearestSpeed(0.5)).toBe('x05');
+    expect(nearestSpeed(0.6)).toBe('x05');
   });
 
   it('makes a fast audiobook cost more per minute than a slow one', () => {
@@ -611,7 +698,7 @@ describe('playback speed', () => {
     for (const g of list) {
       if (!g.spec) continue;
       if (g.entry.presetId) expect(g.spec.speed).toBe('x075');
-      else if (g.spec.modality === 'auditory') expect(g.spec.speed).toBe('x2');
+      else if (modalityIsPlayback(g.spec.modality)) expect(g.spec.speed).toBe('x2');
       else expect(g.spec.speed).toBeUndefined();
     }
     const normal = gradeCatalog(x, 4, d, r, k, [], 15);
@@ -654,7 +741,7 @@ describe('persistence codec', () => {
     expect(d.x).toEqual(DEFAULT_STATE);
     expect(d.spec.modality).toBe(DEFAULT_SPEC.modality);
     expect(d.spec.novelty).toBe('routine');
-    expect(d.constants.alphaIn).toBe(2);
+    expect(d.constants.alphaIn).toBe(5);
     expect(d.backlogLatch).toBe(false);
   });
 });

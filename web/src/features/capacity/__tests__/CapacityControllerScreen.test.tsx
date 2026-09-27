@@ -12,60 +12,69 @@ describe('CapacityControllerScreen', () => {
     localStorage.clear();
   });
 
-  it('opens in the simple flow by default: plain status, graded next blocks with Start, and a short log card', () => {
+  it('opens in the simple flow by default: status, one recommendation, and nothing assumed for your block', () => {
     render(<CapacityControllerScreen />);
     const status = screen.getByRole('region', { name: /^Status$/i });
     expect(within(status).getByRole('heading', { name: /Good to build/i })).toBeInTheDocument();
     expect(within(status).getByLabelText('Energy')).toBeInTheDocument();
     expect(within(status).queryByText(/I\* /)).not.toBeInTheDocument();
-    const next = screen.getByRole('region', { name: /Next block/i });
-    const standings = within(next).getAllByLabelText(/^Standing /);
-    expect(standings).toHaveLength(3);
-    expect(standings[0]).toHaveTextContent('Best now');
-    const log = screen.getByRole('region', { name: /Log block/i });
-    expect(within(log).getByRole('heading', { name: /Log the 15-minute block/i })).toBeInTheDocument();
-    expect(within(log).queryByRole('radiogroup', { name: /How long/i })).not.toBeInTheDocument();
-    // Every field of the armed block is a chip that opens a picker for just that field.
-    const chips = within(log).getByLabelText(/This block/i);
-    expect(within(chips).getByRole('button', { name: /^Tangents:/i })).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(within(chips).getByRole('button', { name: /^Tangents:/i }));
-    expect(within(chips).getByRole('group', { name: /Adjust Tangents/i })).toBeInTheDocument();
-    fireEvent.click(within(chips).getByRole('radio', { name: /Fell down a rabbit hole/i }));
-    expect(within(chips).getByRole('button', { name: /^Tangents: Fell down a rabbit hole ← you/i })).toBeInTheDocument();
-    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.scratchpad).toBe('rabbit');
-    fireEvent.click(within(chips).getByRole('button', { name: /^Done$/i }));
-    expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
+    // One recommendation, no list of alternatives, no standings to compare against each other.
+    const rec = screen.getByRole('region', { name: /Recommended block/i });
+    expect(within(rec).getByRole('heading', { name: /Recommended now/i })).toBeInTheDocument();
+    expect(within(rec).getByRole('button', { name: /^Use this$/ })).toBeInTheDocument();
+    expect(within(rec).queryAllByLabelText(/^Standing /)).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /Show all/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Next block/i })).not.toBeInTheDocument();
+    // Your block starts empty: nothing is assumed until you describe something or use the recommendation.
+    const mine = screen.getByRole('region', { name: /^Your block$/i });
+    expect(within(mine).getByRole('heading', { name: /^Your block$/i })).toBeInTheDocument();
+    expect(mine).toHaveTextContent(/Nothing is assumed until you do/);
+    expect(within(mine).queryByLabelText(/Before you log it/i)).not.toBeInTheDocument();
+    expect(within(mine).queryByRole('button', { name: /^Log Block$/i })).not.toBeInTheDocument();
+    expect(within(mine).queryByRole('button', { name: /^Tangents:/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
-    // The block being programmed is compared with the best option and shows the six meters now → after, before logging.
-    const preview = within(log).getByLabelText(/Before you log it/i);
-    expect(within(preview).getByLabelText(/^Standing /)).toBeInTheDocument();
+
+    // Use the recommendation: its details become adjustable chips and it reads as the recommended block.
+    fireEvent.click(within(rec).getByRole('button', { name: /^Use this$/ }));
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).suggested).toBe(true);
+    const details = within(mine).getByLabelText(/Block details/i);
+    expect(within(details).getByRole('button', { name: /^Tangents:/i })).toHaveAttribute('aria-expanded', 'false');
+    const preview = within(mine).getByLabelText(/Before you log it/i);
+    expect(within(preview).getByLabelText(/^Standing Best now$/)).toBeInTheDocument();
+    expect(preview).toHaveTextContent(/This is the recommended block/);
     expect(preview).toHaveTextContent(/Before you log it · 15 min/);
     expect(within(preview).getByLabelText(/^Energy \d\.\d\d now, \d\.\d\d after the block$/)).toBeInTheDocument();
     expect(preview).toHaveTextContent(/Then:/);
+    // Adjust one field in place: the chip records it and the block is compared afresh.
+    fireEvent.click(within(details).getByRole('button', { name: /^Tangents:/i }));
+    expect(within(details).getByRole('group', { name: /Adjust Tangents/i })).toBeInTheDocument();
+    fireEvent.click(within(details).getByRole('radio', { name: /Constant switching, scattered/i }));
+    expect(within(details).getByRole('button', { name: /^Tangents: Constant switching, scattered ← you/i })).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.scratchpad).toBe('chaos');
+    expect(within(within(mine).getByLabelText(/Before you log it/i)).queryByLabelText(/^Standing Best now$/)).not.toBeInTheDocument();
+    fireEvent.click(within(details).getByRole('button', { name: /^Done$/i }));
+    expect(within(mine).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
 
-    // Start arms the top graded block; Log Block integrates it.
-    fireEvent.click(within(next).getAllByRole('button', { name: /^Start$/ })[0]);
-    fireEvent.click(within(log).getByRole('button', { name: /^Log Block$/i }));
+    // Log Block integrates it and the card returns to nothing assumed.
+    fireEvent.click(within(mine).getByRole('button', { name: /^Log Block$/i }));
     expect(screen.getByText(/Block k1 · \d+\.\d h awake/i)).toBeInTheDocument();
-
-    // The full form (plain legends) and the rest of the graded list are one click away.
-    fireEvent.click(within(log).getByRole('button', { name: /Open the full form/i }));
-    expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
-    expect(within(log).getByRole('radiogroup', { name: /Intensity/i })).toBeInTheDocument();
-    fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
-    expect(within(next).getAllByLabelText(/^Standing /).length).toBeGreaterThanOrEqual(15);
-
-    // Programming a churn block reads "Not now" in the preview before anything is logged.
-    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
-    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
-    const churnPreview = within(log).getByLabelText(/Before you log it/i);
-    expect(within(churnPreview).getByLabelText(/^Standing Not now$/)).toBeInTheDocument();
-    expect(churnPreview).toHaveTextContent(/^.*Not now: /);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).history).toHaveLength(1);
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).suggested).toBe(false);
+    expect(within(mine).queryByLabelText(/Before you log it/i)).not.toBeInTheDocument();
+
+    // Describing a churn block reads "Not now" against the recommendation; Clear empties the card again.
+    fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
+    fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+    const churnPreview = within(mine).getByLabelText(/Before you log it/i);
+    expect(within(churnPreview).getByLabelText(/^Standing Not now$/)).toBeInTheDocument();
+    expect(churnPreview).toHaveTextContent(/Not now: /);
+    fireEvent.click(within(mine).getByRole('button', { name: /^Clear$/i }));
+    expect(within(mine).queryByLabelText(/Understood as/i)).not.toBeInTheDocument();
+    expect(mine).toHaveTextContent(/Nothing is assumed until you do/);
 
     // Show math reveals symbols and the diagnostics line.
     fireEvent.click(screen.getByRole('button', { name: /Show math/i }));
-    expect(within(status).getByText(/I\* /)).toBeInTheDocument();
+    expect(within(status).getAllByText(/I\* /).length).toBeGreaterThan(0);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).showMath).toBe(true);
 
     // Advanced reveals the instrument panel and persists.
@@ -76,12 +85,12 @@ describe('CapacityControllerScreen', () => {
 
   it('describes a block in plain words, shows what it understood, and logs it with the note', () => {
     render(<CapacityControllerScreen />);
-    const log = screen.getByRole('region', { name: /Log block/i });
+    const log = screen.getByRole('region', { name: /^Your block$/i });
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'read a novel on the couch' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
     const understood = within(log).getByLabelText(/Understood as/i);
-    expect(understood).toHaveTextContent(/Activity: Reading or watching/);
-    expect(understood).toHaveTextContent(/Body: Lying down or moving/);
+    expect(understood).toHaveTextContent(/Activity: Reading/);
+    expect(understood).toHaveTextContent(/Body: Lying down/);
     expect(understood).toHaveTextContent(/Length: 15 min/);
     expect(understood).toHaveTextContent(/Fairly sure/);
     // Adjust one field in place: the chip records that you changed it.
@@ -99,8 +108,11 @@ describe('CapacityControllerScreen', () => {
 
   it('reads a playback speed, offers it as a chip for listening blocks, and remembers the usual speed', () => {
     render(<CapacityControllerScreen />);
-    const log = screen.getByRole('region', { name: /Log block/i });
-    // No speed chip while nothing is playing (the default block is deep work).
+    const log = screen.getByRole('region', { name: /^Your block$/i });
+    // No speed chip on a block where nothing is played back.
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'called my mom at 2x' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Activity: Talking with people/);
     expect(within(log).queryByRole('button', { name: /^Speed:/i })).not.toBeInTheDocument();
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'audiobook at 2x on a walk' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
@@ -125,7 +137,10 @@ describe('CapacityControllerScreen', () => {
 
   it('runs the block through the seven pillars', () => {
     render(<CapacityControllerScreen />);
-    const log = screen.getByRole('region', { name: /Log block/i });
+    const log = screen.getByRole('region', { name: /^Your block$/i });
+    expect(within(log).queryByLabelText(/Seven pillars/i)).not.toBeInTheDocument();
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'journaled about the week' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
     const pillars = within(log).getByLabelText(/Seven pillars/i);
     expect(within(pillars).getAllByRole('button')).toHaveLength(7);
     expect(within(pillars).getByRole('button', { name: /Curiosity: pass/i })).toBeInTheDocument();
@@ -140,7 +155,7 @@ describe('CapacityControllerScreen', () => {
 
   it('opens the full form when a description cannot be placed', () => {
     render(<CapacityControllerScreen />);
-    const log = screen.getByRole('region', { name: /Log block/i });
+    const log = screen.getByRole('region', { name: /^Your block$/i });
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'the thing with Bob' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
     expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Could not tell/);
@@ -151,7 +166,8 @@ describe('CapacityControllerScreen', () => {
 
   it('supports custom durations and user presets in the simple flow', () => {
     render(<CapacityControllerScreen />);
-    const log = screen.getByRole('region', { name: /Log block/i });
+    fireEvent.click(within(screen.getByRole('region', { name: /Recommended block/i })).getByRole('button', { name: /^Use this$/ }));
+    const log = screen.getByRole('region', { name: /^Your block$/i });
     fireEvent.click(within(log).getByRole('button', { name: /^Length:/i }));
     fireEvent.change(within(log).getByLabelText(/Custom duration in minutes/i), { target: { value: '37' } });
     expect(within(log).getByLabelText(/Before you log it/i)).toHaveTextContent(/Before you log it · 37 min/);
@@ -162,10 +178,12 @@ describe('CapacityControllerScreen', () => {
     fireEvent.change(within(log).getByLabelText(/Preset name/i), { target: { value: 'Bass practice' } });
     fireEvent.submit(within(log).getByLabelText(/Preset name/i).closest('form')!);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).presets.map((p) => p.name)).toEqual(['Bass practice']);
-    const next = screen.getByRole('region', { name: /Next block/i });
-    fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
-    expect(within(next).getByText('Bass practice')).toBeInTheDocument();
-    fireEvent.click(within(next).getByRole('button', { name: /Delete preset Bass practice/i }));
+    // Presets compete for the recommendation but are never listed as extra defaults; Advanced shows and deletes them.
+    expect(screen.queryByRole('button', { name: /Show all/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
+    const catalog = screen.getByRole('region', { name: /Block catalog/i });
+    expect(within(catalog).getByText('Bass practice')).toBeInTheDocument();
+    fireEvent.click(within(catalog).getByRole('button', { name: /Delete preset Bass practice/i }));
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).presets).toHaveLength(0);
   });
 

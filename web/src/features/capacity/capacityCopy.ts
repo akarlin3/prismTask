@@ -117,7 +117,9 @@ export function plainReason(g: GradedBlock, x: StateVector, skipCaps = false): s
   const fit = g.fit >= 90 ? 'Fits what you need now' : g.fit >= 60 ? 'Reasonable now' : g.fit >= 30 ? 'Not the priority now' : 'Wrong move for this state';
   if (g.caps.length > 0 && !skipCaps) return `${plainCap(g.caps[0])} ${fit}.`;
   const effect = g.predicted ? plainEffect(x, g.predicted).join(', ') : 'no simulated effect';
-  const horizon = g.entry.kind === 'sleep' ? '' : g.horizon < 100 ? (g.boundMinutes < 15 ? ' Hits a limit within fifteen minutes.' : ` Safe for about ${g.boundMinutes} minutes.`) : '';
+  // When the comparison line already names the boundary cap, do not repeat it here.
+  const repeatsCap = skipCaps && (g.caps[0] ?? '').startsWith('boundary trips');
+  const horizon = g.entry.kind === 'sleep' || repeatsCap ? '' : g.horizon < 100 ? (g.boundMinutes < 15 ? ' Hits a limit within fifteen minutes.' : ` Safe for about ${g.boundMinutes} minutes.`) : '';
   return `${fit}; ${effect}.${horizon}`;
 }
 
@@ -161,16 +163,16 @@ export function plainDifferences(c: Comparison): string[] {
 /** One sentence comparing a block with the best option for the current state. */
 export function plainComparison(g: GradedBlock): string {
   const c = g.comparison;
-  const self = c.standing === 'best' && c.against.id === g.entry.id;
+  const self = c.self;
   if (c.standing === 'blocked') {
     const cap = plainCap(g.caps[0] ?? '');
     return `Not now: ${cap.charAt(0).toLowerCase()}${cap.slice(1)}`;
   }
-  if (self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'The best option for your state right now.';
+  if (self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'This is the recommended block: the best fit for your state right now.';
   const diffs = joinEffects(plainDifferences(c));
   if (c.standing === 'best') {
-    if (c.margin > 0) return diffs ? `Better than anything on the list: ${diffs} than ${c.against.name}.` : `Better than anything on the list.`;
-    return diffs ? `As good as ${c.against.name}: ${diffs}.` : `As good as ${c.against.name}.`;
+    if (c.margin > 0) return diffs ? `Better than the recommended block, ${c.against.name}: ${diffs}.` : `Better than the recommended block, ${c.against.name}.`;
+    return diffs ? `As good as the recommended block, ${c.against.name}: ${diffs}.` : `As good as the recommended block, ${c.against.name}.`;
   }
   const lead = c.standing === 'close' ? `Nearly as good as ${c.against.name}` : c.standing === 'behind' ? `A step behind ${c.against.name}` : `Well behind ${c.against.name}`;
   return `${lead}: ${diffs || 'about the same result'}.`;

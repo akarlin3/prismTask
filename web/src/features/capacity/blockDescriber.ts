@@ -12,7 +12,7 @@ import {
   MAX_CUSTOM_MINUTES,
   MIN_CUSTOM_MINUTES,
   PLAYBACK_SPEEDS,
-  modalityHasIntake,
+  modalityIsPlayback,
   nearestSpeed,
   type AnchorKey,
   type BlockSpec,
@@ -61,19 +61,21 @@ interface Template {
 }
 
 const TEMPLATES: readonly Template[] = [
-  { pattern: rx('gym|workout|worked out|lifting|weights|run|ran|running|jog|jogging|cycling|bike ride|swim|swimming|yoga|stretch(?:ing|ed)?|pilates'), word: 'workout', spec: { modality: 'zero', anchor: 'treadmill', somatic: 'supine', density: 'null', valuation: 'utility', intensity: 'standard' } },
+  { pattern: rx('gym|workout|worked out|lifting|weights|run|ran|running|jog|jogging|cycling|bike ride|swim|swimming|hiit|crossfit|rowing|climbing|spin class'), word: 'workout', spec: { modality: 'zero', anchor: 'vigorous', somatic: 'moving', density: 'null', valuation: 'utility', intensity: 'standard' } },
+  { pattern: rx('yoga|stretch(?:ing|ed)?|pilates|tai chi|mobility work|foam roll\\w*'), word: 'stretching', spec: { modality: 'zero', anchor: 'treadmill', somatic: 'moving', density: 'null', valuation: 'utility', intensity: 'light' } },
   { pattern: rx('nap|napped|dozed|slept|sleeping|lay in the dark|lie in the dark|eye mask|meditat\\w*|breathing exercise|breathwork|rested|resting|zoned out'), word: 'rest', spec: { modality: 'zero', anchor: 'none', somatic: 'supine', density: 'null', valuation: 'utility', scratchpad: 'single' } },
-  { pattern: rx('cook(?:ed|ing)?|dishes|laundry|clean(?:ed|ing)?|tidied|tidying|chores|vacuum\\w*|groceries|errands|ironing'), word: 'chores', spec: { modality: 'expressive', anchor: 'none', somatic: 'supine', density: 'null', valuation: 'utility', intensity: 'light', novelty: 'monotonous' } },
-  { pattern: rx('meeting|standup|stand-up|1:1|one on one|sync|call with|on a call|zoom|teams call|interview'), word: 'meeting', spec: { modality: 'auditory', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'utility', context: 'sprint' } },
+  { pattern: rx('cook(?:ed|ing)?|dishes|laundry|clean(?:ed|ing)?|tidied|tidying|chores|vacuum\\w*|groceries|errands|ironing|garden(?:ed|ing)?|mowed|weeding|repair(?:ed|ing)?|assembl\\w*|woodwork\\w*|diy|sewing|sewed|3d print\\w*'), word: 'chores', spec: { modality: 'manual', anchor: 'none', somatic: 'moving', density: 'null', valuation: 'utility', intensity: 'light', novelty: 'monotonous' } },
+  { pattern: rx('gave a (?:talk|presentation|lecture|speech)|present(?:ed|ing) to|taught|teaching|tutor(?:ed|ing)|lectur(?:ed|ing)|led (?:the|a) (?:meeting|workshop|class|session)|ran (?:the|a) (?:meeting|workshop|session)|facilitat\\w*|pitch(?:ed|ing)|demo(?:ed|ing)? to|hosted'), word: 'presenting', spec: { modality: 'speaking', anchor: 'none', somatic: 'standing', density: 'analysis', valuation: 'utility', context: 'scrutiny' } },
+  { pattern: rx('meeting|standup|stand-up|1:1|one on one|sync|call with|on a call|zoom|teams call|interview'), word: 'meeting', spec: { modality: 'social', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'utility', context: 'sprint' } },
   { pattern: rx('emails?|inbox|slack|teams messages|admin|paperwork|forms|invoices?|expenses|triage|taxes|tax return|bills|banking|insurance|bureaucracy|scheduling|calendar'), word: 'admin', spec: { modality: 'reading', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'churn' } },
-  { pattern: rx('scroll(?:ed|ing)?|doomscroll\\w*|twitter|x\\.com|instagram|insta|tiktok|reels|shorts|reddit|facebook|feed|threads app'), word: 'scrolling', spec: { modality: 'reading', anchor: 'none', density: 'fiction', valuation: 'churn', scratchpad: 'speculative' } },
-  { pattern: rx('youtube|watched videos?|video essays?'), word: 'videos', spec: { modality: 'reading', anchor: 'none', density: 'analysis', valuation: 'churn' } },
-  { pattern: rx('movie|film|cinema|documentary'), word: 'film', spec: { modality: 'reading', anchor: 'none', density: 'fiction', valuation: 'art', somatic: 'supine' } },
-  { pattern: rx('tv|netflix|series|episodes?|show|streaming|binge\\w*'), word: 'tv', spec: { modality: 'reading', anchor: 'none', density: 'fiction', valuation: 'utility', somatic: 'supine' } },
-  { pattern: rx('gam(?:ed|ing)|video ?games?|played (?:a )?game|playstation|xbox|switch|steam|minecraft|fortnite'), word: 'gaming', spec: { modality: 'reading', anchor: 'none', density: 'analysis', valuation: 'utility', intensity: 'heavy', somatic: 'seated' } },
+  { pattern: rx('scroll(?:ed|ing)?|doomscroll\\w*|twitter|x\\.com|instagram|insta|tiktok|reels|shorts|reddit|facebook|feed|threads app'), word: 'scrolling', spec: { modality: 'skimming', anchor: 'none', density: 'chatter', valuation: 'churn', scratchpad: 'speculative' } },
+  { pattern: rx('youtube|watched videos?|video essays?|lecture videos?|watched a lecture'), word: 'videos', spec: { modality: 'watching', anchor: 'none', density: 'analysis', valuation: 'churn' } },
+  { pattern: rx('movie|film|cinema|documentary'), word: 'film', spec: { modality: 'watching', anchor: 'none', density: 'fiction', valuation: 'art', somatic: 'supine' } },
+  { pattern: rx('tv|netflix|series|episodes?|show|streaming|binge\\w*'), word: 'tv', spec: { modality: 'watching', anchor: 'none', density: 'fiction', valuation: 'utility', somatic: 'supine' } },
+  { pattern: rx('gam(?:ed|ing)|video ?games?|played (?:a )?game|playstation|xbox|switch|steam|minecraft|fortnite'), word: 'gaming', spec: { modality: 'interactive', anchor: 'none', density: 'analysis', valuation: 'utility', intensity: 'heavy', somatic: 'seated' } },
   { pattern: rx('audiobook|audio book'), word: 'audiobook', spec: { modality: 'auditory', density: 'fiction', valuation: 'art' } },
   { pattern: rx('podcast|radio|interview show'), word: 'podcast', spec: { modality: 'auditory', density: 'analysis', valuation: 'utility' } },
-  { pattern: rx('called (?:my|a)|phoned|chat(?:ted)? with|talked (?:to|with)|catch(?:ing)? up with|hung out|dinner with|lunch with|coffee with'), word: 'conversation', spec: { modality: 'auditory', density: 'fiction', valuation: 'art', context: 'agency', anchor: 'none' } },
+  { pattern: rx('called (?:my|a)|phoned|chat(?:ted)? with|talked (?:to|with)|catch(?:ing)? up with|hung out|dinner with|lunch with|coffee with|date night|family dinner'), word: 'conversation', spec: { modality: 'social', density: 'fiction', valuation: 'connection', context: 'agency', anchor: 'none' } },
   { pattern: rx('commut(?:e|ed|ing)|drove|driving|on the (?:bus|train|tube|subway)'), word: 'commute', spec: { modality: 'zero', anchor: 'none', somatic: 'seated', density: 'null', valuation: 'utility' } },
   { pattern: rx('journal(?:ed|ing|led)?|diary|free ?wr(?:ote|iting|ite)|morning pages|brain ?dump|reflect(?:ed|ing)?|vent(?:ed|ing)?'), word: 'journaling', spec: { modality: 'expressive', density: 'null', valuation: 'art', context: 'agency', scratchpad: 'tokenized' } },
   { pattern: rx('guitar|piano|bass|drums|violin|sang|singing|jam(?:med|ming)?|improv\\w*|sketch(?:ed|ing)?|drew|drawing|paint(?:ed|ing)?|knit\\w*|crochet\\w*|pottery'), word: 'making', spec: { modality: 'expressive', density: 'null', valuation: 'art', context: 'agency' } },
@@ -86,32 +88,42 @@ const TEMPLATES: readonly Template[] = [
   { pattern: rx('novel|fiction|story|stories|poetry|poems?|literature|short stories'), word: 'fiction', spec: { modality: 'reading', density: 'fiction', valuation: 'art' } },
   { pattern: rx('read|reading|book|articles?|essays?|news|newsletter|magazine|blog|wikipedia'), word: 'reading', spec: { modality: 'reading', density: 'analysis', valuation: 'utility' } },
   { pattern: rx('listen(?:ed|ing)?|heard'), word: 'listening', spec: { modality: 'auditory', density: 'fiction', valuation: 'utility' } },
+  { pattern: rx('walk(?:ed|ing)?|stroll(?:ed|ing)?|hike|hiking|pacing|paced'), word: 'walk', spec: { modality: 'zero', anchor: 'treadmill', somatic: 'moving', density: 'null', valuation: 'utility' } },
   { pattern: rx('work(?:ed|ing)? on|worked|finished|shipped|task|tasks|project|ticket|spreadsheet|report|slides|deck|presentation prep'), word: 'work', spec: { modality: 'execution', density: 'analysis', valuation: 'utility' } },
 ];
 
 const ANCHORS_LEX: Lexicon<AnchorKey> = [
   [rx('music|playlist|album|spotify|lo-?fi|song|songs|on repeat|headphones with music|soundtrack'), 'music', 2],
   [rx('brown noise|white noise|pink noise|rain sounds|ambient|noise app|fan noise|soundscape'), 'brown', 3],
+  [rx('podcast (?:on|in the background)|people talking|chatter in the background|radio on|talk radio|with a podcast on|voices in the background'), 'voices', 4],
+  [rx('tv on|tv in the background|with the tv on|youtube in the background|video in the background|stream in the background|second screen|something playing on the tv'), 'screen', 4],
   [rx('fidget\\w*|stress ball|spinner|clicker|worry stone|putty'), 'fidget', 3],
   [rx('walk(?:ed|ing)?|treadmill|pacing|paced|hike|hiking|stroll|strolled|dog|steps'), 'treadmill', 2],
+  [rx('sprints|hill sprints|lifting|weights|hiit|crossfit|hard workout|ran hard|cycling hard|climbing|rowing|spin class|while running|on the bike|on a run'), 'vigorous', 3],
   [rx('silence|quiet|no music|nothing on'), 'none', 2],
 ];
 
 const SOMATIC_LEX: Lexicon<SomaticKey> = [
-  [rx('couch|sofa|bed|lying|lay|laid|reclin\\w*|floor|hammock|pillow|blanket|horizontal|standing|stood|kitchen|outside|garden|park'), 'supine', 2],
+  [rx('couch|sofa|bed|lying|lay|laid|reclin\\w*|floor|hammock|pillow|blanket|horizontal'), 'supine', 2],
+  [rx('walking around|on my feet|kitchen|outside|garden|park|moving around|around the house|pacing'), 'moving', 2],
+  [rx('standing desk|stood at (?:my|the) desk|at a standing desk|stand-up desk|standing still|stood still|standing up'), 'standing', 3],
   [rx('desk|chair|office|sat|seated|sitting|table|cafe|café|library|workstation'), 'seated', 2],
   [rx('eyes? (?:are |were |feel |felt |got |getting )?(?:hurt|hurting|ache|aching|strain|strained|burning|tired|dry|sore)|eye ?strain|blurry|squint\\w*|screen headache|headache'), 'ocular', 4],
   [rx('slouch\\w*|hunch\\w*|slump\\w*|neck (?:hurts|ache|pain|stiff)|back (?:hurts|ache|pain)|stiff neck|sore back|lumbar|shoulders? (?:tight|tense)'), 'slump', 4],
 ];
 
 const CONTEXT_LEX: Lexicon<ContextKey> = [
-  [rx('boss|manager|client|customer|interview|presentation|presented|exam|test|graded|evaluat\\w*|performance review|review meeting|being watched|judged|stakeholders?|urgent|asap|due (?:in|today|now)|overdue|emergency|on call'), 'scrutiny', 3],
-  [rx('deadline|due tomorrow|due this week|due|sprint|ticket|assigned|had to|have to|must|required|for work|for school|homework|obligat\\w*'), 'sprint', 2],
+  [rx('emergency|crisis|panic\\w*|outage|incident|urgent(?:ly)?|asap|on call|meltdown|due (?:in an hour|tonight|now)|overdue|fire drill|damage control'), 'crisis', 4],
+  [rx('boss|manager|client|customer|interview|presentation|presented|exam|test|graded|evaluat\\w*|performance review|review meeting|being watched|judged|stakeholders?|due (?:in|today)'), 'scrutiny', 3],
+  [rx('assigned|told to|had to|have to|made me|required|mandatory|forced|compulsory|obligat\\w*|for work|for school|homework|no choice'), 'imposed', 3],
+  [rx('deadline|due tomorrow|due this week|due|sprint|ticket|shipping|launch|my own deadline|committed to'), 'sprint', 2],
   [rx('trying to|planned|plan to|goal|want(?:ed)? to finish|should|meant to|hoping to'), 'soft', 2],
   [rx('for fun|because i wanted|felt like|freely|my own|for myself|no pressure|relaxed|just for me|hobby'), 'agency', 2],
 ];
 
 const SCRATCHPAD_LEX: Lexicon<ScratchpadKey> = [
+  [rx('constantly switching|kept switching|all over the place|couldn\'t focus|could not focus|scattered|chaos|chaotic|ping-?pong|a hundred tabs|notifications kept|every few minutes'), 'chaos', 5],
+  [rx('a few tangents|one tangent|briefly distracted|small detour|drifted a bit|drifted once|wandered a little|minor tangent'), 'mild', 4],
   [rx('rabbit ?hole|got distracted|distracted|tangent|tangents|ended up|side quest|lost track|wandered|went off on|derailed|doom'), 'rabbit', 3],
   [rx('ideas kept|lots of ideas|so many ideas|branching|thinking about|kept thinking|spiral\\w*|overthinking|mind racing'), 'speculative', 3],
   [rx('wrote (?:it|them|ideas) down|noted|jotted|scratchpad|captured|todo list|to-do|parked|added to my list|note to self'), 'tokenized', 3],
@@ -119,27 +131,39 @@ const SCRATCHPAD_LEX: Lexicon<ScratchpadKey> = [
 ];
 
 const NOVELTY_LEX: Lexicon<NoveltyKey> = [
+  [rx('mind-?numbing|soul-?crushing|brain-?dead|numbing|deadening|for the hundredth time|on autopilot for hours'), 'deadening', 4],
+  [rx('completely new|brand new|totally unfamiliar|over my head|out of my depth|bleeding edge|cutting edge|frontier|mind-?blowing|overwhelming(?:ly)? new|everything was new'), 'frontier', 4],
   [rx('boring|bored|same old|again|repetitive|routine|tedious|monotonous|mindless|autopilot|dull'), 'monotonous', 3],
   [rx('new|first time|never (?:done|tried)|unfamiliar|explor\\w*|different field|cross-?domain|novel idea|discover\\w*|fresh'), 'novel', 3],
   [rx('usual|familiar|as always|normal|regular'), 'routine', 2],
 ];
 
 const INTENSITY_LEX: Lexicon<IntensityKey> = [
-  [rx('intense|intensely|hard|pushed|crunch\\w*|flat out|grind\\w*|deep|heavy|sprint(?:ed)?|all out|full effort|nonstop'), 'heavy', 2],
+  [rx('all out|flat out|max effort|maxed out|as hard as i could|full send|redlin\\w*|no breaks|absolutely crushed|balls to the wall|everything i had'), 'max', 4],
+  [rx('barely|half-?asleep|dozy|drowsy|minimal effort|going through the motions|coasting|phoning it in|zero effort|could barely'), 'minimal', 4],
+  [rx('intense|intensely|hard|pushed|crunch\\w*|grind\\w*|deep|heavy|sprint(?:ed)?|full effort|nonstop'), 'heavy', 2],
   [rx('light|lightly|easy|casual|casually|lazy|lazily|gentle|gently|slow|slowly|half-?hearted|low key|low-key|chill'), 'light', 2],
 ];
 
 const VALUATION_LEX: Lexicon<ValuationKey> = [
-  [rx('mindless|pointless|waste of time|wasted|zombie|autopilot'), 'churn', 3],
+  [rx('numb(?:ing|ed)? out|zoned out|zombie|dissociat\\w*|killing time|time-?killing|for no reason|couldn\'t stop scrolling|staring at the wall'), 'numbing', 4],
+  [rx('with (?:my|a|the) (?:friend|friends|mom|mum|dad|partner|wife|husband|kids?|son|daughter|sister|brother|family|parents)|checked in on|caught up with|hung out|helped (?:my|a)|cared for|looked after|comforted|date night|family dinner'), 'connection', 3],
+  [rx('mindless|pointless|waste of time|wasted|autopilot'), 'churn', 3],
   [rx('important|meaningful|deep work|real work|core|craft|creative|the big project'), 'architecture', 2],
   [rx('beautiful|moving|art|artistic|literary|profound'), 'art', 2],
   [rx('errand|admin|necessary|had to get done|busywork'), 'utility', 2],
 ];
 
 const DENSITY_LEX: Lexicon<DensityKey> = [
+  [rx('research paper|cutting-?edge|frontier|unfamiliar (?:formalism|notation)|way over my head|graduate-?level|phd-?level|dense math|category theory'), 'frontier', 3],
+  [rx('small talk|memes|gossip|banter|chit-?chat|light chat|shitpost\\w*|fluff'), 'chatter', 3],
   [rx('dense|technical|complex|abstract|difficult|advanced|hardcore'), 'proofs', 2],
   [rx('light reading|easy read|fluffy|simple|casual read'), 'fiction', 2],
 ];
+
+/** Both eye strain and a slump reported: the combined marker. */
+const OCULAR_RX = SOMATIC_LEX.find(([, key]) => key === 'ocular')![0];
+const SLUMP_RX = SOMATIC_LEX.find(([, key]) => key === 'slump')![0];
 
 function pick<K extends string>(text: string, lex: Lexicon<K>, field: DescribedField, cues: Cue[]): K | null {
   const scores = new Map<K, number>();
@@ -232,7 +256,12 @@ export function describeBlock(text: string, defaultMinutes = 15, defaultSpeed: S
   const anchor = pick(t, ANCHORS_LEX, 'anchor', cues);
   if (anchor) spec.anchor = anchor;
   else unsure.push('anchor');
-  const somatic = pick(t, SOMATIC_LEX, 'somatic', cues);
+  let somatic = pick(t, SOMATIC_LEX, 'somatic', cues);
+  if (somatic && OCULAR_RX.test(t) && SLUMP_RX.test(t)) {
+    somatic = 'wrecked';
+    const cue = cues.find((c) => c.field === 'somatic');
+    if (cue) cue.choice = 'wrecked';
+  }
   if (somatic) spec.somatic = somatic;
   else if (!setBy.has('somatic')) unsure.push('somatic');
   const context = pick(t, CONTEXT_LEX, 'context', cues);
@@ -256,13 +285,13 @@ export function describeBlock(text: string, defaultMinutes = 15, defaultSpeed: S
     spec.density = 'null';
     spec.scratchpad = 'single';
   }
-  // Playback speed only means something when something is coming in.
+  // Playback speed only means something when something is being played back.
   const speed = parseSpeed(t);
-  if (modalityHasIntake(modalityKey)) {
+  if (modalityIsPlayback(modalityKey)) {
     if (speed) {
       spec.speed = nearestSpeed(speed.factor);
       cues.push({ field: 'speed', word: speed.word, choice: PLAYBACK_SPEEDS.find((o) => o.key === spec.speed)?.label ?? spec.speed });
-    } else if (modalityKey === 'auditory' && defaultSpeed !== DEFAULT_SPEED) {
+    } else if (defaultSpeed !== DEFAULT_SPEED) {
       spec.speed = defaultSpeed;
     }
   } else {
@@ -271,6 +300,7 @@ export function describeBlock(text: string, defaultMinutes = 15, defaultSpeed: S
   if (modalityKey === 'expressive' || modalityKey === 'execution') spec.density = spec.density === 'null' && modalityKey === 'execution' ? 'analysis' : spec.density;
   if (modalityKey === 'expressive') spec.density = 'null';
   if (modalityKey === 'zero' && spec.somatic === 'seated' && !somatic) spec.somatic = 'supine';
+  if (modalityKey === 'manual' && !setBy.has('density') && !density) spec.density = 'null';
 
   // 4. Duration.
   const parsed = parseMinutes(t);

@@ -4,6 +4,7 @@
  * and returns pass / flag / block with a one-line reason. Pure functions.
  */
 import {
+  VALUATIONS,
   compositeStrain,
   resolveSpec,
   type BlockSpec,
@@ -57,11 +58,12 @@ export function evaluatePillars(spec: BlockSpec, x: StateVector, d: Diagnostics,
 
   // 2. Curiosity — substantive depth floor.
   {
-    const churn = spec.valuation === 'churn' && (I1 > 0 || O1 > 0);
+    const valuation = VALUATIONS.find((o) => o.key === spec.valuation);
+    const churn = !!valuation && !valuation.admissible && (I1 > 0 || O1 > 0);
     const shallow = x.V < k.Vmin;
     const status: PillarStatus = churn ? 'block' : shallow && I1 > 0 ? 'flag' : 'pass';
     const note = churn
-      ? `Superficial intake fails the admissibility floor (V = 0.10 < V_min = ${f2(k.Vmin)}). Swap it for a book, art, or rest.`
+      ? `Superficial intake fails the admissibility floor (V = ${f2(valuation.V)} < V_min = ${f2(k.Vmin)}). Swap it for a book, art, or rest.`
       : shallow && I1 > 0
         ? `Recent activity was shallow (V = ${f2(x.V)} < ${f2(k.Vmin)}); intake is drained of value until depth recovers.`
         : 'Substantive depth holds.';
@@ -71,7 +73,7 @@ export function evaluatePillars(spec: BlockSpec, x: StateVector, d: Diagnostics,
   // 3. Intellectual Deconstruction — prevent the quadratic β_in C_in I₁² spike.
   {
     const cost = k.betaIn * b.theta.Cin * I1 * I1;
-    const branching = spec.scratchpad === 'speculative' || spec.scratchpad === 'rabbit';
+    const branching = spec.scratchpad === 'speculative' || spec.scratchpad === 'rabbit' || spec.scratchpad === 'chaos';
     const status: PillarStatus = cost >= 0.25 ? 'block' : cost >= 0.12 || (branching && I1 > 0) ? 'flag' : 'pass';
     const note =
       cost >= 0.25
