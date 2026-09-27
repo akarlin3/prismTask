@@ -17,6 +17,8 @@ import {
   encodePersisted,
   gammaArousal,
   integrateBlock,
+  gradeCatalog,
+  letterGrade,
   nextBacklogLatch,
   prescribe,
   resolveSpec,
@@ -359,6 +361,75 @@ describe('prescription engine', () => {
     expect(sprint).toBeDefined();
     expect(sprint!.boundMinutes).toBeLessThan(90);
     expect(sprint!.stopRule).toContain('F ≥ 0.55');
+  });
+});
+
+describe('graded block catalog', () => {
+  const gradeAll = (over: Partial<StateVector>, hours = 4, latch = false) => {
+    const x = state(over);
+    const d = diagnose(x, hours, 0.4, k, latch);
+    return { x, d, r: route(x, d, k), list: gradeCatalog(x, hours, d, route(x, d, k), k) };
+  };
+
+  it('grades every catalog entry on [0, 100] with a consistent letter, best first', () => {
+    const { list } = gradeAll({ E: 0.6, B: 0.3 });
+    expect(list.length).toBeGreaterThanOrEqual(15);
+    for (let i = 0; i < list.length; i += 1) {
+      const g = list[i];
+      expect(g.score).toBeGreaterThanOrEqual(0);
+      expect(g.score).toBeLessThanOrEqual(100);
+      expect(g.grade).toBe(letterGrade(g.score));
+      if (i > 0) expect(list[i - 1].score).toBeGreaterThanOrEqual(g.score);
+      if (g.entry.kind !== 'sleep') {
+        expect(g.spec).not.toBeNull();
+        expect(g.predicted).not.toBeNull();
+      }
+    }
+    expect(letterGrade(80)).toBe('A');
+    expect(letterGrade(64.9)).toBe('C');
+    expect(letterGrade(34)).toBe('F');
+  });
+
+  it('puts execution on top in Quadrant IV and rest on top in Quadrant I-A', () => {
+    const iv = gradeAll({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    expect(iv.r.quadrant).toBe('IV');
+    expect(iv.list[0].entry.kind).toBe('execute');
+    expect(iv.list[0].grade).toBe('A');
+    expect(iv.list.find((g) => g.entry.kind === 'sleep')!.grade).toBe('F');
+
+    const ia = gradeAll({ E: 0.3, B: 0.7, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    expect(ia.r.quadrant).toBe('I-A');
+    expect(ia.list[0].entry.kind).toBe('rest');
+    for (const g of ia.list.filter((g) => g.entry.kind === 'execute')) expect(g.score).toBeLessThan(50);
+  });
+
+  it('caps intake blocks under the backlog lock and visual blocks under the optical cutoff', () => {
+    const locked = gradeAll({ E: 0.7, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 4, true);
+    for (const g of locked.list) {
+      if (!g.spec) continue;
+      const u = resolveSpec(g.spec).u;
+      if (u.Ivis + u.Iaud > 0) {
+        expect(g.score).toBeLessThanOrEqual(15);
+        expect(g.caps.some((c) => c.startsWith('backlog lock'))).toBe(true);
+      }
+    }
+    const blurred = gradeAll({ E: 0.7, B: 0.2, Fvis: 0.7, Fbody: 0.1, A: 0.5, V: 0.9 });
+    for (const g of blurred.list) {
+      if (g.spec && resolveSpec(g.spec).u.Ivis > 0) expect(g.score).toBeLessThanOrEqual(15);
+    }
+  });
+
+  it('rejects rest under the under-arousal gate and promotes sleep in a late-phase singularity', () => {
+    const under = gradeAll({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.2, V: 0.9 });
+    expect(under.d.guardrails.underArousal).toBe(true);
+    for (const g of under.list.filter((g) => g.entry.kind === 'rest')) {
+      expect(g.score).toBeLessThanOrEqual(35);
+      expect(g.caps.some((c) => c.startsWith('under-arousal gate'))).toBe(true);
+    }
+    const late = gradeAll({ E: 0.4, B: 0.4 }, 17);
+    expect(late.list[0].entry.kind).toBe('sleep');
+    expect(late.list[0].grade).toBe('A');
+    for (const g of late.list) if (g.spec && resolveSpec(g.spec).u.Ivis + resolveSpec(g.spec).u.Iaud > 0) expect(g.score).toBeLessThanOrEqual(10);
   });
 });
 

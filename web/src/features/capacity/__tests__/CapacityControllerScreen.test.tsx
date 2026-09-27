@@ -98,6 +98,24 @@ describe('CapacityControllerScreen', () => {
     expect(screen.getByText('Expressive Digestion')).toBeInTheDocument();
   });
 
+  it('lists every catalog block with a grade and arms one into the audit form', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: 1, x: { E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 }, hoursAwake: 3, blockIndex: 0, history: [], spec: { modality: 'zero' } }),
+    );
+    render(<CapacityControllerScreen />);
+    const catalog = screen.getByRole('region', { name: /Block catalog/i });
+    const grades = within(catalog).getAllByLabelText(/^Grade [A-F]$/);
+    expect(grades.length).toBeGreaterThanOrEqual(15);
+    // Quadrant IV: the top card is an execution block.
+    expect(within(catalog).getByText('Core generative sprint, music loop')).toBeInTheDocument();
+    expect(grades[0]).toHaveTextContent('A');
+    const armButtons = within(catalog).getAllByRole('button', { name: /^Arm$/ });
+    fireEvent.click(armButtons[0]);
+    const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
+    expect(within(form).getByRole('radio', { name: /Deep Execution/i })).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('flags the burnout singularity late in the circadian phase', () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -105,6 +123,10 @@ describe('CapacityControllerScreen', () => {
     );
     render(<CapacityControllerScreen />);
     expect(screen.getByRole('alert')).toHaveTextContent(/Burnout Singularity/i);
-    expect(screen.getByRole('button', { name: /Log Sleep Reset/i })).toBeInTheDocument();
+    // Prescription card, trailing prompt and catalog entry all offer the reset.
+    expect(screen.getAllByRole('button', { name: /Log Sleep Reset/i }).length).toBeGreaterThanOrEqual(2);
+    const catalog = screen.getByRole('region', { name: /Block catalog/i });
+    expect(within(catalog).getAllByLabelText(/^Grade [A-F]$/)[0]).toHaveTextContent('A');
+    expect(within(catalog).getByText('Terminal sleep reset')).toBeInTheDocument();
   });
 });

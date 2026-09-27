@@ -1294,6 +1294,177 @@ export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r:
 }
 
 // ---------------------------------------------------------------------------
+// Block catalog: a fixed set of archetypes, graded against the current state
+// ---------------------------------------------------------------------------
+
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  kind: ConfigKind;
+  detail: string;
+  /** Default cadence in minutes; the grade uses min(cadence, simulated horizon). */
+  minutes: number;
+  spec: SpecBase | null;
+}
+
+export const BLOCK_CATALOG: readonly CatalogEntry[] = [
+  { id: 'rest-isolation', name: 'Sensory isolation rest', kind: 'rest', detail: 'Dark room, eye mask, supine, silence', minutes: 25, spec: { ...REST_BASE } },
+  { id: 'rest-brown', name: 'Zero-input rest, brown noise', kind: 'rest', detail: 'Supine under broadband masking', minutes: 25, spec: { ...REST_BASE, anchor: 'brown' } },
+  { id: 'somatic-walk', name: 'Treadmill walk, zero input', kind: 'somatic', detail: '2.5–2.8 mph, no screens, no audio', minutes: 25, spec: { ...REST_BASE, anchor: 'treadmill' } },
+  { id: 'somatic-fidget', name: 'Supine deload with tactile anchor', kind: 'somatic', detail: 'Spinal deload, eyes closed, hand-scale kinetic', minutes: 25, spec: { ...REST_BASE, anchor: 'fidget' } },
+  { id: 'absorb-audio', name: 'Audio narrative, eye mask', kind: 'absorb', detail: 'Fiction density, supine, I_vis = 0', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-audio-walk', name: 'Audiobook on the treadmill', kind: 'absorb', detail: 'Fiction density, kinetic anchor', minutes: 45, spec: { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-literature', name: 'Literature on the page', kind: 'absorb', detail: 'Substantive prose, familiar music, supported', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-analysis', name: 'Structured analysis reading', kind: 'absorb', detail: 'Essays and reports, seated, tokenized', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'analysis', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'absorb-dense', name: 'Dense technical absorption', kind: 'absorb', detail: 'Specs, papers, code review at C_in 0.65', minutes: 45, spec: { modality: 'dense', anchor: 'music', valuation: 'architecture', density: 'manuals', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'express-journal', name: 'Scratchpad synthesis, familiar music', kind: 'express', detail: 'Analog journaling, tangents tokenized', minutes: 25, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'express-silence', name: 'Improv or free-write in silence', kind: 'express', detail: 'Expressive output, supported posture', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'express-walk', name: 'Pacing dictation', kind: 'express', detail: 'Expressive output on the treadmill', minutes: 25, spec: { modality: 'expressive', anchor: 'treadmill', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'ramp', name: 'Arousal ramp: novel-domain free-write', kind: 'express', detail: 'Music anchor plus cross-domain novelty (ξ = 0.15)', minutes: 15, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' } },
+  { id: 'execute-sprint', name: 'Core generative sprint, music loop', kind: 'execute', detail: 'Architecture / proofs / code, pure agency', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'execute-walk', name: 'Walking-desk execution', kind: 'execute', detail: 'Same output vector on the treadmill', minutes: 45, spec: { modality: 'execution', anchor: 'treadmill', valuation: 'architecture', density: 'proofs', context: 'soft', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'execute-deadline', name: 'Sprint deliverable under deadline', kind: 'execute', detail: 'P = 0.60, S = 0.70, music anchor', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'sprint', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'sleep', name: 'Terminal sleep reset', kind: 'sleep', detail: 'Full shutdown, 7.5 h', minutes: 0, spec: null },
+];
+
+export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export interface GradedBlock {
+  entry: CatalogEntry;
+  /** Loadable spec with the effective cadence (null for sleep). */
+  spec: BlockSpec | null;
+  score: number;
+  grade: Grade;
+  /** Sub-scores, each on [0, 100]. */
+  fit: number;
+  outcome: number;
+  horizon: number;
+  /** Caps applied by guardrails / admissibility, with the reason. */
+  caps: string[];
+  boundMinutes: number;
+  horizonMinutes: number;
+  stopReason: string;
+  predicted: StateVector | null;
+  delta: StateVector | null;
+  /** ΔU of the state utility over the block. */
+  deltaUtility: number | null;
+}
+
+/** State utility used to score predicted outcomes: reserves up, backlog / strain / arousal error down, depth up. */
+export function stateUtility(x: StateVector, k: Constants): number {
+  return x.E - x.B - compositeStrain(x) - Math.abs(x.A - k.Astar) + 0.25 * x.V;
+}
+
+export function letterGrade(score: number): Grade {
+  return score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : score >= 35 ? 'D' : 'F';
+}
+
+type FitRow = Record<ConfigKind, number>;
+
+/** Routing fit: how well each block kind serves the routed quadrant (0–100). */
+function fitTable(r: Routing, d: Diagnostics, F: number): FitRow {
+  switch (r.quadrant) {
+    case 'SINGULARITY':
+      return d.singularityMode === 'structural'
+        ? { rest: 100, somatic: 60, express: 35, absorb: 0, execute: 10, sleep: 70 }
+        : { rest: 60, somatic: 40, express: 5, absorb: 0, execute: 0, sleep: 100 };
+    case 'I-A':
+      return { rest: 100, somatic: F >= 0.4 ? 70 : 45, express: 20, absorb: 0, execute: 0, sleep: 30 };
+    case 'I-B':
+      return { rest: 40, somatic: 50, express: 100, absorb: 0, execute: 35, sleep: 10 };
+    case 'III':
+      return { rest: 70, somatic: 100, express: 45, absorb: 35, execute: 10, sleep: 20 };
+    case 'II':
+      return { rest: 60, somatic: 50, express: 40, absorb: 100, execute: 10, sleep: 10 };
+    case 'IV':
+      return { rest: 10, somatic: 30, express: 50, absorb: 40, execute: 100, sleep: 0 };
+    case 'IV-B':
+      return { rest: 10, somatic: 30, express: 80, absorb: 20, execute: 90, sleep: 0 };
+    default:
+      return { rest: 50, somatic: 50, express: 50, absorb: 50, execute: 50, sleep: 0 };
+  }
+}
+
+/** Grade every catalog entry against the current state; sorted best first. */
+export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): GradedBlock[] {
+  const F = compositeStrain(x);
+  const fits = fitTable(r, d, F);
+  const g = d.guardrails;
+  const U0 = stateUtility(x, k);
+  const out: GradedBlock[] = BLOCK_CATALOG.map((entry) => {
+    const caps: string[] = [];
+    const fit = fits[entry.kind];
+    if (entry.kind === 'sleep' || !entry.spec) {
+      const indicated = d.regime === 'singularity';
+      const predicted = applySleepReset(x, 7.5);
+      const score = indicated ? (d.singularityMode === 'structural' ? 70 : 100) : 15;
+      if (!indicated) caps.push('not indicated: I* numerator > 0 at Γ = 1, F < F_term, t_awake < t_late');
+      return {
+        entry,
+        spec: null,
+        score,
+        grade: letterGrade(score),
+        fit,
+        outcome: 100,
+        horizon: 100,
+        caps,
+        boundMinutes: 0,
+        horizonMinutes: 0,
+        stopReason: 'session terminated',
+        predicted,
+        delta: { E: predicted.E - x.E, B: predicted.B - x.B, Fvis: predicted.Fvis - x.Fvis, Fbody: predicted.Fbody - x.Fbody, A: predicted.A - x.A, V: predicted.V - x.V },
+        deltaUtility: stateUtility(predicted, k) - U0,
+      };
+    }
+    const kind = entry.kind as Exclude<ConfigKind, 'sleep'>;
+    const rule = STOP_RULES[kind];
+    const probe = withCadence(entry.spec, 90);
+    const { horizon, reason } = simulateHorizon(x, hoursAwake, probe, k, rule.check, entry.minutes);
+    const survives = horizon >= entry.minutes;
+    const bound = survives ? entry.minutes : snapCadence(horizon);
+    const inputs = resolveSpec(withCadence(entry.spec, Math.max(bound, 15)));
+    const I1 = inputs.u.Ivis + inputs.u.Iaud;
+    const effective = Math.max(bound, 15);
+    const result = integrateBlock(x, hoursAwake, inputs, effective, k);
+    const dU = stateUtility(result.x, k) - U0;
+    const outcome = 50 + 50 * Math.max(-1, Math.min(1, dU / 0.2));
+    const horizonScore = 100 * Math.min(1, horizon / entry.minutes);
+    let score = 0.45 * fit + 0.4 * outcome + 0.15 * horizonScore;
+    let cap = 100;
+    const capTo = (v: number, why: string) => {
+      cap = Math.min(cap, v);
+      caps.push(why);
+    };
+    if (bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
+    if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'input prohibited: I*(t) ≤ 0');
+    if (I1 > 0 && g.backlogSaturated) capTo(15, `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
+    if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
+    if (I1 > 0 && result.mean.phiIn < 0) capTo(30, `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
+    if (kind === 'rest' && g.underArousal) capTo(35, `under-arousal gate: A = ${x.A.toFixed(2)} with E = ${x.E.toFixed(2)} — rest rejected`);
+    if (kind === 'execute' && d.singularityMode === 'somatic') capTo(10, 'terminal strain: F ≥ F_term');
+    score = Math.min(score, cap);
+    score = Math.round(Math.max(0, Math.min(100, score)));
+    return {
+      entry,
+      spec: withCadence(entry.spec, effective),
+      score,
+      grade: letterGrade(score),
+      fit: Math.round(fit),
+      outcome: Math.round(outcome),
+      horizon: Math.round(horizonScore),
+      caps,
+      boundMinutes: bound,
+      horizonMinutes: horizon,
+      stopReason: survives ? `no boundary inside ${entry.minutes} m` : `${reason} at ${horizon} m`,
+      predicted: result.x,
+      delta: result.delta,
+      deltaUtility: dU,
+    };
+  });
+  return out.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+}
+
+// ---------------------------------------------------------------------------
 // Persistence codec
 // ---------------------------------------------------------------------------
 

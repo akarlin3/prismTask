@@ -21,8 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ξ_novelty` arousal term, the optical cutoff / backlog-saturation /
   under-arousal-vs-depletion / terminal-strain guardrails, the revised
   routing matrix with its parameter ranges, a per-block *State Vector
-  Update* report (with Markdown copy) and a single trailing operational
-  prompt. Engine + screen tests under
+  Update* report (with Markdown copy), a single trailing operational
+  prompt, and a graded block catalog (every archetype always listed,
+  forward-simulated and scored A–F for the current state, one-click arm).
+  Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.
 

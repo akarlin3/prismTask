@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardCopy,
+  Grid2x2,
   Footprints,
   Gauge,
   Info,
@@ -48,6 +49,7 @@ import {
   defaultPersisted,
   diagnose,
   encodePersisted,
+  gradeCatalog,
   integrateBlock,
   nextBacklogLatch,
   prescribe,
@@ -57,6 +59,8 @@ import {
   type ConfigKind,
   type Constants,
   type Diagnostics,
+  type Grade,
+  type GradedBlock,
   type HistoryEntry,
   type InputRegime,
   type Option,
@@ -112,6 +116,14 @@ const QUADRANT_TONE: Record<Routing['quadrant'], string> = {
   III: 'border-purple-400/60 bg-purple-400/10 text-purple-300',
   IV: 'border-emerald-400/60 bg-emerald-400/10 text-emerald-300',
   'IV-B': 'border-emerald-400/40 bg-emerald-400/5 text-emerald-200',
+};
+
+const GRADE_TONE: Record<Grade, string> = {
+  A: 'border-emerald-400/70 bg-emerald-400/15 text-emerald-200',
+  B: 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200',
+  C: 'border-zinc-500 bg-zinc-800 text-zinc-200',
+  D: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
+  F: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
 };
 
 const SLEEP_OPTIONS = [
@@ -915,6 +927,93 @@ function PrescriptionCard({ p, x, k, onArm, onSleep }: { p: Prescription; x: Sta
 }
 
 // ---------------------------------------------------------------------------
+// Graded catalog card
+// ---------------------------------------------------------------------------
+
+function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVector; k: Constants; onArm: (spec: BlockSpec) => void; onSleep: () => void }) {
+  const Icon = KIND_ICON[g.entry.kind];
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`rounded-lg border p-2.5 ${g.grade === 'F' ? 'border-zinc-800/70 bg-zinc-900/30 opacity-80' : 'border-zinc-800 bg-zinc-900/60'}`} data-grade={g.grade}>
+      <div className="flex items-start gap-2.5">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border font-mono text-lg font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
+          {g.grade}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[12.5px] font-semibold leading-tight text-zinc-100">
+                <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                <span className="truncate">{g.entry.name}</span>
+              </div>
+              <div className="mt-0.5 truncate text-[10.5px] text-zinc-500">{g.entry.detail}</div>
+            </div>
+            <div className="shrink-0 text-right font-mono">
+              <div className="text-sm font-semibold text-zinc-100">{g.score}</div>
+              <div className="text-[9.5px] uppercase tracking-[0.12em] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : `${g.boundMinutes} m`}</div>
+            </div>
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-zinc-500">
+            <span title="Routing fit for the current quadrant">fit {g.fit}</span>
+            <span>·</span>
+            <span title="Predicted change in state utility over the block">outcome {g.outcome}</span>
+            <span>·</span>
+            <span title="Share of the block that survives before a boundary trips">horizon {g.horizon}</span>
+            {g.delta && (
+              <>
+                <span>·</span>
+                {(['E', 'B'] as StateKey[]).map((key) => (
+                  <span key={key} className={deltaTone(key, g.delta![key], x[key], k)}>
+                    {SERIES_BY_KEY[key].symbol} {fmtSigned(g.delta![key])}
+                  </span>
+                ))}
+                <span className={deltaTone('Fvis', compositeStrain(g.predicted!) - compositeStrain(x), compositeStrain(x), k)}>F {fmtSigned(compositeStrain(g.predicted!) - compositeStrain(x))}</span>
+              </>
+            )}
+          </div>
+          {g.caps.length > 0 && (
+            <ul className="mt-1 grid gap-0.5">
+              {g.caps.map((c) => (
+                <li key={c} className="flex items-start gap-1 text-[10.5px] leading-snug text-amber-200/90">
+                  <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>{c}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="text-[10.5px] text-zinc-500 hover:text-zinc-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+              {open ? 'hide detail' : 'detail'}
+            </button>
+            {g.entry.kind === 'sleep' ? (
+              <GhostButton onClick={onSleep}>Log Sleep Reset</GhostButton>
+            ) : (
+              <GhostButton onClick={() => g.spec && onArm(g.spec)}>Arm</GhostButton>
+            )}
+          </div>
+          {open && g.spec && (
+            <div className="mt-1.5 grid gap-1 font-mono text-[10.5px] text-zinc-500">
+              <div>{describeSpec(g.spec)}</div>
+              <div>stop: {g.stopReason}</div>
+              {g.predicted && (
+                <div className="flex flex-wrap gap-1">
+                  {STATE_KEYS.map((key) => (
+                    <span key={key} className="rounded border border-zinc-800 px-1 py-0.5">
+                      <span className={SERIES_BY_KEY[key].text}>{SERIES_BY_KEY[key].symbol}</span> {fmt(g.predicted![key])}
+                    </span>
+                  ))}
+                  <span className="rounded border border-zinc-800 px-1 py-0.5">ΔU {fmtSigned(g.deltaUtility ?? 0, 3)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
@@ -954,6 +1053,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     [preview, inputs, k, backlogLatch],
   );
   const report = useMemo(() => (lastDeltaEntry(history) ? buildMarkdownReport(lastDeltaEntry(history)!, diag, routing, prescriptions, k) : null), [history, diag, routing, prescriptions, k]);
+  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k), [x, hoursAwake, diag, routing, k]);
 
   const lastBlock = useMemo(() => [...history].reverse().find((h) => h.kind === 'block') ?? null, [history]);
   const lastEntry = history.length ? history[history.length - 1] : null;
@@ -1048,7 +1148,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const arm = (s: BlockSpec) => {
     update({ spec: s });
     setNotice(`Armed: ${describeSpec(s)} · Δt = ${cadenceMinutes(s.cadence)} m`);
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
   const copyText = (text: string, done: string) => {
@@ -1416,6 +1516,35 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           </div>
         </section>
       </div>
+
+      {/* Graded block catalog */}
+      <section aria-label="Block catalog" className="mt-5">
+        <SectionTitle
+          icon={Grid2x2}
+          aside={
+            <span className="font-mono text-[10.5px] text-zinc-500">
+              score = 0.45·fit + 0.40·outcome + 0.15·horizon, capped by guardrails · A ≥ 80 · B ≥ 65 · C ≥ 50 · D ≥ 35
+            </span>
+          }
+        >
+          Block Catalog · graded for x_k
+        </SectionTitle>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {catalog.map((g) => (
+            <CatalogCard
+              key={g.entry.id}
+              g={g}
+              x={x}
+              k={k}
+              onArm={arm}
+              onSleep={() => {
+                setSleepHours(7.5);
+                setModal('sleep');
+              }}
+            />
+          ))}
+        </div>
+      </section>
 
       {modal === 'override' && <OverrideModal x={x} hoursAwake={hoursAwake} k={k} onApply={applyOverride} onClear={clearAll} onClose={() => setModal(null)} />}
       {modal === 'constants' && (

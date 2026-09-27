@@ -133,6 +133,32 @@ largest standard cadence (15 / 25 / 45 / 60 / 90) — that is the hard boundary 
 card, together with the predicted state at the boundary. A candidate that violates inside 15
 minutes is marked inadmissible. **Arm This Block** loads the configuration into the audit form.
 
+## Graded block catalog
+
+A fixed catalog of block archetypes (sensory-isolation rest, brown-noise rest, treadmill walk,
+supine deload, audio narrative, audiobook on the treadmill, literature on the page, structured
+analysis, dense technical absorption, scratchpad synthesis, improv in silence, pacing dictation,
+arousal ramp, generative sprint, walking-desk execution, deadline sprint, terminal sleep reset)
+is always listed, whatever the routed quadrant. Each entry is forward-simulated from the
+current state and scored on `[0, 100]`:
+
+```
+score   = 0.45 · fit + 0.40 · outcome + 0.15 · horizon, then capped by guardrails
+fit     = routing-fit table: block kind × routed quadrant (0–100)
+outcome = 50 + 50 · clamp(ΔU / 0.2, −1, 1),   U(x) = E − B − F − |A − A*| + 0.25 V
+horizon = 100 · min(1, first-violation minute / catalog cadence)
+```
+
+Caps (with the reason shown on the card): input in a non-somatic singularity → 10, intake under
+the backlog lock → 15, visual intake under the optical cutoff → 15, depleting intake
+(`Φ_in < 0`) → 30, rest under the under-arousal gate → 35, execution at terminal strain → 10,
+a boundary that trips inside 15 m → 25. The sleep entry scores 100 in a late-phase or somatic
+singularity, 70 in a structural one, and 15 otherwise.
+
+Letters: A ≥ 80, B ≥ 65, C ≥ 50, D ≥ 35, F below. **Arm** loads the entry into the audit form
+with its effective cadence (the catalog cadence, or the largest standard cadence that survives
+the stop rule).
+
 ## Operating protocol in the UI
 
 The copilot's three-step protocol maps onto the screen:
