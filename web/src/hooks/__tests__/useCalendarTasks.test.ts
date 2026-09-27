@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { Task } from '@/types/task';
 
@@ -48,6 +48,15 @@ function makeTask(overrides: Partial<Task>): Task {
 describe('useCalendarTasks (B-05 reads Firestore, groups by due date)', () => {
   beforeEach(() => {
     getAllTasksMock.mockReset();
+    // The hook rebuckets overdue tasks into today's cell, so once the wall
+    // clock passes the fixtures' June 2026 due dates they fall outside the
+    // visible range and vanish. Pin the clock inside the fixture month.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 5, 1, 12));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('places a dated task on its due-date cell', async () => {
