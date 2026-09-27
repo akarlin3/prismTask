@@ -36,9 +36,11 @@ import {
   sameBlock,
   nextBacklogLatch,
   prescribe,
+  replayHistory,
   resolveSpec,
   route,
   type BlockSpec,
+  type HistoryEntry,
   type StateVector,
 } from '../capacityModel';
 
@@ -410,8 +412,11 @@ describe('graded block catalog', () => {
         expect(list[i - 1].score).toBeGreaterThanOrEqual(g.score);
         expect(g.comparison.against.name).toBe(best.entry.name);
         expect(g.comparison.margin).toBe(g.score - best.score);
-        const expected = g.caps.length > 0 ? 'blocked' : g.comparison.margin >= 0 ? 'best' : g.comparison.margin >= -8 ? 'close' : g.comparison.margin >= -25 ? 'behind' : 'far';
+        const expected = g.comparison.margin >= 0 ? 'best' : g.comparison.margin >= -8 ? 'close' : g.comparison.margin >= -25 ? 'behind' : 'far';
         expect(g.comparison.standing).toBe(expected);
+        // Guardrails are typed warnings, one per cap, never a verdict of their own.
+        expect(g.guardrails.map((w) => w.detail)).toEqual(g.caps);
+        for (const w of g.guardrails) expect(g.score).toBeLessThanOrEqual(w.cap);
       }
       if (g.entry.kind !== 'sleep') {
         expect(g.spec).not.toBeNull();
@@ -432,8 +437,9 @@ describe('graded block catalog', () => {
     expect(iv.list[0].entry.kind).toBe('execute');
     expect(iv.list[0].comparison.standing).toBe('best');
     const sleep = iv.list.find((g) => g.entry.kind === 'sleep')!;
-    expect(sleep.comparison.standing).toBe('blocked');
+    expect(sleep.comparison.standing).toBe('far');
     expect(sleep.comparison.margin).toBeLessThan(-25);
+    expect(sleep.guardrails.map((w) => w.type)).toEqual(['notIndicated']);
 
     const ia = gradeAll({ E: 0.3, B: 0.7, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
     expect(ia.r.quadrant).toBe('I-A');
@@ -453,7 +459,8 @@ describe('graded block catalog', () => {
     // Execution at F_body = 0.51 does trip the F ≥ 0.55 gate inside 15 m.
     const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
     expect(sprint.caps.some((c) => c.startsWith('boundary trips'))).toBe(true);
-    expect(sprint.comparison.standing).toBe('blocked');
+    expect(sprint.guardrails.some((w) => w.type === 'boundary' && w.cap === 25)).toBe(true);
+    expect(['behind', 'far']).toContain(sprint.comparison.standing);
   });
 
   it('caps intake blocks under the backlog lock and visual blocks under the optical cutoff', () => {
@@ -464,11 +471,15 @@ describe('graded block catalog', () => {
       if (u.Ivis + u.Iaud > 0) {
         expect(g.score).toBeLessThanOrEqual(15);
         expect(g.caps.some((c) => c.startsWith('backlog lock'))).toBe(true);
+        expect(g.guardrails.some((w) => w.type === 'backlogLock')).toBe(true);
       }
     }
     const blurred = gradeAll({ E: 0.7, B: 0.2, Fvis: 0.7, Fbody: 0.1, A: 0.5, V: 0.9 });
     for (const g of blurred.list) {
-      if (g.spec && resolveSpec(g.spec).u.Ivis > 0) expect(g.score).toBeLessThanOrEqual(15);
+      if (g.spec && resolveSpec(g.spec).u.Ivis > 0) {
+        expect(g.score).toBeLessThanOrEqual(15);
+        expect(g.guardrails.some((w) => w.type === 'opticalCutoff')).toBe(true);
+      }
     }
   });
 
@@ -478,6 +489,7 @@ describe('graded block catalog', () => {
     for (const g of under.list.filter((g) => g.entry.kind === 'rest')) {
       expect(g.score).toBeLessThanOrEqual(35);
       expect(g.caps.some((c) => c.startsWith('under-arousal gate'))).toBe(true);
+      expect(g.guardrails.some((w) => w.type === 'underArousal')).toBe(true);
     }
     const late = gradeAll({ E: 0.4, B: 0.4 }, 17);
     expect(late.list[0].entry.kind).toBe('sleep');
@@ -564,14 +576,16 @@ describe('gradeBlock (the block being programmed)', () => {
     expect(gradeBlock(spec({ modality: 'reading', valuation: 'churn' }), x, 4, d, r, k).comparison.standing).toBe('best');
   });
 
-  it('reflects the block as programmed: churn is blocked, a custom length keeps its own horizon', () => {
+  it('reflects the block as programmed: churn trips guardrails and stands far behind, a custom length keeps its own horizon', () => {
     const x = state({ E: 0.7, B: 0.25 });
     const d = diagnose(x, 4, 0.4, k);
     const r = route(x, d, k);
     const best = gradeCatalog(x, 4, d, r, k, [], 15)[0];
     const churn = gradeBlock(spec({ modality: 'reading', valuation: 'churn', cadence: 'm15' }), x, 4, d, r, k, 'This block', best);
-    expect(churn.comparison.standing).toBe('blocked');
+    expect(['behind', 'far']).toContain(churn.comparison.standing);
     expect(churn.caps.length).toBeGreaterThan(0);
+    expect(churn.guardrails.length).toBe(churn.caps.length);
+    expect(churn.guardrails.map((w) => w.type)).toContain('depletingIntake');
     const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k, 'This block', best);
     expect(long.spec!.customMinutes).toBe(40);
     expect(long.entry.minutes).toBe(40);
@@ -717,6 +731,68 @@ describe('playback speed', () => {
     const bad = decodePersisted(JSON.stringify({ spec: { modality: 'auditory', speed: 'x99' }, listeningSpeed: 'fast' }));
     expect(bad.spec.speed).toBeUndefined();
     expect(bad.listeningSpeed).toBe('x1');
+  });
+});
+
+describe('replayHistory', () => {
+  const at = '2026-09-27T20:00:00.000Z';
+  const logged = (x: StateVector, hours: number, s: BlockSpec, dt: number, note?: string) => {
+    const inputs = resolveSpec(s);
+    const r = integrateBlock(x, hours, inputs, dt, k);
+    const entry: HistoryEntry = { k: 0, at, kind: 'block', note, dtMinutes: dt, spec: s, xBefore: x, xAfter: r.x, hoursAwakeBefore: hours, hoursAwakeAfter: r.hoursAwake, mean: r.mean, quadrant: 'IV' };
+    return { entry, x: r.x, hours: r.hoursAwake };
+  };
+
+  it('re-integrates later blocks after an edit or a delete and renumbers them', () => {
+    const x0 = state({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const a = logged(x0, 2, spec({ modality: 'execution', anchor: 'music' }), 25, 'sprint');
+    const b = logged(a.x, a.hours, spec({ modality: 'reading', anchor: 'none', valuation: 'art', density: 'fiction' }), 15);
+    const c = logged(b.x, b.hours, REST, 15);
+    const same = replayHistory([a.entry, b.entry, c.entry], k);
+    expect(same.x).toEqual(c.x);
+    expect(same.hoursAwake).toBeCloseTo(c.hours, 10);
+    expect(same.blockIndex).toBe(3);
+    expect(same.history.map((h) => h.k)).toEqual([1, 2, 3]);
+    expect(same.history[0].note).toBe('sprint');
+    // Delete the middle block: the rest block now follows the sprint directly.
+    const del = replayHistory([a.entry, c.entry], k, { x: x0, hoursAwake: 2 });
+    expect(del.history).toHaveLength(2);
+    expect(del.history[1].k).toBe(2);
+    expect(del.history[1].xBefore).toEqual(a.x);
+    const direct = integrateBlock(a.x, a.hours, resolveSpec(REST), 15, k);
+    expect(del.x).toEqual(direct.x);
+    expect(del.blockIndex).toBe(2);
+    // Edit the first block's length: everything after it moves and stays chained.
+    const edited = replayHistory([{ ...a.entry, dtMinutes: 45 }, b.entry, c.entry], k, { x: x0, hoursAwake: 2 });
+    expect(edited.history[0].xAfter).not.toEqual(a.x);
+    expect(edited.history[1].xBefore).toEqual(edited.history[0].xAfter);
+    expect(edited.history[2].xBefore).toEqual(edited.history[1].xAfter);
+    expect(edited.x).toEqual(edited.history[2].xAfter);
+    expect(edited.hoursAwake).toBeCloseTo(2 + (45 + 15 + 15) / 60, 10);
+    // Deleting everything returns to the origin.
+    const none = replayHistory([], k, { x: x0, hoursAwake: 2 });
+    expect(none.x).toEqual(x0);
+    expect(none.blockIndex).toBe(0);
+  });
+
+  it('re-applies sleep resets and keeps calibrations as recorded', () => {
+    const x0 = state({ E: 0.4, B: 0.5, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const felt = state({ E: 0.6, B: 0.3, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const cal: HistoryEntry = { k: 0, at, kind: 'override', dtMinutes: 0, spec: null, xBefore: x0, xAfter: felt, hoursAwakeBefore: 3, hoursAwakeAfter: 5, mean: null, quadrant: 'IV' };
+    const sleep: HistoryEntry = { k: 0, at, kind: 'sleep', dtMinutes: 0, spec: null, sleepHours: 8, xBefore: felt, xAfter: applySleepReset(felt, 8), hoursAwakeBefore: 5, hoursAwakeAfter: 0, mean: null, quadrant: 'IV' };
+    const after = logged(applySleepReset(felt, 8), 0, REST, 15);
+    const r = replayHistory([cal, sleep, after.entry], k, { x: x0, hoursAwake: 3 });
+    expect(r.history[0].xAfter).toEqual(felt);
+    expect(r.history[0].hoursAwakeAfter).toBe(5);
+    expect(r.history[1].xAfter).toEqual(applySleepReset(felt, 8));
+    expect(r.history[1].hoursAwakeAfter).toBe(0);
+    expect(r.history[2].k).toBe(1);
+    expect(r.x).toEqual(after.x);
+    expect(r.blockIndex).toBe(1);
+    // A different calibration upstream changes what the sleep reset produces.
+    const r2 = replayHistory([{ ...cal, xAfter: state({ E: 0.2, B: 0.9 }) }, sleep, after.entry], k, { x: x0, hoursAwake: 3 });
+    expect(r2.history[1].xAfter).toEqual(applySleepReset(state({ E: 0.2, B: 0.9 }), 8));
+    expect(r2.x).not.toEqual(after.x);
   });
 });
 

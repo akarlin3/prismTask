@@ -1595,7 +1595,18 @@ export const BLOCK_CATALOG: readonly CatalogEntry[] = [
 ];
 
 /** How a block stands against the best option for the current state. */
-export type Standing = 'best' | 'close' | 'behind' | 'far' | 'blocked';
+export type Standing = 'best' | 'close' | 'behind' | 'far';
+
+/** The guardrail a block trips. Warnings, not verdicts: the standing still comes from the score. */
+export type GuardrailType = 'singularity' | 'backlogLock' | 'opticalCutoff' | 'depletingIntake' | 'underArousal' | 'terminalStrain' | 'boundary' | 'notIndicated';
+
+export interface GuardrailWarning {
+  type: GuardrailType;
+  /** Score cap the guardrail applies. */
+  cap: number;
+  /** Model-level detail with symbols (same text as `caps`). */
+  detail: string;
+}
 
 export interface Comparison {
   /** The reference block: the best option right now (or the block itself). */
@@ -1624,8 +1635,10 @@ export interface GradedBlock {
   fit: number;
   outcome: number;
   horizon: number;
-  /** Caps applied by guardrails / admissibility, with the reason. */
+  /** Caps applied by guardrails / admissibility, with the reason (model wording). */
   caps: string[];
+  /** The same caps, typed, for warnings that name the guardrail. */
+  guardrails: GuardrailWarning[];
   boundMinutes: number;
   horizonMinutes: number;
   stopReason: string;
@@ -1665,15 +1678,14 @@ export function sameBlock(a: BlockSpec | null, b: BlockSpec | null): boolean {
 }
 
 /**
- * Compare a scored block with the reference (the best option right now). A block that a
- * guardrail caps is "blocked" whatever its margin; otherwise the margin to the best decides.
+ * Compare a scored block with the reference (the best option right now). The margin to the
+ * best decides the standing; guardrails a block trips are reported separately as warnings.
  */
 export function compareBlocks(g: ScoredBlock, against: ScoredBlock, k: Constants): Comparison {
   const self = g.entry.id === against.entry.id || (g.entry.kind === against.entry.kind && sameBlock(g.spec, against.spec));
   const margin = self ? 0 : g.score - against.score;
   let standing: Standing;
-  if (!self && g.caps.length > 0) standing = 'blocked';
-  else if (self || margin >= 0) standing = 'best';
+  if (self || margin >= 0) standing = 'best';
   else if (margin >= -CLOSE_MARGIN) standing = 'close';
   else if (margin >= -BEHIND_MARGIN) standing = 'behind';
   else standing = 'far';
@@ -1725,12 +1737,17 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
   const U0 = stateUtility(x, k);
   {
     const caps: string[] = [];
+    const guardrails: GuardrailWarning[] = [];
     const fit = fits[entry.kind];
     if (entry.kind === 'sleep' || !entry.spec) {
       const indicated = d.regime === 'singularity';
       const predicted = applySleepReset(x, 7.5);
       const score = indicated ? (d.singularityMode === 'structural' ? 70 : 100) : 15;
-      if (!indicated) caps.push('not indicated: I* numerator > 0 at Γ = 1, F < F_term, t_awake < t_late');
+      if (!indicated) {
+        const detail = 'not indicated: I* numerator > 0 at Γ = 1, F < F_term, t_awake < t_late';
+        caps.push(detail);
+        guardrails.push({ type: 'notIndicated', cap: 15, detail });
+      }
       return {
         entry,
         spec: null,
@@ -1739,6 +1756,7 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
         outcome: 100,
         horizon: 100,
         caps,
+        guardrails,
         boundMinutes: 0,
         horizonMinutes: 0,
         stopReason: 'session terminated',
@@ -1776,20 +1794,21 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
     const outcome = 50 + 50 * Math.max(-1, Math.min(1, dU / 0.2));
     let score = 0.45 * fit + 0.4 * outcome + 0.15 * horizonScore;
     let cap = 100;
-    const capTo = (v: number, why: string) => {
+    const capTo = (v: number, type: GuardrailType, why: string) => {
       cap = Math.min(cap, v);
       caps.push(why);
+      guardrails.push({ type, cap: v, detail: why });
     };
     // Specific reasons first; the generic boundary cap last so the plain reason leads with the cause.
-    if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'input prohibited: I*(t) ≤ 0');
-    if (I1 > 0 && g.backlogSaturated) capTo(15, `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
-    if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
+    if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'singularity', 'input prohibited: I*(t) ≤ 0');
+    if (I1 > 0 && g.backlogSaturated) capTo(15, 'backlogLock', `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
+    if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, 'opticalCutoff', `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
     // Only intake-led blocks are capped for a negative Φ_in: talking, presenting or hands-on work carry
     // incidental intake whose cost is already in the outcome score.
-    if (I1 > 0 && kind === 'absorb' && result.mean.phiIn < 0) capTo(30, `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
-    if (kind === 'rest' && g.underArousal) capTo(35, `under-arousal gate: A = ${x.A.toFixed(2)} with E = ${x.E.toFixed(2)} — rest rejected`);
-    if (kind === 'execute' && d.singularityMode === 'somatic') capTo(10, 'terminal strain: F ≥ F_term');
-    if (stopKind === 'violation' && bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
+    if (I1 > 0 && kind === 'absorb' && result.mean.phiIn < 0) capTo(30, 'depletingIntake', `depleting intake: Φ_in = ${result.mean.phiIn.toFixed(3)} < 0 (I₁ = ${I1.toFixed(2)} vs I* = ${result.mean.Istar.toFixed(2)})`);
+    if (kind === 'rest' && g.underArousal) capTo(35, 'underArousal', `under-arousal gate: A = ${x.A.toFixed(2)} with E = ${x.E.toFixed(2)} — rest rejected`);
+    if (kind === 'execute' && d.singularityMode === 'somatic') capTo(10, 'terminalStrain', 'terminal strain: F ≥ F_term');
+    if (stopKind === 'violation' && bound < 15) capTo(25, 'boundary', `boundary trips inside 15 m (${reason})`);
     score = Math.min(score, cap);
     score = Math.round(Math.max(0, Math.min(100, score)));
     return {
@@ -1800,6 +1819,7 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
       outcome: Math.round(outcome),
       horizon: Math.round(horizonScore),
       caps,
+      guardrails,
       boundMinutes: bound,
       horizonMinutes: horizon,
       stopReason,
@@ -1877,6 +1897,54 @@ export interface UserPreset {
   name: string;
   spec: BlockSpec;
   createdAt: string;
+}
+
+export interface Replay {
+  history: HistoryEntry[];
+  x: StateVector;
+  hoursAwake: number;
+  blockIndex: number;
+  backlogLatch: boolean;
+}
+
+/**
+ * Re-integrate a (possibly edited) history from its origin. Blocks are re-run from the state
+ * they now follow, sleep resets are re-applied, and a calibration keeps the state it recorded
+ * (a felt state is a fact, not a consequence of the model). Block numbers are reassigned.
+ */
+export function replayHistory(history: readonly HistoryEntry[], k: Constants, origin?: { x: StateVector; hoursAwake: number }): Replay {
+  let x: StateVector = { ...(origin?.x ?? history[0]?.xBefore ?? DEFAULT_STATE) };
+  let hours = origin?.hoursAwake ?? history[0]?.hoursAwakeBefore ?? 0;
+  let latch = false;
+  let count = 0;
+  const out: HistoryEntry[] = [];
+  for (const h of history) {
+    if (h.kind === 'block' && h.spec) {
+      const inputs = resolveSpec(h.spec);
+      const dt = Math.max(1, Math.round(h.dtMinutes || blockMinutes(h.spec)));
+      const r = integrateBlock(x, hours, inputs, dt, k);
+      count += 1;
+      latch = nextBacklogLatch(latch, r.x, inputs, k);
+      const quadrant = route(r.x, diagnose(r.x, r.hoursAwake, inputs.theta.Cin, k, latch), k).quadrant;
+      out.push({ ...h, k: count, dtMinutes: dt, xBefore: x, xAfter: r.x, hoursAwakeBefore: hours, hoursAwakeAfter: r.hoursAwake, mean: r.mean, quadrant });
+      x = r.x;
+      hours = r.hoursAwake;
+    } else if (h.kind === 'sleep') {
+      const nx = applySleepReset(x, h.sleepHours ?? 7.5);
+      latch = false;
+      out.push({ ...h, k: count, xBefore: x, xAfter: nx, hoursAwakeBefore: hours, hoursAwakeAfter: 0, mean: null, quadrant: route(nx, diagnose(nx, 0, 0.4, k, false), k).quadrant });
+      x = nx;
+      hours = 0;
+    } else {
+      const nx = { ...h.xAfter };
+      const nh = h.hoursAwakeAfter;
+      latch = nextBacklogLatch(latch, nx, null, k);
+      out.push({ ...h, k: count, xBefore: x, hoursAwakeBefore: hours, mean: null, quadrant: route(nx, diagnose(nx, nh, 0.4, k, latch), k).quadrant });
+      x = nx;
+      hours = nh;
+    }
+  }
+  return { history: out, x, hoursAwake: hours, blockIndex: count, backlogLatch: latch };
 }
 
 export interface PersistedState {

@@ -55,7 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constant switching), five novelty levels (mind-numbing to overwhelmingly
   new), seven body states (lying down to eyes and back both hurting), five
   intensities (×0.4 to ×1.6), speeds from 0.5× and custom lengths to 480
-  minutes, with wider Constants ranges to match.
+  minutes, with wider Constants ranges to match. Guardrails are warnings
+  that name the guardrail (Input prohibited, Backlog lock, Optical cutoff,
+  Depleting intake, Under-arousal gate, Terminal strain, Hard boundary, Not
+  indicated) rather than a "Not now" verdict, and a Past blocks log lets any
+  logged block be edited (note, length, every field) or deleted, with
+  everything after it replayed from the state it now follows.
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

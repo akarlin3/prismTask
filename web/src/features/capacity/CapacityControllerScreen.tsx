@@ -66,6 +66,7 @@ import {
   modalityIsPlayback,
   nextBacklogLatch,
   prescribe,
+  replayHistory,
   resolveSpec,
   route,
   type BlockSpec,
@@ -73,6 +74,7 @@ import {
   type Constants,
   type Diagnostics,
   type GradedBlock,
+  type GuardrailWarning,
   type HistoryEntry,
   type InputRegime,
   type Option,
@@ -86,7 +88,7 @@ import {
   type UserPreset,
   withMinutes,
 } from './capacityModel';
-import { PLAIN_BY_KEY, STANDING_LABEL, joinEffects, plainComparison, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
+import { PLAIN_BY_KEY, STANDING_LABEL, joinEffects, plainComparison, plainEffect, plainGuardrail, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
 import { describeBlock, type DescribedBlock, type DescribedField } from './blockDescriber';
 import { evaluatePillars, pillarSummary, type PillarVerdict } from './pillars';
 
@@ -142,8 +144,28 @@ const STANDING_TONE: Record<Standing, string> = {
   close: 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200',
   behind: 'border-zinc-500 bg-zinc-800 text-zinc-200',
   far: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
-  blocked: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
 };
+
+/** The guardrails a block trips, as warnings that name the guardrail. */
+function GuardrailList({ warnings, showMath, compact = false }: { warnings: GuardrailWarning[]; showMath: boolean; compact?: boolean }) {
+  if (warnings.length === 0) return null;
+  return (
+    <ul className={`grid gap-1 ${compact ? 'mt-1' : 'mt-1.5'}`} aria-label="Guardrail warnings">
+      {warnings.map((w) => {
+        const p = plainGuardrail(w);
+        return (
+          <li key={w.type} className="flex items-start gap-1.5 rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1.5 text-[11px] leading-snug text-amber-100">
+            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="font-semibold">{p.label}</span> — {p.text}
+              {showMath && <span className="ml-1 font-mono text-[10px] text-amber-200/70">{w.detail}</span>}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** Where a block stands against the best option right now, as a small pill. */
 function StandingPill({ standing, size = 'md' }: { standing: Standing; size?: 'sm' | 'md' }) {
@@ -1179,7 +1201,7 @@ function CatalogCard({ g, x, k, onArm, onSleep, onDelete }: { g: GradedBlock; x:
   const Icon = KIND_ICON[g.entry.kind];
   const [open, setOpen] = useState(false);
   return (
-    <div className={`rounded-lg border p-2.5 ${g.comparison.standing === 'blocked' ? 'border-zinc-800/70 bg-zinc-900/30 opacity-80' : 'border-zinc-800 bg-zinc-900/60'}`} data-standing={g.comparison.standing}>
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-2.5" data-standing={g.comparison.standing}>
       <div className="flex items-start gap-2.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -1223,16 +1245,7 @@ function CatalogCard({ g, x, k, onArm, onSleep, onDelete }: { g: GradedBlock; x:
               </>
             )}
           </div>
-          {g.caps.length > 0 && (
-            <ul className="mt-1 grid gap-0.5">
-              {g.caps.map((c) => (
-                <li key={c} className="flex items-start gap-1 text-[10.5px] leading-snug text-amber-200/90">
-                  <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span>{c}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <GuardrailList warnings={g.guardrails} showMath compact />
           <div className="mt-1.5 flex items-center justify-between gap-2">
             <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="text-[10.5px] text-zinc-500 hover:text-zinc-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
               {open ? 'hide detail' : 'detail'}
@@ -1279,7 +1292,8 @@ function BlockPreview({ graded, x, minutes, thenHeadline, showMath, k }: { grade
         <StandingPill standing={c.standing} />
       </div>
       <p className="mt-1 text-[12.5px] leading-snug text-zinc-100">{plainComparison(graded)}</p>
-      <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-400">{plainReason(graded, x, c.standing === 'blocked')}</p>
+      <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-400">{plainReason(graded, x)}</p>
+      <GuardrailList warnings={graded.guardrails} showMath={showMath} />
       {showMath && (
         <p className="mt-0.5 font-mono text-[10px] text-zinc-500">
           score {graded.score} ({fmtSigned(c.margin, 0)} vs {c.against.name}) · fit {graded.fit} · outcome {graded.outcome} · horizon {graded.horizon} · stop: {graded.stopReason}
@@ -1388,6 +1402,181 @@ function PillarRow({ verdicts, showMath }: { verdicts: PillarVerdict[]; showMath
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// The full block form, bound to any spec (the armed block, or a logged block being edited)
+// ---------------------------------------------------------------------------
+
+function SpecForm({ spec, onPatch, plain, showMath }: { spec: BlockSpec; onPatch: (patch: Partial<BlockSpec>) => void; plain: boolean; showMath: boolean }) {
+  const setSpec = onPatch;
+  const zeroVector = spec.modality === 'zero';
+  const u = resolveSpec(spec).u;
+  const armedI1 = u.Ivis + u.Iaud;
+  return (
+    <>
+          <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} showParams={!plain || showMath} />
+          <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} plain={plain} showParams={!plain || showMath} />
+          <Segmented
+            legend={plain ? 'Playback speed' : 'Playback Speed'}
+            symbol={plain && !showMath ? '' : '×I₁'}
+            options={PLAYBACK_SPEEDS}
+            value={spec.speed ?? 'x1'}
+            onChange={(v) => setSpec({ speed: v })}
+            columns={4}
+            plain={plain}
+            showParams={!plain || showMath}
+            dimmed={!modalityIsPlayback(spec.modality)}
+            note={!modalityIsPlayback(spec.modality) ? (plain ? 'Nothing is being played back in this block: speed has no effect.' : 'Not a playback modality: speed has no effect.') : plain ? 'Faster playback means more comes in per minute.' : undefined}
+          />
+          <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} plain={plain} showParams={!plain || showMath} />
+          <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} plain={plain} showParams={!plain || showMath} />
+          <Segmented
+            legend={plain ? 'How substantive' : 'Substantive Valuation'}
+            symbol={plain && !showMath ? '' : 'V_target'}
+            options={VALUATIONS}
+            value={spec.valuation}
+            onChange={(v) => setSpec({ valuation: v })}
+        plain={plain}
+        showParams={!plain || showMath}
+            dimmed={zeroVector}
+            note={zeroVector ? 'Zero-vector block: V holds its current value.' : undefined}
+            tag={(key) => (key === 'churn' ? <span className="rounded bg-rose-500/20 px-1 text-[9px] font-semibold uppercase tracking-wider text-rose-300">inadmissible</span> : null)}
+          />
+          <Segmented legend={plain ? 'How dense' : 'Cognitive Density'} symbol={plain && !showMath ? '' : 'C_in'} options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? (plain ? 'No intake in this block: density only affects the intake readout.' : 'I₁ = 0 for this modality: density only sets the I*(t) readout.') : undefined} />
+          <Segmented legend={plain ? 'Pressure and control' : 'Operational Context'} symbol={plain && !showMath ? '' : 'P, S_agency'} options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Tangents' : 'ADHD Scratchpad Discipline'} symbol={plain && !showMath ? '' : 'γ_assoc, Ω_switch'} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Novelty' : 'Novelty / Entropy Stimulation'} symbol={plain && !showMath ? '' : 'ξ_novelty'} options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Body and posture' : 'Somatic & Biomechanical Marker'} symbol={plain && !showMath ? '' : '𝟙seat, 𝟙kin'} options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} plain={plain} showParams={!plain || showMath} />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Block log: every past entry, editable and deletable, with the trajectory replayed
+// ---------------------------------------------------------------------------
+
+function BlockLog({
+  history,
+  k,
+  plain,
+  showMath,
+  limit,
+  onEdit,
+  onDelete,
+}: {
+  history: HistoryEntry[];
+  k: Constants;
+  plain: boolean;
+  showMath: boolean;
+  limit?: number;
+  onEdit: (index: number, patch: { spec: BlockSpec; note?: string }) => void;
+  onDelete: (index: number) => void;
+}) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const [draft, setDraft] = useState<BlockSpec | null>(null);
+  const [note, setNote] = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const rows = history.map((h, index) => ({ h, index })).reverse();
+  const visible = showAll || !limit ? rows : rows.slice(0, limit);
+  const begin = (index: number) => {
+    const h = history[index];
+    if (!h?.spec) return;
+    setEditing(index);
+    setDraft({ ...h.spec });
+    setNote(h.note ?? '');
+  };
+  const cancel = () => {
+    setEditing(null);
+    setDraft(null);
+  };
+  const save = () => {
+    if (editing === null || !draft) return;
+    onEdit(editing, { spec: draft, note: note.trim() || undefined });
+    cancel();
+  };
+  const remove = (index: number) => {
+    cancel();
+    onDelete(index);
+  };
+  if (history.length === 0) return <p className="text-[11.5px] text-zinc-500">Nothing logged yet.</p>;
+  return (
+    <div className="grid gap-1.5">
+      <ul className="grid gap-1.5" aria-label="Logged blocks">
+        {visible.map(({ h, index }) => {
+          const dE = h.xAfter.E - h.xBefore.E;
+          const dB = h.xAfter.B - h.xBefore.B;
+          const dF = compositeStrain(h.xAfter) - compositeStrain(h.xBefore);
+          const m = h.spec ? MODALITIES.find((o) => o.key === h.spec!.modality) : null;
+          const title = h.kind === 'sleep' ? `Sleep reset · ${h.sleepHours ?? 7.5} h` : h.kind === 'override' ? 'Calibration' : `${h.dtMinutes} min · ${plain ? (m?.plain ?? m?.label ?? '') : (m?.label ?? '')}`;
+          const time = new Date(h.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const isEditing = editing === index;
+          const what = h.kind === 'block' ? `block ${h.k}` : h.kind === 'sleep' ? 'sleep reset' : 'calibration';
+          return (
+            <li key={`${h.at}-${index}`} className="rounded-md border border-zinc-800 bg-zinc-950/50 px-2.5 py-2">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 text-[12px] text-zinc-100">
+                    <span className="font-mono text-[10.5px] text-zinc-500">{h.kind === 'block' ? `k${h.k}` : h.kind === 'sleep' ? 'sleep' : 'cal'}</span>
+                    <span className="font-medium">{title}</span>
+                    <span className="font-mono text-[10.5px] text-zinc-500">{time}</span>
+                  </div>
+                  {h.note && (
+                    <div className="mt-0.5 truncate text-[11px] text-zinc-400" title={h.note}>
+                      “{h.note}”
+                    </div>
+                  )}
+                  {!plain && h.spec && <div className="mt-0.5 truncate font-mono text-[10px] text-zinc-500">{describeSpec(h.spec)}</div>}
+                  <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10.5px]">
+                    <span className={deltaTone('E', dE, h.xBefore.E, k)}>
+                      {plain ? 'Energy' : 'E'} {fmtSigned(dE)}
+                    </span>
+                    <span className={deltaTone('B', dB, h.xBefore.B, k)}>
+                      {plain ? 'Backlog' : 'B'} {fmtSigned(dB)}
+                    </span>
+                    <span className={deltaTone('Fvis', dF, compositeStrain(h.xBefore), k)}>
+                      {plain ? 'Strain' : 'F'} {fmtSigned(dF)}
+                    </span>
+                    {showMath && <span className="text-zinc-500">→ {h.quadrant}</span>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {h.kind === 'block' && h.spec && !isEditing && <GhostButton onClick={() => begin(index)}>Edit</GhostButton>}
+                  <button type="button" onClick={() => remove(index)} aria-label={`Delete ${what}`} className="rounded p-1 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+              {isEditing && draft && (
+                <div role="group" aria-label={`Edit block ${h.k}`} className="mt-2 grid gap-3 border-t border-zinc-800 pt-2">
+                  <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    Note
+                    <input
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      maxLength={240}
+                      aria-label="Block note"
+                      className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[12.5px] font-normal normal-case tracking-normal text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+                    />
+                  </label>
+                  <SpecForm spec={draft} onPatch={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))} plain={plain} showMath={showMath} />
+                  <div className="flex justify-end gap-2">
+                    <GhostButton onClick={cancel}>Cancel</GhostButton>
+                    <PrimaryButton onClick={save}>Save changes</PrimaryButton>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {limit && rows.length > limit && (
+        <button type="button" onClick={() => setShowAll((o) => !o)} aria-expanded={showAll} className="text-[11.5px] text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400">
+          {showAll ? 'Show fewer' : `Show all ${rows.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function CapacityControllerScreen({ frameless = false }: { frameless?: boolean }) {
   const [store, setStore] = useState<PersistedState>(loadPersisted);
@@ -1594,6 +1783,31 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   };
   const deletePreset = (id: string) => update({ presets: presets.filter((p) => p.id !== id) });
 
+  // Editing or deleting a past entry replays everything after it from the state it now follows.
+  const rewriteHistory = (next: HistoryEntry[], notice: string) => {
+    const origin = history.length ? { x: history[0].xBefore, hoursAwake: history[0].hoursAwakeBefore } : { x, hoursAwake };
+    const r = replayHistory(next, k, origin);
+    update({ history: r.history, x: r.x, hoursAwake: r.hoursAwake, blockIndex: r.blockIndex, backlogLatch: r.backlogLatch });
+    setNotice(notice);
+  };
+  const deleteEntry = (index: number) => {
+    const h = history[index];
+    if (!h) return;
+    const what = h.kind === 'block' ? `block k${h.k}` : h.kind === 'sleep' ? 'the sleep reset' : 'the calibration';
+    rewriteHistory(
+      history.filter((_, i) => i !== index),
+      `Deleted ${what} · everything after it recomputed`,
+    );
+  };
+  const editEntry = (index: number, patch: { spec: BlockSpec; note?: string }) => {
+    const h = history[index];
+    if (!h) return;
+    rewriteHistory(
+      history.map((e, i) => (i === index ? { ...e, spec: patch.spec, dtMinutes: blockMinutes(patch.spec), note: patch.note } : e)),
+      `Updated block k${h.k} · everything after it recomputed`,
+    );
+  };
+
   const arm = (raw: BlockSpec) => {
     const s = simple ? withMinutes(raw, blockLength) : raw;
     setShowFullForm(false);
@@ -1632,43 +1846,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     return map[key];
   };
 
-  const auditFormGroups = (plain: boolean) => (
-    <>
-          <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} showParams={!plain || showMath} />
-          <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} plain={plain} showParams={!plain || showMath} />
-          <Segmented
-            legend={plain ? 'Playback speed' : 'Playback Speed'}
-            symbol={plain && !showMath ? '' : '×I₁'}
-            options={PLAYBACK_SPEEDS}
-            value={spec.speed ?? 'x1'}
-            onChange={(v) => setSpec({ speed: v })}
-            columns={4}
-            plain={plain}
-            showParams={!plain || showMath}
-            dimmed={!modalityIsPlayback(spec.modality)}
-            note={!modalityIsPlayback(spec.modality) ? (plain ? 'Nothing is being played back in this block: speed has no effect.' : 'Not a playback modality: speed has no effect.') : plain ? 'Faster playback means more comes in per minute.' : undefined}
-          />
-          <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} plain={plain} showParams={!plain || showMath} />
-          <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} plain={plain} showParams={!plain || showMath} />
-          <Segmented
-            legend={plain ? 'How substantive' : 'Substantive Valuation'}
-            symbol={plain && !showMath ? '' : 'V_target'}
-            options={VALUATIONS}
-            value={spec.valuation}
-            onChange={(v) => setSpec({ valuation: v })}
-        plain={plain}
-        showParams={!plain || showMath}
-            dimmed={zeroVector}
-            note={zeroVector ? 'Zero-vector block: V holds its current value.' : undefined}
-            tag={(key) => (key === 'churn' ? <span className="rounded bg-rose-500/20 px-1 text-[9px] font-semibold uppercase tracking-wider text-rose-300">inadmissible</span> : null)}
-          />
-          <Segmented legend={plain ? 'How dense' : 'Cognitive Density'} symbol={plain && !showMath ? '' : 'C_in'} options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? (plain ? 'No intake in this block: density only affects the intake readout.' : 'I₁ = 0 for this modality: density only sets the I*(t) readout.') : undefined} />
-          <Segmented legend={plain ? 'Pressure and control' : 'Operational Context'} symbol={plain && !showMath ? '' : 'P, S_agency'} options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Tangents' : 'ADHD Scratchpad Discipline'} symbol={plain && !showMath ? '' : 'γ_assoc, Ω_switch'} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Novelty' : 'Novelty / Entropy Stimulation'} symbol={plain && !showMath ? '' : 'ξ_novelty'} options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Body and posture' : 'Somatic & Biomechanical Marker'} symbol={plain && !showMath ? '' : '𝟙seat, 𝟙kin'} options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} plain={plain} showParams={!plain || showMath} />
-    </>
-  );
+  const auditFormGroups = (plain: boolean) => <SpecForm spec={spec} onPatch={setSpec} plain={plain} showMath={showMath} />;
 
   const integratePanel = (label: string) => (
     <>
@@ -1944,6 +2122,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                   </div>
                   <div className="mt-0.5 text-[11.5px] text-zinc-500">{recommended.entry.detail}</div>
                   <div className="mt-1 text-[12px] leading-snug text-zinc-200">{plainReason(recommended, x)}</div>
+                  <GuardrailList warnings={recommended.guardrails} showMath={showMath} compact />
                   {showMath && (
                     <div className="mt-1 font-mono text-[10px] text-zinc-500">
                       score {recommended.score} · fit {recommended.fit} · outcome {recommended.outcome} · horizon {recommended.horizon} · stop: {recommended.stopReason}
@@ -2072,24 +2251,6 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                   This counts as churn. Logging it records what happened; it does not make it a good idea.
                 </p>
               )}
-              {inputProhibited && (
-                <p className="flex items-start gap-2 rounded-md border border-red-500/50 bg-red-500/10 px-2.5 py-2 text-[11.5px] text-red-200">
-                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Taking things in drains you in this state. This block has intake in it.
-                </p>
-              )}
-              {opticalViolation && (
-                <p className="flex items-start gap-2 rounded-md border border-rose-500/50 bg-rose-500/10 px-2.5 py-2 text-[11.5px] text-rose-200">
-                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Your eyes are past the cutoff. This block uses them; switch to audio or darkness.
-                </p>
-              )}
-              {backlogViolation && (
-                <p className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-2.5 py-2 text-[11.5px] text-amber-100">
-                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  Your backlog is saturated. Intake is locked until you write something out.
-                </p>
-              )}
               {maskingActive && (
                 <p className="flex items-start gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11.5px] text-zinc-300">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-300" aria-hidden="true" />
@@ -2107,6 +2268,16 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </div>
             </>
             )}
+          </section>
+
+          <section aria-label="Block log" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Past blocks</h2>
+              <span className="text-[10.5px] text-zinc-500">{history.length === 0 ? 'nothing logged yet' : 'edit or delete any entry; everything after it is recomputed'}</span>
+            </div>
+            <div className="mt-2">
+              <BlockLog history={history} k={k} plain showMath={showMath} limit={6} onEdit={editEntry} onDelete={deleteEntry} />
+            </div>
           </section>
         </div>
       )}
@@ -2289,58 +2460,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               {logOpen ? <ChevronUp className="h-4 w-4 text-zinc-500" aria-hidden="true" /> : <ChevronDown className="h-4 w-4 text-zinc-500" aria-hidden="true" />}
             </button>
             {logOpen && (
-              <div className="overflow-x-auto border-t border-zinc-800">
-                <table className="w-full min-w-[640px] border-collapse font-mono text-[10.5px] tabular-nums">
-                  <thead>
-                    <tr className="text-left text-zinc-500">
-                      {['k', 'Δt', 'T₁', 'T₂', 'V', 'C_in', 'P/S', 'γ_a/Ω', 'ξ', 'soma', 'ΔE', 'ΔB', 'ΔF', 'Q'].map((h) => (
-                        <th key={h} className="whitespace-nowrap px-2 py-1.5 font-medium">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.length === 0 && (
-                      <tr>
-                        <td colSpan={14} className="px-2 py-3 text-zinc-500">
-                          No blocks integrated yet.
-                        </td>
-                      </tr>
-                    )}
-                    {[...history].reverse().slice(0, 12).map((h, i) => {
-                      const dE = h.xAfter.E - h.xBefore.E;
-                      const dB = h.xAfter.B - h.xBefore.B;
-                      const dF = compositeStrain(h.xAfter) - compositeStrain(h.xBefore);
-                      const m = h.spec ? MODALITIES.find((o) => o.key === h.spec!.modality)! : null;
-                      const a = h.spec ? ANCHORS.find((o) => o.key === h.spec!.anchor)! : null;
-                      const v = h.spec ? VALUATIONS.find((o) => o.key === h.spec!.valuation)! : null;
-                      const d = h.spec ? DENSITIES.find((o) => o.key === h.spec!.density)! : null;
-                      const c = h.spec ? CONTEXTS.find((o) => o.key === h.spec!.context)! : null;
-                      const s = h.spec ? SCRATCHPADS.find((o) => o.key === h.spec!.scratchpad)! : null;
-                      const nv = h.spec ? NOVELTIES.find((o) => o.key === h.spec!.novelty)! : null;
-                      const so = h.spec ? SOMATICS.find((o) => o.key === h.spec!.somatic)! : null;
-                      return (
-                        <tr key={`${h.at}-${i}`} className="border-t border-zinc-800/80 text-zinc-300 [&>td]:whitespace-nowrap">
-                          <td className="px-2 py-1">{h.kind === 'block' ? `k${h.k}` : h.kind === 'sleep' ? 'sleep' : 'cal'}</td>
-                          <td className="px-2 py-1">{h.kind === 'sleep' ? `${h.sleepHours ?? ''} h` : h.kind === 'block' ? `${h.dtMinutes} m` : '—'}</td>
-                          <td className="max-w-[9rem] truncate px-2 py-1" title={h.note ?? undefined}>{h.note ? `${m?.label ?? '—'} · “${h.note}”` : (m?.label ?? '—')}</td>
-                          <td className="max-w-[8rem] truncate px-2 py-1">{a?.label ?? '—'}</td>
-                          <td className="px-2 py-1">{v ? fmt(v.V) : '—'}</td>
-                          <td className="px-2 py-1">{d ? fmt(d.Cin) : '—'}</td>
-                          <td className="px-2 py-1">{c ? `${fmt(c.P)}/${fmt(c.S)}` : '—'}</td>
-                          <td className="px-2 py-1">{s ? `${s.gammaAssoc.toFixed(1)}/${fmt(s.omega)}` : '—'}</td>
-                          <td className="px-2 py-1">{nv ? fmt(nv.xi) : '—'}</td>
-                          <td className="max-w-[7rem] truncate px-2 py-1">{so?.label ?? '—'}</td>
-                          <td className={`px-2 py-1 ${deltaTone('E', dE, h.xBefore.E, k)}`}>{fmtSigned(dE)}</td>
-                          <td className={`px-2 py-1 ${deltaTone('B', dB, h.xBefore.B, k)}`}>{fmtSigned(dB)}</td>
-                          <td className={`px-2 py-1 ${deltaTone('Fvis', dF, compositeStrain(h.xBefore), k)}`}>{fmtSigned(dF)}</td>
-                          <td className="px-2 py-1">{h.quadrant}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="border-t border-zinc-800 p-3">
+                <BlockLog history={history} k={k} plain={false} showMath limit={12} onEdit={editEntry} onDelete={deleteEntry} />
               </div>
             )}
           </div>

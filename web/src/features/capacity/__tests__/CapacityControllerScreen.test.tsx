@@ -62,12 +62,14 @@ describe('CapacityControllerScreen', () => {
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).suggested).toBe(false);
     expect(within(mine).queryByLabelText(/Before you log it/i)).not.toBeInTheDocument();
 
-    // Describing a churn block reads "Not now" against the recommendation; Clear empties the card again.
+    // Describing a churn block still gets a standing, plus a warning that names the guardrail it trips.
     fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
     fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
     const churnPreview = within(mine).getByLabelText(/Before you log it/i);
-    expect(within(churnPreview).getByLabelText(/^Standing Not now$/)).toBeInTheDocument();
-    expect(churnPreview).toHaveTextContent(/Not now: /);
+    expect(within(churnPreview).getByLabelText(/^Standing (Well behind|A step behind)$/)).toBeInTheDocument();
+    const warnings = within(churnPreview).getByLabelText(/Guardrail warnings/i);
+    expect(warnings).toHaveTextContent(/Depleting intake|Hard boundary/);
+    expect(churnPreview).not.toHaveTextContent(/Not now/);
     fireEvent.click(within(mine).getByRole('button', { name: /^Clear$/i }));
     expect(within(mine).queryByLabelText(/Understood as/i)).not.toBeInTheDocument();
     expect(mine).toHaveTextContent(/Nothing is assumed until you do/);
@@ -81,6 +83,55 @@ describe('CapacityControllerScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
     expect(screen.getByRole('region', { name: /State-space HUD/i })).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).uiMode).toBe('advanced');
+  });
+
+  it('keeps a log of past blocks that can be edited and deleted, recomputing what follows', () => {
+    render(<CapacityControllerScreen />);
+    const rec = screen.getByRole('region', { name: /Recommended block/i });
+    const mine = screen.getByRole('region', { name: /^Your block$/i });
+    const log = screen.getByRole('region', { name: /Block log/i });
+    expect(log).toHaveTextContent(/Nothing logged yet/);
+    // Two blocks: the recommendation, then a described one.
+    fireEvent.click(within(rec).getByRole('button', { name: /^Use this$/ }));
+    fireEvent.click(within(mine).getByRole('button', { name: /^Log Block$/i }));
+    fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'read a novel on the couch' } });
+    fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+    fireEvent.click(within(mine).getByRole('button', { name: /^Log Block$/i }));
+    let rows = within(within(log).getByRole('list', { name: /Logged blocks/i })).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent(/k2/);
+    expect(rows[0]).toHaveTextContent(/read a novel on the couch/);
+    expect(rows[1]).toHaveTextContent(/k1/);
+    const before = decodePersisted(localStorage.getItem(STORAGE_KEY));
+    expect(before.history).toHaveLength(2);
+    // Edit the first block: a longer length and a note; the second block is recomputed from the new state.
+    fireEvent.click(within(rows[1]).getByRole('button', { name: /^Edit$/i }));
+    const editor = within(log).getByRole('group', { name: /Edit block 1/i });
+    fireEvent.click(within(editor).getByRole('radio', { name: /^45m/i }));
+    fireEvent.change(within(editor).getByLabelText(/Block note/i), { target: { value: 'first block, longer' } });
+    fireEvent.click(within(editor).getByRole('button', { name: /Save changes/i }));
+    const after = decodePersisted(localStorage.getItem(STORAGE_KEY));
+    expect(after.history[0].dtMinutes).toBe(45);
+    expect(after.history[0].note).toBe('first block, longer');
+    expect(after.history[0].xBefore).toEqual(before.history[0].xBefore);
+    expect(after.history[0].xAfter).not.toEqual(before.history[0].xAfter);
+    expect(after.history[1].xBefore).toEqual(after.history[0].xAfter);
+    expect(after.x).toEqual(after.history[1].xAfter);
+    expect(after.blockIndex).toBe(2);
+    expect(within(log).queryByRole('group', { name: /Edit block/i })).not.toBeInTheDocument();
+    expect(log).toHaveTextContent(/first block, longer/);
+    // Delete the first block: the remaining one is renumbered and recomputed from the origin.
+    rows = within(within(log).getByRole('list', { name: /Logged blocks/i })).getAllByRole('listitem');
+    fireEvent.click(within(rows[1]).getByRole('button', { name: /^Delete block 1$/i }));
+    const gone = decodePersisted(localStorage.getItem(STORAGE_KEY));
+    expect(gone.history).toHaveLength(1);
+    expect(gone.history[0].k).toBe(1);
+    expect(gone.history[0].note).toBe('read a novel on the couch');
+    expect(gone.history[0].xBefore).toEqual(before.history[0].xBefore);
+    expect(gone.x).toEqual(gone.history[0].xAfter);
+    expect(gone.blockIndex).toBe(1);
+    expect(within(within(log).getByRole('list', { name: /Logged blocks/i })).getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByText(/Deleted block k1/)).toBeInTheDocument();
   });
 
   it('describes a block in plain words, shows what it understood, and logs it with the note', () => {
@@ -275,7 +326,10 @@ describe('CapacityControllerScreen', () => {
     expect(within(catalog).getByText('Deep work with music on repeat')).toBeInTheDocument();
     expect(standings[0]).toHaveTextContent('Best now');
     expect(within(catalog).getAllByText(/^(Nearly as good as|A step behind|Well behind) Deep work at a walking desk: /).length).toBeGreaterThan(3);
-    expect(within(catalog).getAllByText(/^Not now: /).length).toBeGreaterThan(0);
+    // Guardrails are warnings that name the guardrail, not verdicts.
+    expect(within(catalog).queryByText(/Not now/)).not.toBeInTheDocument();
+    expect(within(catalog).getAllByLabelText(/Guardrail warnings/i).length).toBeGreaterThan(0);
+    expect(catalog).toHaveTextContent(/Depleting intake|Not indicated/);
     const armButtons = within(catalog).getAllByRole('button', { name: /^Arm$/ });
     fireEvent.click(armButtons[0]);
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });

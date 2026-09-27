@@ -170,12 +170,19 @@ and the predicted end state minus the reference's for every meter (plus the comp
 | `close` | margin ≥ −8 | **Nearly as good** |
 | `behind` | margin ≥ −25 | **A step behind** |
 | `far` | margin < −25 | **Well behind** |
-| `blocked` | any guardrail cap applies, whatever the margin | **Not now** |
+
+Guardrail caps never decide the standing. Each cap a block trips is also a typed warning
+(`GradedBlock.guardrails`, `GuardrailWarning { type, cap, detail }`) shown under the block with
+the guardrail's name: **Input prohibited** (singularity), **Backlog lock**, **Optical cutoff**,
+**Depleting intake**, **Under-arousal gate**, **Terminal strain**, **Hard boundary** (a stop rule
+trips inside 15 m), **Not indicated** (sleep). The cap still lowers the score, so a block that
+trips a guardrail usually stands well behind the recommendation, and the warning says why.
 
 The sentence under each block is generated from the comparison (`plainComparison`): *"A step
 behind Rest in the dark: less energy, more backlog and more strain."*, *"Nearly as good as Deep
-work at a walking desk: less backlog, more strain."*, *"Not now: intake is locked until you write
-something out."*, or *"The best option for your state right now."* for the reference. At most
+work at a walking desk: less backlog, more strain."*, or *"This is the recommended block: the
+best fit for your state right now."* for the reference; a guardrail reads as its own line, e.g.
+*"Backlog lock — Intake is locked until you write something out."*. At most
 three differences are named, in meter order (energy, backlog, strain, activation, depth), each
 only when the end states differ by ≥ 0.02. Show math adds the score and the margin in points.
 
@@ -275,6 +282,17 @@ the card shows its standing pill, the comparison sentence, its reason, and all s
 predicted value), followed by the routed headline the state would land on. In Advanced mode the
 predicted-Δx panel carries the same standing and margin. Everything updates live before anything
 is logged.
+
+### Past blocks: edit and delete
+
+Every logged entry (block, sleep reset, calibration) is listed under **Past blocks** in the
+simple flow (newest first, six at a time) and in the Advanced **Block Log**. A block can be
+**edited** (note, length, and every field of the full form) or **deleted**; sleep resets and
+calibrations can be deleted. Any change replays the whole history from its origin
+(`replayHistory`): blocks are re-integrated from the state they now follow, sleep resets are
+re-applied, a calibration keeps the state it recorded (a felt state is a fact, not a consequence
+of the model), block numbers are reassigned, and the live state, awake time, block count and
+backlog latch are set from the replay. **Undo** still reverts the last entry.
 
 ### The Seven Pillars
 

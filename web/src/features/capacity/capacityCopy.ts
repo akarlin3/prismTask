@@ -7,6 +7,8 @@ import {
   type Comparison,
   type Diagnostics,
   type GradedBlock,
+  type GuardrailType,
+  type GuardrailWarning,
   type Routing,
   type Standing,
   type StateKey,
@@ -110,17 +112,32 @@ export function plainEffect(before: StateVector, after: StateVector): string[] {
 }
 
 /**
- * One plain sentence explaining a scored block: the cap that applies, else fit, predicted effect
- * and safe duration. `skipCaps` leaves the cap out (when the comparison line already names it).
+ * One plain sentence explaining a scored block: fit, predicted effect and safe duration. The
+ * guardrails it trips are reported separately (`plainGuardrail`), never folded in here.
  */
-export function plainReason(g: GradedBlock, x: StateVector, skipCaps = false): string {
+export function plainReason(g: GradedBlock, x: StateVector): string {
   const fit = g.fit >= 90 ? 'Fits what you need now' : g.fit >= 60 ? 'Reasonable now' : g.fit >= 30 ? 'Not the priority now' : 'Wrong move for this state';
-  if (g.caps.length > 0 && !skipCaps) return `${plainCap(g.caps[0])} ${fit}.`;
   const effect = g.predicted ? plainEffect(x, g.predicted).join(', ') : 'no simulated effect';
-  // When the comparison line already names the boundary cap, do not repeat it here.
-  const repeatsCap = skipCaps && (g.caps[0] ?? '').startsWith('boundary trips');
-  const horizon = g.entry.kind === 'sleep' || repeatsCap ? '' : g.horizon < 100 ? (g.boundMinutes < 15 ? ' Hits a limit within fifteen minutes.' : ` Safe for about ${g.boundMinutes} minutes.`) : '';
+  // A boundary inside fifteen minutes is a guardrail warning of its own; only a usable horizon is stated here.
+  const horizon = g.entry.kind !== 'sleep' && g.horizon < 100 && g.boundMinutes >= 15 ? ` Safe for about ${g.boundMinutes} minutes.` : '';
   return `${fit}; ${effect}.${horizon}`;
+}
+
+/** The name of each guardrail, as shown on a warning. */
+export const GUARDRAIL_LABEL: Record<GuardrailType, string> = {
+  singularity: 'Input prohibited',
+  backlogLock: 'Backlog lock',
+  opticalCutoff: 'Optical cutoff',
+  depletingIntake: 'Depleting intake',
+  underArousal: 'Under-arousal gate',
+  terminalStrain: 'Terminal strain',
+  boundary: 'Hard boundary',
+  notIndicated: 'Not indicated',
+};
+
+/** A guardrail warning in words: its name and what it means for this block. */
+export function plainGuardrail(w: GuardrailWarning): { label: string; text: string } {
+  return { label: GUARDRAIL_LABEL[w.type], text: plainCap(w.detail) };
 }
 
 export function joinEffects(parts: string[]): string {
@@ -134,7 +151,6 @@ export const STANDING_LABEL: Record<Standing, string> = {
   close: 'Nearly as good',
   behind: 'A step behind',
   far: 'Well behind',
-  blocked: 'Not now',
 };
 
 const DIFF_THRESHOLD = 0.02;
@@ -164,10 +180,6 @@ export function plainDifferences(c: Comparison): string[] {
 export function plainComparison(g: GradedBlock): string {
   const c = g.comparison;
   const self = c.self;
-  if (c.standing === 'blocked') {
-    const cap = plainCap(g.caps[0] ?? '');
-    return `Not now: ${cap.charAt(0).toLowerCase()}${cap.slice(1)}`;
-  }
   if (self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'This is the recommended block: the best fit for your state right now.';
   const diffs = joinEffects(plainDifferences(c));
   if (c.standing === 'best') {
