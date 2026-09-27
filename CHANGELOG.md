@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- feat(web): 6D Capacity Controller at `/capacity` (Wellness → Capacity) — a
+  discrete-time state-space monitor over `x = [E, B, F_vis, F_body, A, V]ᵀ`
+  with the governing flux equations, `I*(t)` stability boundary, burnout
+  singularity badge, a segmented telemetry audit form (cadence, modality,
+  anchor, valuation, density, context, scratchpad discipline, somatic marker),
+  quadrant-routed prescriptions with simulated hard time boundaries, a
+  10-block trajectory chart, block log, manual override / constants / sleep
+  reset modals, and `localStorage` persistence. Engine + screen tests under
+  `web/src/features/capacity/__tests__/`. Model notes and closure choices in
+  `docs/CAPACITY_CONTROLLER.md`.
+
 ## [2.0.0] — 2026-05-16
 
 ### Removed

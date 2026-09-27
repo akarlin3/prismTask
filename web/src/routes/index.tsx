@@ -56,6 +56,7 @@ const MedicationHistoryScreen = lazy(() => import('@/features/medication/Medicat
 const MedicationClinicalReportScreen = lazy(() => import('@/features/medication/MedicationClinicalReportScreen').then(m => ({ default: m.MedicationClinicalReportScreen })));
 const MoodScreen = lazy(() => import('@/features/mood/MoodScreen').then(m => ({ default: m.MoodScreen })));
 const FocusReleaseScreen = lazy(() => import('@/features/focus/FocusReleaseScreen').then(m => ({ default: m.FocusReleaseScreen })));
+const CapacityControllerScreen = lazy(() => import('@/features/capacity/CapacityControllerScreen').then(m => ({ default: m.CapacityControllerScreen })));
 const ChatScreen = lazy(() => import('@/features/chat/ChatScreen').then(m => ({ default: m.ChatScreen })));
 const LeisurePoolScreen = lazy(() => import('@/features/leisure/LeisurePoolScreen').then(m => ({ default: m.LeisurePoolScreen })));
 const SelfCareScreen = lazy(() => import('@/features/selfcare/SelfCareScreen').then(m => ({ default: m.SelfCareScreen })));
@@ -159,6 +160,7 @@ const routes: RouteObject[] = [
       { path: 'medication/clinical-report', element: <LazyRoute Component={MedicationClinicalReportScreen} /> },
       { path: 'mood', element: <LazyRoute Component={MoodScreen} /> },
       { path: 'focus', element: <LazyRoute Component={FocusReleaseScreen} /> },
+      { path: 'capacity', element: <LazyRoute Component={CapacityControllerScreen} /> },
       { path: 'chat', element: <LazyRoute Component={ChatScreen} /> },
       { path: 'leisure', element: <LazyRoute Component={LeisurePoolScreen} /> },
       { path: 'self-care', element: <LazyRoute Component={SelfCareScreen} /> },
