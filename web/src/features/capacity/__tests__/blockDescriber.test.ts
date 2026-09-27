@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeBlock, parseMinutes } from '../blockDescriber';
+import { describeBlock, parseMinutes, parseSpeed } from '../blockDescriber';
 import { blockMinutes, resolveSpec } from '../capacityModel';
 
 describe('parseMinutes', () => {
@@ -14,6 +14,22 @@ describe('parseMinutes', () => {
     expect(parseMinutes('an hour at the gym')?.minutes).toBe(60);
     expect(parseMinutes('one pomodoro of emails')?.minutes).toBe(25);
     expect(parseMinutes('read a novel')).toBeNull();
+  });
+});
+
+describe('parseSpeed', () => {
+  it('reads playback speeds and ignores rep counts', () => {
+    expect(parseSpeed('audiobook at 1.5x')?.factor).toBe(1.5);
+    expect(parseSpeed('podcast on 2× speed')?.factor).toBe(2);
+    expect(parseSpeed('lecture at 1,75x')?.factor).toBe(1.75);
+    expect(parseSpeed('listened on double speed')?.factor).toBe(2);
+    expect(parseSpeed('at 2 times the speed')?.factor).toBe(2);
+    expect(parseSpeed('slowed it down')?.factor).toBe(0.75);
+    expect(parseSpeed('sped up')?.factor).toBe(1.5);
+    expect(parseSpeed('normal speed')?.factor).toBe(1);
+    expect(parseSpeed('3 x 10 squats')).toBeNull();
+    expect(parseSpeed('2xl hoodie')).toBeNull();
+    expect(parseSpeed('read a novel')).toBeNull();
   });
 });
 
@@ -102,6 +118,24 @@ describe('describeBlock', () => {
     const scroll = describeBlock('scrolled tiktok in bed');
     expect(scroll.spec.valuation).toBe('churn');
     expect(scroll.spec.somatic).toBe('supine');
+  });
+
+  it('attaches a playback speed to listening and watching blocks only', () => {
+    const fast = describeBlock('audiobook at 1.5x on a walk');
+    expect(fast.spec.modality).toBe('auditory');
+    expect(fast.spec.speed).toBe('x15');
+    expect(fast.cues.find((c) => c.field === 'speed')).toEqual({ field: 'speed', word: '1.5x', choice: '1.5×' });
+    expect(resolveSpec(fast.spec).u.Iaud).toBeCloseTo(0.35 * 1.5, 10);
+    expect(describeBlock('watched a lecture on youtube at 2x').spec.speed).toBe('x2');
+    expect(describeBlock('podcast at 1.6x').spec.speed).toBe('x15');
+    // No intake, no speed — even when one is stated.
+    expect(describeBlock('did 3 x 10 squats at the gym').spec.speed).toBeUndefined();
+    expect(describeBlock('journaled at 2x speed').spec.speed).toBeUndefined();
+    // The usual listening speed fills in for listening blocks that state none.
+    expect(describeBlock('listened to a podcast', 15, 'x2').spec.speed).toBe('x2');
+    expect(describeBlock('listened to a podcast at normal speed', 15, 'x2').spec.speed).toBe('x1');
+    expect(describeBlock('read a novel', 15, 'x2').spec.speed).toBeUndefined();
+    expect(describeBlock('listened to a podcast').spec.speed).toBeUndefined();
   });
 
   it('reports low confidence and an unsure activity for text it cannot place', () => {

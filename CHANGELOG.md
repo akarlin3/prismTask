@@ -22,12 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under-arousal-vs-depletion / terminal-strain guardrails, the revised
   routing matrix with its parameter ranges, a per-block *State Vector
   Update* report (with Markdown copy), a single trailing operational
-  prompt, and a graded block catalog (every archetype always listed,
-  forward-simulated and scored A–F for the current state, one-click arm).
+  prompt, and a compared block catalog (every archetype always listed,
+  forward-simulated and scored for the current state, one-click arm).
   Opens in a simple single-column flow written in plain language (status
-  headline → graded "what to do next" cards → short log card) with a
+  headline → compared "what to do next" cards → short log card) with a
   Show-math toggle, custom durations, an intensity setting, saveable user
-  presets graded alongside the catalog, an Advanced toggle for the full
+  presets compared alongside the catalog, an Advanced toggle for the full
   instrument panel, a free-text block describer ("read a novel on the
   couch" → activity, posture, anchor, pressure, tangents, length, with the
   cue behind each choice, every field adjustable in place), plain everyday
@@ -35,9 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for the simple flow, and the Seven Pillars filter row (Objective
   Impartiality as a Kalman-blended calibration, Curiosity, Intellectual
   Deconstruction, Somatic Grounding, Creativity, Strength Through Hardship
-  as σ_strength drag attenuation, Radical Empathy), and a before-you-log
-  preview of the programmed block (its own A–F grade, reason, and all six
-  meters now → after).
+  as σ_strength drag attenuation, Radical Empathy), a before-you-log
+  preview of the programmed block (reason and all six meters now → after),
+  comparisons instead of letter grades (every block stands against the
+  best one for the state: Best now / Nearly as good / A step behind / Well
+  behind / Not now, with the differences in words), and playback speed for
+  listening and watching blocks (0.75×–3× scaling the intake channels,
+  parsed from "at 1.5x", adjustable as a chip, with a usual listening speed
+  applied to the catalog's audiobook entries).
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

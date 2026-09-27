@@ -19,7 +19,9 @@ describe('CapacityControllerScreen', () => {
     expect(within(status).getByLabelText('Energy')).toBeInTheDocument();
     expect(within(status).queryByText(/I\* /)).not.toBeInTheDocument();
     const next = screen.getByRole('region', { name: /Next block/i });
-    expect(within(next).getAllByLabelText(/^Grade [A-F]$/)).toHaveLength(3);
+    const standings = within(next).getAllByLabelText(/^Standing /);
+    expect(standings).toHaveLength(3);
+    expect(standings[0]).toHaveTextContent('Best now');
     const log = screen.getByRole('region', { name: /Log block/i });
     expect(within(log).getByRole('heading', { name: /Log the 15-minute block/i })).toBeInTheDocument();
     expect(within(log).queryByRole('radiogroup', { name: /How long/i })).not.toBeInTheDocument();
@@ -34,9 +36,9 @@ describe('CapacityControllerScreen', () => {
     fireEvent.click(within(chips).getByRole('button', { name: /^Done$/i }));
     expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
-    // The block being programmed shows its own grade and the six meters now → after, before logging.
+    // The block being programmed is compared with the best option and shows the six meters now → after, before logging.
     const preview = within(log).getByLabelText(/Before you log it/i);
-    expect(within(preview).getByLabelText(/^Grade [A-F]$/)).toBeInTheDocument();
+    expect(within(preview).getByLabelText(/^Standing /)).toBeInTheDocument();
     expect(preview).toHaveTextContent(/Before you log it · 15 min/);
     expect(within(preview).getByLabelText(/^Energy \d\.\d\d now, \d\.\d\d after the block$/)).toBeInTheDocument();
     expect(preview).toHaveTextContent(/Then:/);
@@ -51,12 +53,14 @@ describe('CapacityControllerScreen', () => {
     expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Intensity/i })).toBeInTheDocument();
     fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
-    expect(within(next).getAllByLabelText(/^Grade [A-F]$/).length).toBeGreaterThanOrEqual(15);
+    expect(within(next).getAllByLabelText(/^Standing /).length).toBeGreaterThanOrEqual(15);
 
-    // Programming a churn block drops the preview grade to F before anything is logged.
+    // Programming a churn block reads "Not now" in the preview before anything is logged.
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
-    expect(within(within(log).getByLabelText(/Before you log it/i)).getByLabelText(/^Grade F$/)).toBeInTheDocument();
+    const churnPreview = within(log).getByLabelText(/Before you log it/i);
+    expect(within(churnPreview).getByLabelText(/^Standing Not now$/)).toBeInTheDocument();
+    expect(churnPreview).toHaveTextContent(/^.*Not now: /);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).history).toHaveLength(1);
 
     // Show math reveals symbols and the diagnostics line.
@@ -91,6 +95,32 @@ describe('CapacityControllerScreen', () => {
     expect(persisted.history[0].spec?.modality).toBe('reading');
     expect(persisted.history[0].spec?.somatic).toBe('seated');
     expect(persisted.history[0].dtMinutes).toBe(15);
+  });
+
+  it('reads a playback speed, offers it as a chip for listening blocks, and remembers the usual speed', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /Log block/i });
+    // No speed chip while nothing is playing (the default block is deep work).
+    expect(within(log).queryByRole('button', { name: /^Speed:/i })).not.toBeInTheDocument();
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'audiobook at 2x on a walk' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    const understood = within(log).getByLabelText(/Understood as/i);
+    expect(within(understood).getByRole('button', { name: /^Speed: Double speed \(2×\) ← “2x”$/i })).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.speed).toBe('x2');
+    const fast = within(log).getByLabelText(/Before you log it/i).textContent;
+    // Adjust the speed in place: the chip records it, the preview changes.
+    fireEvent.click(within(understood).getByRole('button', { name: /^Speed:/i }));
+    fireEvent.click(within(understood).getByRole('radio', { name: /^Slower \(0\.75×\)$/i }));
+    expect(within(understood).getByRole('button', { name: /^Speed: Slower \(0\.75×\) ← you$/i })).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.speed).toBe('x075');
+    expect(within(log).getByLabelText(/Before you log it/i).textContent).not.toBe(fast);
+    // The usual listening speed lives under "How this works" and is persisted.
+    fireEvent.change(screen.getByLabelText(/Usual listening speed/i), { target: { value: 'x15' } });
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).listeningSpeed).toBe('x15');
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'listened to a podcast' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.speed).toBe('x15');
+    expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Speed: 1\.5× \(assumed\)/);
   });
 
   it('runs the block through the seven pillars', () => {
@@ -217,15 +247,17 @@ describe('CapacityControllerScreen', () => {
     expect(screen.getByText('Expressive Digestion')).toBeInTheDocument();
   });
 
-  it('lists every catalog block with a grade and arms one into the audit form', () => {
+  it('lists every catalog block compared with the best and arms one into the audit form', () => {
     seed({ x: { E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 }, hoursAwake: 3, blockIndex: 0, history: [], spec: { modality: 'zero' } });
     render(<CapacityControllerScreen />);
     const catalog = screen.getByRole('region', { name: /Block catalog/i });
-    const grades = within(catalog).getAllByLabelText(/^Grade [A-F]$/);
-    expect(grades.length).toBeGreaterThanOrEqual(15);
-    // Quadrant IV: the top card is an execution block.
+    const standings = within(catalog).getAllByLabelText(/^Standing /);
+    expect(standings.length).toBeGreaterThanOrEqual(15);
+    // Quadrant IV: the top card is an execution block; the others are compared with it by name.
     expect(within(catalog).getByText('Deep work with music on repeat')).toBeInTheDocument();
-    expect(grades[0]).toHaveTextContent('A');
+    expect(standings[0]).toHaveTextContent('Best now');
+    expect(within(catalog).getAllByText(/^(Nearly as good as|A step behind|Well behind) Deep work at a walking desk: /).length).toBeGreaterThan(3);
+    expect(within(catalog).getAllByText(/^Not now: /).length).toBeGreaterThan(0);
     const armButtons = within(catalog).getAllByRole('button', { name: /^Arm$/ });
     fireEvent.click(armButtons[0]);
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
@@ -239,7 +271,7 @@ describe('CapacityControllerScreen', () => {
     // Prescription card, trailing prompt and catalog entry all offer the reset.
     expect(screen.getAllByRole('button', { name: /Log Sleep Reset/i }).length).toBeGreaterThanOrEqual(2);
     const catalog = screen.getByRole('region', { name: /Block catalog/i });
-    expect(within(catalog).getAllByLabelText(/^Grade [A-F]$/)[0]).toHaveTextContent('A');
+    expect(within(catalog).getAllByLabelText(/^Standing /)[0]).toHaveTextContent('Best now');
     expect(within(catalog).getByText('Go to sleep')).toBeInTheDocument();
   });
 });

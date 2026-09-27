@@ -255,6 +255,7 @@ export type ContextKey = 'agency' | 'soft' | 'sprint' | 'scrutiny';
 export type ScratchpadKey = 'single' | 'tokenized' | 'speculative' | 'rabbit';
 export type NoveltyKey = 'monotonous' | 'routine' | 'novel';
 export type SomaticKey = 'supine' | 'seated' | 'ocular' | 'slump';
+export type SpeedKey = 'x075' | 'x1' | 'x125' | 'x15' | 'x175' | 'x2' | 'x25' | 'x3';
 
 export interface BlockSpec {
   /** A standard cadence, or `custom` with `customMinutes`. */
@@ -262,6 +263,11 @@ export interface BlockSpec {
   customMinutes?: number;
   /** Scales the modality's I / O intensities: light ×0.7, standard ×1, heavy ×1.25. */
   intensity?: IntensityKey;
+  /**
+   * Playback speed for listening or watching (audiobook, podcast, video): scales the intake
+   * channels I_vis / I_aud, i.e. the words per minute. Absent means 1×. No effect on output.
+   */
+  speed?: SpeedKey;
   modality: ModalityKey;
   anchor: AnchorKey;
   valuation: ValuationKey;
@@ -403,6 +409,43 @@ export const INTENSITIES: readonly (Option<IntensityKey> & { factor: number })[]
   { key: 'heavy', label: 'Heavy', plain: 'Hard', detail: 'Pushing, ×1.25 intensity', params: '×1.25', factor: 1.25 },
 ];
 
+/**
+ * Playback speeds for listening / watching blocks. The factor multiplies the intake channels:
+ * at 2× an audiobook delivers twice the words per minute, so restoration rises linearly with
+ * I₁ while the quadratic β_in C_in I₁² cost and the backlog accrual rise faster — a fast
+ * playback tips past I*(t) sooner. Output channels are untouched.
+ */
+export const PLAYBACK_SPEEDS: readonly (Option<SpeedKey> & { factor: number })[] = [
+  { key: 'x075', label: '0.75×', plain: 'Slower (0.75×)', detail: 'Slowed down: three quarters of the words per minute', params: 'I×0.75', factor: 0.75 },
+  { key: 'x1', label: '1×', plain: 'Normal speed', detail: 'As recorded', params: 'I×1.00', factor: 1 },
+  { key: 'x125', label: '1.25×', plain: '1.25×', detail: 'A little faster', params: 'I×1.25', factor: 1.25 },
+  { key: 'x15', label: '1.5×', plain: '1.5×', detail: 'Half again as many words per minute', params: 'I×1.50', factor: 1.5 },
+  { key: 'x175', label: '1.75×', plain: '1.75×', detail: 'Fast', params: 'I×1.75', factor: 1.75 },
+  { key: 'x2', label: '2×', plain: 'Double speed (2×)', detail: 'Twice the words per minute', params: 'I×2.00', factor: 2 },
+  { key: 'x25', label: '2.5×', plain: '2.5×', detail: 'Very fast', params: 'I×2.50', factor: 2.5 },
+  { key: 'x3', label: '3×', plain: 'Triple speed (3×)', detail: 'Three times the words per minute', params: 'I×3.00', factor: 3 },
+];
+
+export const DEFAULT_SPEED: SpeedKey = 'x1';
+
+/** Playback factor of a spec (1 when unset). */
+export function speedFactor(spec: BlockSpec): number {
+  return PLAYBACK_SPEEDS.find((o) => o.key === (spec.speed ?? DEFAULT_SPEED))?.factor ?? 1;
+}
+
+/** The catalog speed closest to a stated factor ("1.6x" → 1.5×). */
+export function nearestSpeed(factor: number): SpeedKey {
+  let best = PLAYBACK_SPEEDS[0];
+  for (const o of PLAYBACK_SPEEDS) if (Math.abs(o.factor - factor) < Math.abs(best.factor - factor)) best = o;
+  return best.key;
+}
+
+/** True when the modality carries an intake channel (so playback speed and density matter). */
+export function modalityHasIntake(modality: ModalityKey): boolean {
+  const m = MODALITIES.find((o) => o.key === modality);
+  return !!m && m.Ivis + m.Iaud > 0;
+}
+
 export const DEFAULT_SPEC: BlockSpec = Object.freeze({
   cadence: 'm15',
   intensity: 'standard',
@@ -451,10 +494,11 @@ export function resolveSpec(spec: BlockSpec): BlockInputs {
   const somatic = find(SOMATICS, spec.somatic);
   const kinetic = anchor.kinetic;
   const f = intensityFactor(spec);
+  const r = speedFactor(spec);
   return {
     u: {
-      Ivis: clamp01(modality.Ivis * f),
-      Iaud: clamp01(modality.Iaud * f),
+      Ivis: clamp01(modality.Ivis * f * r),
+      Iaud: clamp01(modality.Iaud * f * r),
       Ianchor: anchor.Ianchor,
       O1: clamp01(modality.O1 * f),
       Oanchor: anchor.Oanchor,
@@ -1434,6 +1478,7 @@ export function presetEntry(p: UserPreset): CatalogEntry {
     novelty: s.novelty,
     somatic: s.somatic,
     intensity: s.intensity,
+    speed: s.speed,
   };
   return {
     id: `preset:${p.id}`,
@@ -1476,14 +1521,30 @@ export const BLOCK_CATALOG: readonly CatalogEntry[] = [
   { id: 'sleep', name: 'Go to sleep', kind: 'sleep', detail: 'Full reset, 7.5 h', minutes: 0, spec: null },
 ];
 
-export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
+/** How a block stands against the best option for the current state. */
+export type Standing = 'best' | 'close' | 'behind' | 'far' | 'blocked';
+
+export interface Comparison {
+  /** The reference block: the best option right now (or the block itself). */
+  against: { id: string; name: string };
+  /** score − reference score; 0 for the reference itself. */
+  margin: number;
+  standing: Standing;
+  /** Predicted end state minus the reference's, per meter; null when either has no prediction. */
+  deltas: StateVector | null;
+  /** Composite strain difference (this − reference). */
+  strainDelta: number | null;
+  /** Distance from A* relative to the reference (negative: closer to the sweet spot). */
+  arousalErrorDelta: number | null;
+}
 
 export interface GradedBlock {
   entry: CatalogEntry;
   /** Loadable spec with the effective cadence (null for sleep). */
   spec: BlockSpec | null;
   score: number;
-  grade: Grade;
+  /** Where this block stands against the best option for the current state. */
+  comparison: Comparison;
   /** Sub-scores, each on [0, 100]. */
   fit: number;
   outcome: number;
@@ -1504,8 +1565,54 @@ export function stateUtility(x: StateVector, k: Constants): number {
   return x.E - x.B - compositeStrain(x) - Math.abs(x.A - k.Astar) + 0.25 * x.V;
 }
 
-export function letterGrade(score: number): Grade {
-  return score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : score >= 35 ? 'D' : 'F';
+type ScoredBlock = Omit<GradedBlock, 'comparison'>;
+
+/** Margins (points) that still read as "nearly as good" / "a step behind" the best. */
+export const CLOSE_MARGIN = 8;
+export const BEHIND_MARGIN = 25;
+
+/** Two loadable specs describe the same block (same controls, context and length). */
+export function sameBlock(a: BlockSpec | null, b: BlockSpec | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.modality === b.modality &&
+    a.anchor === b.anchor &&
+    a.valuation === b.valuation &&
+    a.density === b.density &&
+    a.context === b.context &&
+    a.scratchpad === b.scratchpad &&
+    a.novelty === b.novelty &&
+    a.somatic === b.somatic &&
+    (a.intensity ?? 'standard') === (b.intensity ?? 'standard') &&
+    (a.speed ?? DEFAULT_SPEED) === (b.speed ?? DEFAULT_SPEED) &&
+    blockMinutes(a) === blockMinutes(b)
+  );
+}
+
+/**
+ * Compare a scored block with the reference (the best option right now). A block that a
+ * guardrail caps is "blocked" whatever its margin; otherwise the margin to the best decides.
+ */
+export function compareBlocks(g: ScoredBlock, against: ScoredBlock, k: Constants): Comparison {
+  const self = g.entry.id === against.entry.id || (g.entry.kind === against.entry.kind && sameBlock(g.spec, against.spec));
+  const margin = self ? 0 : g.score - against.score;
+  let standing: Standing;
+  if (!self && g.caps.length > 0) standing = 'blocked';
+  else if (self || margin >= 0) standing = 'best';
+  else if (margin >= -CLOSE_MARGIN) standing = 'close';
+  else if (margin >= -BEHIND_MARGIN) standing = 'behind';
+  else standing = 'far';
+  const a = g.predicted;
+  const b = against.predicted;
+  const both = a && b;
+  return {
+    against: { id: against.entry.id, name: against.entry.name },
+    margin,
+    standing,
+    deltas: both ? { E: a.E - b.E, B: a.B - b.B, Fvis: a.Fvis - b.Fvis, Fbody: a.Fbody - b.Fbody, A: a.A - b.A, V: a.V - b.V } : null,
+    strainDelta: both ? compositeStrain(a) - compositeStrain(b) : null,
+    arousalErrorDelta: both ? Math.abs(a.A - k.Astar) - Math.abs(b.A - k.Astar) : null,
+  };
 }
 
 type FitRow = Record<ConfigKind, number>;
@@ -1534,8 +1641,8 @@ function fitTable(r: Routing, d: Diagnostics, F: number): FitRow {
   }
 }
 
-/** Grade one catalog entry against the current state. */
-function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): GradedBlock {
+/** Score one catalog entry against the current state (comparison attached by the caller). */
+function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): ScoredBlock {
   const F = compositeStrain(x);
   const fits = fitTable(r, d, F);
   const g = d.guardrails;
@@ -1552,7 +1659,6 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
         entry,
         spec: null,
         score,
-        grade: letterGrade(score),
         fit,
         outcome: 100,
         horizon: 100,
@@ -1612,7 +1718,6 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
       entry,
       spec: specOut,
       score,
-      grade: letterGrade(score),
       fit: Math.round(fit),
       outcome: Math.round(outcome),
       horizon: Math.round(horizonScore),
@@ -1627,7 +1732,11 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
   }
 }
 
-/** Grade every catalog entry (and any user presets) against the current state; sorted best first. */
+/**
+ * Score every catalog entry (and any user presets) against the current state, sorted best
+ * first, each compared with the best. `listeningSpeed` is the usual playback speed applied to
+ * the built-in listening entries (presets keep their own speed).
+ */
 export function gradeCatalog(
   x: StateVector,
   hoursAwake: number,
@@ -1636,25 +1745,32 @@ export function gradeCatalog(
   k: Constants,
   presets: readonly UserPreset[] = [],
   blockLength?: number,
+  listeningSpeed: SpeedKey = DEFAULT_SPEED,
 ): GradedBlock[] {
-  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG].map((e) =>
+  const builtIn: CatalogEntry[] = BLOCK_CATALOG.map((e) =>
+    e.spec && e.spec.modality === 'auditory' && !e.spec.speed && listeningSpeed !== DEFAULT_SPEED ? { ...e, spec: { ...e.spec, speed: listeningSpeed } } : e,
+  );
+  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...builtIn].map((e) =>
     blockLength && e.kind !== 'sleep' ? { ...e, minutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(blockLength))) } : e,
   );
-  return entries.map((entry) => gradeEntry(entry, x, hoursAwake, d, r, k)).sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+  const scored = entries.map((entry) => gradeEntry(entry, x, hoursAwake, d, r, k)).sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+  const best = scored[0];
+  return scored.map((g) => ({ ...g, comparison: compareBlocks(g, best, k) }));
 }
 
 /**
- * Grade an arbitrary block (the one being programmed or described) exactly as a
- * catalog entry would be, at its own length.
+ * Score an arbitrary block (the one being programmed or described) exactly as a catalog
+ * entry would be, at its own length, and compare it with `against` (the best option right
+ * now; the block itself when omitted).
  */
-export function gradeBlock(spec: BlockSpec, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, name = 'This block'): GradedBlock {
+export function gradeBlock(spec: BlockSpec, x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, name = 'This block', against?: GradedBlock): GradedBlock {
   const { cadence: _cadence, customMinutes: _cm, ...base } = spec;
   void _cadence;
   void _cm;
   const entry: CatalogEntry = { id: 'armed', name, kind: inferKind(spec), detail: 'The block you are about to log', minutes: blockMinutes(spec), spec: base };
-  const graded = gradeEntry(entry, x, hoursAwake, d, r, k);
-  // The armed block keeps its own length: the grade already reflects any boundary inside it.
-  return { ...graded, spec };
+  const scored = { ...gradeEntry(entry, x, hoursAwake, d, r, k), spec };
+  // The armed block keeps its own length: the score already reflects any boundary inside it.
+  return { ...scored, comparison: compareBlocks(scored, against ?? scored, k) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1695,6 +1811,8 @@ export interface PersistedState {
   showMath: boolean;
   /** Fixed block length in minutes used for grading, boundaries and one-click logging. */
   blockLength: number;
+  /** Usual playback speed for listening blocks: applied to the catalog's listening entries and described listening blocks. */
+  listeningSpeed: SpeedKey;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
   /** Simple (single-column flow) or advanced (full instrument panel) interface. */
@@ -1717,6 +1835,7 @@ export function defaultPersisted(): PersistedState {
     presets: [],
     showMath: false,
     blockLength: DEFAULT_BLOCK_LENGTH,
+    listeningSpeed: DEFAULT_SPEED,
     backlogLatch: false,
     uiMode: 'simple',
     blockIndex: 0,
@@ -1777,6 +1896,7 @@ export function sanitizeSpec(raw: unknown): BlockSpec {
       if (typeof v === 'string' && SPEC_CATALOG[key].some((o) => o.key === v)) out[key] = v;
     }
     if (typeof r.intensity === 'string' && INTENSITIES.some((o) => o.key === r.intensity)) out.intensity = r.intensity;
+    if (typeof r.speed === 'string' && PLAYBACK_SPEEDS.some((o) => o.key === r.speed)) out.speed = r.speed;
     if (isFiniteNumber(r.customMinutes)) out.customMinutes = Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.customMinutes)));
     if (r.cadence === CUSTOM_CADENCE && isFiniteNumber(out.customMinutes)) out.cadence = CUSTOM_CADENCE;
   }
@@ -1821,6 +1941,7 @@ export function decodePersisted(json: string | null): PersistedState {
     presets,
     showMath: r.showMath === true,
     blockLength: isFiniteNumber(r.blockLength) ? Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.blockLength))) : DEFAULT_BLOCK_LENGTH,
+    listeningSpeed: typeof r.listeningSpeed === 'string' && PLAYBACK_SPEEDS.some((o) => o.key === r.listeningSpeed) ? (r.listeningSpeed as SpeedKey) : DEFAULT_SPEED,
     backlogLatch: r.backlogLatch === true,
     uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,

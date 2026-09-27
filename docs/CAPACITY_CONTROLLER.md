@@ -133,14 +133,15 @@ largest standard cadence (15 / 25 / 45 / 60 / 90) — that is the hard boundary 
 card, together with the predicted state at the boundary. A candidate that violates inside 15
 minutes is marked inadmissible. **Arm This Block** loads the configuration into the audit form.
 
-## Graded block catalog
+## Compared block catalog
 
 A fixed catalog of block archetypes (sensory-isolation rest, brown-noise rest, treadmill walk,
 supine deload, audio narrative, audiobook on the treadmill, literature on the page, structured
 analysis, dense technical absorption, scratchpad synthesis, improv in silence, pacing dictation,
 arousal ramp, generative sprint, walking-desk execution, deadline sprint, terminal sleep reset)
 is always listed, whatever the routed quadrant. Each entry is forward-simulated from the
-current state and scored on `[0, 100]`:
+current state and scored on `[0, 100]`; the score orders the list, and every entry is then
+**compared with the best one** rather than graded on its own:
 
 ```
 score   = 0.45 · fit + 0.40 · outcome + 0.15 · horizon, then capped by guardrails
@@ -155,9 +156,30 @@ the backlog lock → 15, visual intake under the optical cutoff → 15, depletin
 a boundary that trips inside 15 m → 25. The sleep entry scores 100 in a late-phase or somatic
 singularity, 70 in a structural one, and 15 otherwise.
 
-Letters: A ≥ 80, B ≥ 65, C ≥ 50, D ≥ 35, F below. **Arm** loads the entry into the audit form
-with its effective cadence (the catalog cadence, or the largest standard cadence that survives
-the stop rule).
+### Comparisons instead of grades
+
+There are no letter grades. `compareBlocks` measures every scored block against the best option
+for the current state (`Comparison`): the reference block's name, the score margin, a *standing*,
+and the predicted end state minus the reference's for every meter (plus the composite-strain and
+`|A − A*|` differences). Standings:
+
+| Standing | Rule | Shown as |
+|---|---|---|
+| `best` | the reference itself (or the same block by `sameBlock`), or margin ≥ 0 | **Best now** |
+| `close` | margin ≥ −8 | **Nearly as good** |
+| `behind` | margin ≥ −25 | **A step behind** |
+| `far` | margin < −25 | **Well behind** |
+| `blocked` | any guardrail cap applies, whatever the margin | **Not now** |
+
+The sentence under each block is generated from the comparison (`plainComparison`): *"A step
+behind Rest in the dark: less energy, more backlog and more strain."*, *"Nearly as good as Deep
+work at a walking desk: less backlog, more strain."*, *"Not now: intake is locked until you write
+something out."*, or *"The best option for your state right now."* for the reference. At most
+three differences are named, in meter order (energy, backlog, strain, activation, depth), each
+only when the end states differ by ≥ 0.02. Show math adds the score and the margin in points.
+
+**Arm** loads the entry into the audit form with its effective cadence (the catalog cadence, or
+the largest standard cadence that survives the stop rule).
 
 ## Simple and advanced interface
 
@@ -171,9 +193,11 @@ diagnostics beside the plain copy.
    in words (*Intake helps right now* / *Wake up first* / *Nothing to refill* / *Intake drains
    you*), one sentence of guidance, six meters with plain names and a "higher / lower is better"
    hint (definitions on hover), and the awake time / block count.
-3. **What to do next** — the top three graded blocks (built-in catalog plus your presets) as
-   cards: grade, name, a one-sentence reason in words (fit, predicted effect, safe duration, or
-   the cap that applies), the boundary, and **Start**. *Show all N blocks* lists the rest.
+3. **What to do next** — the top three blocks (built-in catalog plus your presets) as cards:
+   standing pill (*Best now* / *Nearly as good* / *A step behind* / *Well behind* / *Not now*),
+   name, the comparison with the best block in words, a one-sentence reason (fit, predicted
+   effect, safe duration, or the cap that applies), the boundary, and **Start**. *Show all N
+   blocks* lists the rest with their comparison.
 4. **Log the block you just did** — the armed block summarised in one line with *Change what you
    did* (opens the full form with plain legends: How long, Intensity, What you did, Background
    anchor, How substantive, How dense, Pressure and control, Tangents, Novelty, Body and posture),
@@ -207,18 +231,21 @@ guess pre-selected. The description is kept as a `note` on the log entry.
 ### Adjusting a categorised block
 
 Every field of the armed block is a chip (*Activity*, *Length*, *Background*, *Body*, *Kind of
-thing*, *Density*, *Pressure*, *Tangents*, *Novelty*, *Intensity*). Tapping a chip opens a picker
+thing*, *Density*, *Pressure*, *Tangents*, *Novelty*, *Intensity*, and *Speed* whenever something
+is playing). Tapping a chip opens a picker
 for that field alone; a changed chip reads *← you*, a described one shows the cue word, an
 assumed one is dimmed. *Open the full form* still shows every group at once.
 
 ### Before you log it
 
 The block being programmed (armed from the list, described in words, or adjusted chip by chip)
-is graded exactly like a catalog entry at its own length (`gradeBlock`), and the log card shows
-that grade with its reason, the score, and all six meters as *now → after the block* (bar with the
-current fill, the change band, and a marker at the predicted value), followed by the routed
-headline the state would land on. In Advanced mode the predicted-Δx panel carries the same grade.
-Everything updates live before anything is logged.
+is scored exactly like a catalog entry at its own length and compared with the best block in the
+list (`gradeBlock(spec, …, against)`), and the log card shows its standing pill, the comparison
+sentence, its reason, and all six meters as *now → after the block* (bar with the current fill,
+the change band, and a marker at the predicted value), followed by the routed headline the state
+would land on. Arming the best block itself reads *Best now* (`sameBlock` matches it by content,
+not id). In Advanced mode the predicted-Δx panel carries the same standing and margin. Everything
+updates live before anything is logged.
 
 ### The Seven Pillars
 
@@ -257,6 +284,17 @@ habits the spec never named.
   prescriptions and catalog boundaries still snap to the standard cadences.
 - **Intensity**: Light ×0.7 / Standard ×1 / Heavy ×1.25 scales the modality's `I_vis`, `I_aud` and
   `O₁` (clamped to 1) before integration.
+- **Playback speed** (`speed`, `PLAYBACK_SPEEDS`: 0.75× / 1× / 1.25× / 1.5× / 1.75× / 2× / 2.5× /
+  3×): the factor multiplies the intake channels `I_vis` and `I_aud` only (clamped to 1,
+  compounding with intensity), never the output. At 2× an audiobook delivers twice the words per
+  minute, so restoration rises linearly with `I₁` while the quadratic `β_in C_in I₁²` cost, the
+  `δ_in B I₁` drag and the backlog accrual rise faster: a fast playback crosses `I*(t)` sooner and
+  reads as *depleting intake* earlier. The describer reads *at 1.5x*, *2× speed*, *double speed*,
+  *slowed down*, *sped up* (`parseSpeed`, snapped to the nearest catalog speed; *3 x 10 squats* is
+  not a speed) and only attaches a speed to blocks with an intake channel. **Usual listening
+  speed** (`listeningSpeed`, set under *How this works*) is applied to the built-in listening
+  entries in the catalog and to described listening blocks that state no speed; presets keep the
+  speed they were saved with.
 - **Presets**: any armed block can be saved by name (`presets`, up to 50). Presets are graded like
   built-in catalog entries (kind inferred from the control vector: `O₁ ≥ 0.6` execute, `O₁ > 0`
   express, `I₁ > 0` absorb, kinetic anchor somatic, else rest), carry a *your preset* tag, and can

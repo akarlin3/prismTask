@@ -45,6 +45,7 @@ import {
   HISTORY_LIMIT,
   MODALITIES,
   NOVELTIES,
+  PLAYBACK_SPEEDS,
   SCRATCHPADS,
   SOMATICS,
   STATE_KEYS,
@@ -62,6 +63,7 @@ import {
   gradeBlock,
   gradeCatalog,
   integrateBlock,
+  modalityHasIntake,
   nextBacklogLatch,
   prescribe,
   resolveSpec,
@@ -70,7 +72,6 @@ import {
   type ConfigKind,
   type Constants,
   type Diagnostics,
-  type Grade,
   type GradedBlock,
   type HistoryEntry,
   type InputRegime,
@@ -78,12 +79,14 @@ import {
   type PersistedState,
   type Prescription,
   type Routing,
+  type SpeedKey,
+  type Standing,
   type StateKey,
   type StateVector,
   type UserPreset,
   withMinutes,
 } from './capacityModel';
-import { PLAIN_BY_KEY, joinEffects, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
+import { PLAIN_BY_KEY, STANDING_LABEL, joinEffects, plainComparison, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
 import { describeBlock, type DescribedBlock, type DescribedField } from './blockDescriber';
 import { evaluatePillars, pillarSummary, type PillarVerdict } from './pillars';
 
@@ -134,13 +137,25 @@ const QUADRANT_TONE: Record<Routing['quadrant'], string> = {
   'IV-B': 'border-emerald-400/40 bg-emerald-400/5 text-emerald-200',
 };
 
-const GRADE_TONE: Record<Grade, string> = {
-  A: 'border-emerald-400/70 bg-emerald-400/15 text-emerald-200',
-  B: 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200',
-  C: 'border-zinc-500 bg-zinc-800 text-zinc-200',
-  D: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
-  F: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
+const STANDING_TONE: Record<Standing, string> = {
+  best: 'border-emerald-400/70 bg-emerald-400/15 text-emerald-200',
+  close: 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200',
+  behind: 'border-zinc-500 bg-zinc-800 text-zinc-200',
+  far: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
+  blocked: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
 };
+
+/** Where a block stands against the best option right now, as a small pill. */
+function StandingPill({ standing, size = 'md' }: { standing: Standing; size?: 'sm' | 'md' }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border font-semibold ${size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} ${STANDING_TONE[standing]}`}
+      aria-label={`Standing ${STANDING_LABEL[standing]}`}
+    >
+      {STANDING_LABEL[standing]}
+    </span>
+  );
+}
 
 const SLEEP_OPTIONS = [
   { hours: 4, label: '4 h', detail: 'Fragmented' },
@@ -175,7 +190,9 @@ function describeSpec(spec: BlockSpec): string {
   const s = SCRATCHPADS.find((o) => o.key === spec.scratchpad)!;
   const n = NOVELTIES.find((o) => o.key === spec.novelty)!;
   const so = SOMATICS.find((o) => o.key === spec.somatic)!;
-  return `T₁ ${m.label} · T₂ ${a.label} · V ${v.V.toFixed(2)} · C_in ${d.Cin.toFixed(2)} · P ${c.P.toFixed(2)} S ${c.S.toFixed(2)} · γ_a ${s.gammaAssoc.toFixed(1)} Ω ${s.omega.toFixed(2)} · ξ ${n.xi.toFixed(2)} · ${so.label}`;
+  const sp = PLAYBACK_SPEEDS.find((o) => o.key === (spec.speed ?? 'x1'))!;
+  const speed = sp.factor !== 1 && modalityHasIntake(spec.modality) ? ` ${sp.label}` : '';
+  return `T₁ ${m.label}${speed} · T₂ ${a.label} · V ${v.V.toFixed(2)} · C_in ${d.Cin.toFixed(2)} · P ${c.P.toFixed(2)} S ${c.S.toFixed(2)} · γ_a ${s.gammaAssoc.toFixed(1)} Ω ${s.omega.toFixed(2)} · ξ ${n.xi.toFixed(2)} · ${so.label}`;
 }
 
 /** Step-2 / Step-3 report in the copilot's Markdown protocol, for pasting into a chat thread. */
@@ -550,7 +567,7 @@ function Segmented<K extends string>({
   options: readonly Option<K>[];
   value: K;
   onChange: (key: K) => void;
-  columns?: 2 | 3;
+  columns?: 2 | 3 | 4;
   dimmed?: boolean;
   note?: string;
   tag?: (key: K) => ReactNode;
@@ -576,7 +593,7 @@ function Segmented<K extends string>({
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{legend}</span>
         {symbol && <span className="font-mono text-[10.5px] text-zinc-500">{symbol}</span>}
       </legend>
-      <div role="radiogroup" aria-label={legend} onKeyDown={onKey} className={`grid gap-1.5 ${columns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <div role="radiogroup" aria-label={legend} onKeyDown={onKey} className={`grid gap-1.5 ${columns === 4 ? 'grid-cols-4' : columns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {options.map((o) => {
           const selected = o.key === value;
           return (
@@ -1040,6 +1057,7 @@ const FIELD_LABEL: Record<DescribedField, string> = {
   somatic: 'Body',
   intensity: 'Intensity',
   duration: 'Length',
+  speed: 'Speed',
 };
 
 function plainChoice(spec: BlockSpec, field: DescribedField): string {
@@ -1066,6 +1084,8 @@ function plainChoice(spec: BlockSpec, field: DescribedField): string {
       return find(SOMATICS, spec.somatic);
     case 'intensity':
       return find(INTENSITIES, spec.intensity ?? 'standard');
+    case 'speed':
+      return find(PLAYBACK_SPEEDS, spec.speed ?? 'x1');
     case 'duration':
       return `${blockMinutes(spec)} min`;
     default:
@@ -1073,7 +1093,7 @@ function plainChoice(spec: BlockSpec, field: DescribedField): string {
   }
 }
 
-function DescribeBox({ defaultMinutes, onDescribed }: { defaultMinutes: number; onDescribed: (text: string, result: DescribedBlock) => void }) {
+function DescribeBox({ defaultMinutes, defaultSpeed, onDescribed }: { defaultMinutes: number; defaultSpeed: SpeedKey; onDescribed: (text: string, result: DescribedBlock) => void }) {
   const [text, setText] = useState('');
   return (
     <form
@@ -1082,7 +1102,7 @@ function DescribeBox({ defaultMinutes, onDescribed }: { defaultMinutes: number; 
         e.preventDefault();
         const trimmed = text.trim();
         if (!trimmed) return;
-        onDescribed(trimmed, describeBlock(trimmed, defaultMinutes));
+        onDescribed(trimmed, describeBlock(trimmed, defaultMinutes, defaultSpeed));
       }}
     >
       <label htmlFor="cc-describe" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -1093,7 +1113,7 @@ function DescribeBox({ defaultMinutes, onDescribed }: { defaultMinutes: number; 
           id="cc-describe"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={`e.g. "read a novel on the couch" or "emails at my desk, got distracted"`}
+          placeholder={`e.g. "read a novel on the couch", "audiobook at 1.5x on a walk", "emails at my desk, got distracted"`}
           maxLength={240}
           className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus-visible:outline-2 focus-visible:outline-cyan-400"
         />
@@ -1159,11 +1179,8 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
   const Icon = KIND_ICON[g.entry.kind];
   const [open, setOpen] = useState(false);
   return (
-    <div className={`rounded-lg border p-2.5 ${g.grade === 'F' ? 'border-zinc-800/70 bg-zinc-900/30 opacity-80' : 'border-zinc-800 bg-zinc-900/60'}`} data-grade={g.grade}>
+    <div className={`rounded-lg border p-2.5 ${g.comparison.standing === 'blocked' ? 'border-zinc-800/70 bg-zinc-900/30 opacity-80' : 'border-zinc-800 bg-zinc-900/60'}`} data-standing={g.comparison.standing}>
       <div className="flex items-start gap-2.5">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border font-mono text-lg font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
-          {g.grade}
-        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -1173,11 +1190,16 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
               </div>
               <div className="mt-0.5 truncate text-[10.5px] text-zinc-500">{g.entry.detail}</div>
             </div>
-            <div className="shrink-0 text-right font-mono">
-              <div className="text-sm font-semibold text-zinc-100">{g.score}</div>
-              <div className="text-[9.5px] uppercase tracking-[0.12em] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</div>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <StandingPill standing={g.comparison.standing} size="sm" />
+              <div className="text-right font-mono">
+                <span className="text-sm font-semibold text-zinc-100">{g.score}</span>
+                {g.comparison.margin !== 0 && <span className="ml-1 text-[10px] text-zinc-500">({fmtSigned(g.comparison.margin, 0)})</span>}
+                <div className="text-[9.5px] uppercase tracking-[0.12em] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</div>
+              </div>
             </div>
           </div>
+          <div className="mt-1 text-[11px] leading-snug text-zinc-300">{plainComparison(g)}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-zinc-500">
             <span title="Routing fit for the current quadrant">fit {g.fit}</span>
             <span>·</span>
@@ -1239,31 +1261,26 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
 }
 
 // ---------------------------------------------------------------------------
-// Before-you-log preview: grade + six meters now → after
+// Before-you-log preview: comparison with the best option + six meters now → after
 // ---------------------------------------------------------------------------
 
 function BlockPreview({ graded, x, minutes, thenHeadline, showMath, k }: { graded: GradedBlock; x: StateVector; minutes: number; thenHeadline: string; showMath: boolean; k: Constants }) {
   const after = graded.predicted ?? x;
+  const c = graded.comparison;
   return (
     <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2.5" aria-label="Before you log it">
-      <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border font-mono text-xl font-bold ${GRADE_TONE[graded.grade]}`} aria-label={`Grade ${graded.grade}`}>
-          {graded.grade}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Before you log it · {minutes} min</span>
-            <span className="font-mono text-[10.5px] text-zinc-500">score {graded.score}</span>
-          </div>
-          <p className="mt-0.5 text-[12.5px] leading-snug text-zinc-200">{plainReason(graded, x)}</p>
-          {showMath && (
-            <p className="mt-0.5 font-mono text-[10px] text-zinc-500">
-              fit {graded.fit} · outcome {graded.outcome} · horizon {graded.horizon} · stop: {graded.stopReason}
-              {graded.deltaUtility !== null ? ` · ΔU ${fmtSigned(graded.deltaUtility, 3)}` : ''}
-            </p>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Before you log it · {minutes} min</span>
+        <StandingPill standing={c.standing} />
       </div>
+      <p className="mt-1 text-[12.5px] leading-snug text-zinc-100">{plainComparison(graded)}</p>
+      <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-400">{plainReason(graded, x, c.standing === 'blocked')}</p>
+      {showMath && (
+        <p className="mt-0.5 font-mono text-[10px] text-zinc-500">
+          score {graded.score} ({fmtSigned(c.margin, 0)} vs {c.against.name}) · fit {graded.fit} · outcome {graded.outcome} · horizon {graded.horizon} · stop: {graded.stopReason}
+          {graded.deltaUtility !== null ? ` · ΔU ${fmtSigned(graded.deltaUtility, 3)}` : ''}
+        </p>
+      )}
       <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-6" aria-label="Effect on the meters">
         {SERIES.map((sm) => {
           const pl = PLAIN_BY_KEY[sm.key];
@@ -1381,7 +1398,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [adjusted, setAdjusted] = useState<ReadonlySet<DescribedField>>(() => new Set());
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength, listeningSpeed } = store;
 
   useEffect(() => {
     try {
@@ -1408,10 +1425,10 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     [preview, inputs, k, backlogLatch],
   );
   const report = useMemo(() => (lastDeltaEntry(history) ? buildMarkdownReport(lastDeltaEntry(history)!, diag, routing, prescriptions, k) : null), [history, diag, routing, prescriptions, k]);
-  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength), [x, hoursAwake, diag, routing, k, presets, blockLength]);
+  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength, listeningSpeed), [x, hoursAwake, diag, routing, k, presets, blockLength, listeningSpeed]);
   const plainQ = plainQuadrant(routing);
   const plainR = plainRegime(diag);
-  const armedGrade = useMemo(() => gradeBlock(spec, x, hoursAwake, diag, routing, k), [spec, x, hoursAwake, diag, routing, k]);
+  const armedGrade = useMemo(() => gradeBlock(spec, x, hoursAwake, diag, routing, k, 'This block', catalog[0]), [spec, x, hoursAwake, diag, routing, k, catalog]);
   const pillars = useMemo(
     () => evaluatePillars(spec, x, diag, k, { relational: described?.result.relational, relationalCue: described?.result.relationalCue, predicted: preview.x }),
     [spec, x, diag, k, described, preview.x],
@@ -1511,6 +1528,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
         return <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SOMATICS} value={spec.somatic} onChange={(v) => adjust(field, { somatic: v })} {...common} />;
       case 'intensity':
         return <Segmented legend="Intensity" symbol={showMath ? '×(I, O₁)' : ''} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => adjust(field, { intensity: v })} columns={3} {...common} />;
+      case 'speed':
+        return <Segmented legend="Playback speed" symbol={showMath ? '×I₁' : ''} options={PLAYBACK_SPEEDS} value={spec.speed ?? 'x1'} onChange={(v) => adjust(field, { speed: v })} columns={4} {...common} />;
       case 'duration':
         return <DurationControl spec={spec} onChange={(patch) => adjust(field, patch)} legend="Length" symbol={showMath ? 'Δt' : ''} showParams={showMath} />;
       default:
@@ -1604,6 +1623,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     <>
           <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} showParams={!plain || showMath} />
           <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} plain={plain} showParams={!plain || showMath} />
+          <Segmented
+            legend={plain ? 'Playback speed' : 'Playback Speed'}
+            symbol={plain && !showMath ? '' : '×I₁'}
+            options={PLAYBACK_SPEEDS}
+            value={spec.speed ?? 'x1'}
+            onChange={(v) => setSpec({ speed: v })}
+            columns={4}
+            plain={plain}
+            showParams={!plain || showMath}
+            dimmed={armedI1 === 0}
+            note={armedI1 === 0 ? (plain ? 'Nothing is playing in this block: speed has no effect.' : 'I₁ = 0 for this modality: speed has no effect.') : plain ? 'Faster playback means more comes in per minute.' : undefined}
+          />
           <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} plain={plain} showParams={!plain || showMath} />
           <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} plain={plain} showParams={!plain || showMath} />
           <Segmented
@@ -1633,8 +1664,9 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 Predicted Δx over {dt} m
-                <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] normal-case tracking-normal ${GRADE_TONE[armedGrade.grade]}`} aria-label={`Grade ${armedGrade.grade}`}>
-                  grade {armedGrade.grade} · {armedGrade.score}
+                <StandingPill standing={armedGrade.comparison.standing} size="sm" />
+                <span className="font-mono text-[10px] normal-case tracking-normal text-zinc-500">
+                  {armedGrade.score} ({fmtSigned(armedGrade.comparison.margin, 0)} vs {armedGrade.comparison.against.name})
                 </span>
               </span>
               <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${QUADRANT_TONE[previewRouting.quadrant]}`}>→ {previewRouting.quadrant}</span>
@@ -1767,8 +1799,8 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </summary>
             <ol className="mt-2 grid list-decimal gap-1 pl-5 leading-relaxed">
               <li>The six meters are a model of your current capacity, updated every time you log a block of work or rest.</li>
-              <li>“What to do next” grades every kind of block for this exact state: A means it fits and helps, F means it would hurt or is locked out.</li>
-              <li>Press Start on a block, do it, then log how long it ran and whether tangents or strain crept in. The meters update and the grades refresh.</li>
+              <li>“What to do next” compares every kind of block with the best one for this exact state: Best now, Nearly as good, A step behind, Well behind, or Not now when a rule locks it out.</li>
+              <li>Press Start on a block, do it, then log how long it ran and whether tangents or strain crept in. The meters update and the comparisons refresh.</li>
             </ol>
             <p className="mt-2 text-[11.5px] text-zinc-500">Calibrate sets the meters by hand when the model drifts from how you feel. Show math reveals the symbols and the rules behind every number.</p>
             <label className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-zinc-400">
@@ -1787,7 +1819,24 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 aria-label="Block length in minutes"
                 className="w-16 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
               />
-              <span>minutes long. Grades, boundaries and one-click logging all use this length.</span>
+              <span>minutes long. Comparisons, boundaries and one-click logging all use this length.</span>
+            </label>
+            <label className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-zinc-400">
+              <span>Audiobooks and podcasts usually play at</span>
+              <select
+                id="cc-listening-speed"
+                value={listeningSpeed}
+                onChange={(e) => update({ listeningSpeed: e.target.value as SpeedKey })}
+                aria-label="Usual listening speed"
+                className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+              >
+                {PLAYBACK_SPEEDS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span>— listening blocks in the list and in your descriptions use this unless you say a speed.</span>
             </label>
           </details>
 
@@ -1864,17 +1913,15 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           <section aria-label="Next block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">What to do next</h2>
-              <span className="text-[10.5px] text-zinc-500">every block graded for your state right now</span>
+              <span className="text-[10.5px] text-zinc-500">every block compared with the best one for your state right now</span>
             </div>
             <div className="mt-2 grid gap-2">
               {catalog.slice(0, 3).map((g, i) => (
                 <div key={g.entry.id} className={`rounded-lg border p-3 ${i === 0 ? 'border-cyan-400/50 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/40'}`}>
                   <div className="flex items-start gap-3">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border font-mono text-lg font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
-                      {g.grade}
-                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <StandingPill standing={g.comparison.standing} size="sm" />
                         <span className="text-[13.5px] font-semibold text-zinc-100">{g.entry.name}</span>
                         {g.entry.presetId && (
                           <>
@@ -1886,10 +1933,11 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                         )}
                       </div>
                       <div className="mt-0.5 text-[11.5px] text-zinc-500">{g.entry.detail}</div>
-                      <div className="mt-1 text-[12px] leading-snug text-zinc-300">{plainReason(g, x)}</div>
+                      <div className="mt-1 text-[12px] leading-snug text-zinc-200">{i === 0 ? plainReason(g, x) : plainComparison(g)}</div>
+                      {i > 0 && <div className="mt-0.5 text-[11px] leading-snug text-zinc-500">{plainReason(g, x, g.comparison.standing === 'blocked')}</div>}
                       {showMath && (
                         <div className="mt-1 font-mono text-[10px] text-zinc-500">
-                          score {g.score} · fit {g.fit} · outcome {g.outcome} · horizon {g.horizon} · stop: {g.stopReason}
+                          score {g.score} ({fmtSigned(g.comparison.margin, 0)} vs best) · fit {g.fit} · outcome {g.outcome} · horizon {g.horizon} · stop: {g.stopReason}
                         </div>
                       )}
                     </div>
@@ -1926,16 +1974,14 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               <ul className="mt-2 grid gap-1" aria-label="Graded blocks">
                 {catalog.slice(3).map((g) => (
                   <li key={g.entry.id} className="flex items-center gap-2 rounded-md border border-zinc-800 px-2 py-1.5">
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border font-mono text-xs font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
-                      {g.grade}
-                    </span>
+                    <StandingPill standing={g.comparison.standing} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-zinc-200">
                         {g.entry.name}
                         {g.entry.presetId && <span className="ml-1.5 rounded bg-indigo-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-200">preset</span>}
                       </span>
-                      <span className="block truncate text-[10.5px] text-zinc-500" title={plainReason(g, x)}>
-                        {plainReason(g, x)}
+                      <span className="block truncate text-[10.5px] text-zinc-500" title={`${plainComparison(g)} ${plainReason(g, x, g.comparison.standing === 'blocked')}`}>
+                        {plainComparison(g)}
                       </span>
                     </span>
                     <span className="shrink-0 font-mono text-[10.5px] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</span>
@@ -1965,7 +2011,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           <section aria-label="Log block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4" ref={formRef}>
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log the {blockLength}-minute block you just did</h2>
             <div className="mt-3">
-              <DescribeBox defaultMinutes={blockLength} onDescribed={applyDescribed} />
+              <DescribeBox defaultMinutes={blockLength} defaultSpeed={listeningSpeed} onDescribed={applyDescribed} />
             </div>
             <div className={`mt-2 rounded-md border px-3 py-2 ${described ? 'border-cyan-400/30 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/60'}`} aria-label={described ? 'Understood as' : 'This block'}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -1981,7 +2027,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 </span>
               </div>
               <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'intensity'] as DescribedField[]).map((field) => {
+                {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'intensity', ...(modalityHasIntake(spec.modality) ? (['speed'] as DescribedField[]) : [])] as DescribedField[]).map((field) => {
                   const cue = described?.result.cues.find((c) => c.field === field);
                   const isAdjusted = adjusted.has(field);
                   const assumed = !!described && !cue && !isAdjusted;
@@ -2328,11 +2374,11 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           icon={Grid2x2}
           aside={
             <span className="font-mono text-[10.5px] text-zinc-500">
-              score = 0.45·fit + 0.40·outcome + 0.15·horizon, capped by guardrails · A ≥ 80 · B ≥ 65 · C ≥ 50 · D ≥ 35
+              score = 0.45·fit + 0.40·outcome + 0.15·horizon, capped by guardrails · margin vs the best: ≥ −8 nearly as good · ≥ −25 a step behind · else well behind · capped = not now
             </span>
           }
         >
-          Block Catalog · graded for x_k
+          Block Catalog · compared for x_k
         </SectionTitle>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {catalog.map((g) => (

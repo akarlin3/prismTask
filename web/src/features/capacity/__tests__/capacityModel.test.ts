@@ -18,10 +18,12 @@ import {
   gammaArousal,
   integrateBlock,
   blockMinutes,
+  compareBlocks,
   gradeBlock,
   gradeCatalog,
   inferKind,
-  letterGrade,
+  nearestSpeed,
+  sameBlock,
   nextBacklogLatch,
   prescribe,
   resolveSpec,
@@ -383,31 +385,45 @@ describe('graded block catalog', () => {
     for (const p of ps) if (p.kind !== 'sleep') expect(p.boundMinutes).toBe(15);
   });
 
-  it('grades every catalog entry on [0, 100] with a consistent letter, best first', () => {
+  it('scores every catalog entry on [0, 100], best first, each compared with the best', () => {
     const { list } = gradeAll({ E: 0.6, B: 0.3 });
     expect(list.length).toBeGreaterThanOrEqual(15);
+    const best = list[0];
+    expect(best.comparison.standing).toBe('best');
+    expect(best.comparison.margin).toBe(0);
+    expect(best.comparison.against.id).toBe(best.entry.id);
     for (let i = 0; i < list.length; i += 1) {
       const g = list[i];
       expect(g.score).toBeGreaterThanOrEqual(0);
       expect(g.score).toBeLessThanOrEqual(100);
-      expect(g.grade).toBe(letterGrade(g.score));
-      if (i > 0) expect(list[i - 1].score).toBeGreaterThanOrEqual(g.score);
+      if (i > 0) {
+        expect(list[i - 1].score).toBeGreaterThanOrEqual(g.score);
+        expect(g.comparison.against.name).toBe(best.entry.name);
+        expect(g.comparison.margin).toBe(g.score - best.score);
+        const expected = g.caps.length > 0 ? 'blocked' : g.comparison.margin >= 0 ? 'best' : g.comparison.margin >= -8 ? 'close' : g.comparison.margin >= -25 ? 'behind' : 'far';
+        expect(g.comparison.standing).toBe(expected);
+      }
       if (g.entry.kind !== 'sleep') {
         expect(g.spec).not.toBeNull();
         expect(g.predicted).not.toBeNull();
+        expect(g.comparison.deltas).not.toBeNull();
       }
     }
-    expect(letterGrade(80)).toBe('A');
-    expect(letterGrade(64.9)).toBe('C');
-    expect(letterGrade(34)).toBe('F');
+    // The same block compared with itself is the best, whatever its id.
+    const twin = { ...best, entry: { ...best.entry, id: 'armed' } };
+    expect(compareBlocks(twin, best, k).standing).toBe('best');
+    expect(sameBlock(best.spec, twin.spec)).toBe(true);
+    expect(sameBlock(best.spec, best.spec && { ...best.spec, speed: 'x2' })).toBe(false);
   });
 
   it('puts execution on top in Quadrant IV and rest on top in Quadrant I-A', () => {
     const iv = gradeAll({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
     expect(iv.r.quadrant).toBe('IV');
     expect(iv.list[0].entry.kind).toBe('execute');
-    expect(iv.list[0].grade).toBe('A');
-    expect(iv.list.find((g) => g.entry.kind === 'sleep')!.grade).toBe('F');
+    expect(iv.list[0].comparison.standing).toBe('best');
+    const sleep = iv.list.find((g) => g.entry.kind === 'sleep')!;
+    expect(sleep.comparison.standing).toBe('blocked');
+    expect(sleep.comparison.margin).toBeLessThan(-25);
 
     const ia = gradeAll({ E: 0.3, B: 0.7, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
     expect(ia.r.quadrant).toBe('I-A');
@@ -427,7 +443,7 @@ describe('graded block catalog', () => {
     // Execution at F_body = 0.51 does trip the F ≥ 0.55 gate inside 15 m.
     const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
     expect(sprint.caps.some((c) => c.startsWith('boundary trips'))).toBe(true);
-    expect(sprint.grade).toBe('F');
+    expect(sprint.comparison.standing).toBe('blocked');
   });
 
   it('caps intake blocks under the backlog lock and visual blocks under the optical cutoff', () => {
@@ -455,7 +471,7 @@ describe('graded block catalog', () => {
     }
     const late = gradeAll({ E: 0.4, B: 0.4 }, 17);
     expect(late.list[0].entry.kind).toBe('sleep');
-    expect(late.list[0].grade).toBe('A');
+    expect(late.list[0].comparison.standing).toBe('best');
     for (const g of late.list) if (g.spec && resolveSpec(g.spec).u.Ivis + resolveSpec(g.spec).u.Iaud > 0) expect(g.score).toBeLessThanOrEqual(10);
   });
 });
@@ -500,7 +516,7 @@ describe('flexibility: intensity, custom duration, presets', () => {
     expect(mine).toBeDefined();
     expect(mine.entry.name).toBe('Bass practice');
     expect(mine.fit).toBe(100);
-    expect(mine.grade).toMatch(/[ABC]/);
+    expect(['best', 'close', 'behind']).toContain(mine.comparison.standing);
 
     expect(mine.spec?.cadence).toBe('custom');
     expect(mine.spec?.customMinutes).toBe(40);
@@ -516,31 +532,104 @@ describe('flexibility: intensity, custom duration, presets', () => {
 });
 
 describe('gradeBlock (the block being programmed)', () => {
-  it('grades an armed block exactly like the matching catalog entry at the same length', () => {
+  it('scores an armed block exactly like the matching catalog entry and compares it with the best', () => {
     const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
     const d = diagnose(x, 4, 0.9, k);
     const r = route(x, d, k);
     const list = gradeCatalog(x, 4, d, r, k, [], 15);
     const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
-    const armed = gradeBlock({ ...sprint.spec!, cadence: 'm15' }, x, 4, d, r, k);
-    expect(armed.grade).toBe(sprint.grade);
+    const armed = gradeBlock({ ...sprint.spec!, cadence: 'm15' }, x, 4, d, r, k, 'This block', list[0]);
     expect(armed.score).toBe(sprint.score);
+    expect(armed.comparison.standing).toBe(sprint.comparison.standing);
+    expect(armed.comparison.margin).toBe(sprint.comparison.margin);
+    expect(armed.comparison.against.name).toBe(list[0].entry.name);
     expect(armed.entry.kind).toBe('execute');
     expect(armed.spec!.cadence).toBe('m15');
     expect(armed.predicted).not.toBeNull();
+    // Arming the best block itself reads as the best, even though its id differs.
+    const top = gradeBlock({ ...list[0].spec!, cadence: 'm15' }, x, 4, d, r, k, 'This block', list[0]);
+    expect(top.comparison.standing).toBe('best');
+    expect(top.comparison.margin).toBe(0);
+    // Without a reference the block is compared with itself.
+    expect(gradeBlock(spec({ modality: 'reading', valuation: 'churn' }), x, 4, d, r, k).comparison.standing).toBe('best');
   });
 
-  it('reflects the block as programmed: churn grades F, a custom length keeps its own horizon', () => {
+  it('reflects the block as programmed: churn is blocked, a custom length keeps its own horizon', () => {
     const x = state({ E: 0.7, B: 0.25 });
     const d = diagnose(x, 4, 0.4, k);
     const r = route(x, d, k);
-    const churn = gradeBlock(spec({ modality: 'reading', valuation: 'churn', cadence: 'm15' }), x, 4, d, r, k);
-    expect(churn.grade).toBe('F');
+    const best = gradeCatalog(x, 4, d, r, k, [], 15)[0];
+    const churn = gradeBlock(spec({ modality: 'reading', valuation: 'churn', cadence: 'm15' }), x, 4, d, r, k, 'This block', best);
+    expect(churn.comparison.standing).toBe('blocked');
     expect(churn.caps.length).toBeGreaterThan(0);
-    const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k);
+    const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k, 'This block', best);
     expect(long.spec!.customMinutes).toBe(40);
     expect(long.entry.minutes).toBe(40);
     expect(long.boundMinutes).toBeLessThanOrEqual(40);
+    expect(long.comparison.deltas).not.toBeNull();
+  });
+});
+
+describe('playback speed', () => {
+  it('scales the intake channels only, clamped to [0, 1]', () => {
+    const base = resolveSpec(spec({ modality: 'auditory', anchor: 'none' })).u;
+    const fast = resolveSpec(spec({ modality: 'auditory', anchor: 'none', speed: 'x2' })).u;
+    const slow = resolveSpec(spec({ modality: 'auditory', anchor: 'none', speed: 'x075' })).u;
+    expect(base.Iaud).toBeCloseTo(0.35, 10);
+    expect(fast.Iaud).toBeCloseTo(0.7, 10);
+    expect(slow.Iaud).toBeCloseTo(0.2625, 10);
+    expect(resolveSpec(spec({ modality: 'auditory', speed: 'x3' })).u.Iaud).toBe(1);
+    expect(resolveSpec(spec({ modality: 'reading', speed: 'x2' })).u.Ivis).toBe(1);
+    // Output is untouched; a zero-vector block ignores the speed entirely.
+    const out = resolveSpec(spec({ modality: 'execution', speed: 'x2' })).u;
+    expect(out.O1).toBe(0.8);
+    expect(out.Ivis + out.Iaud).toBe(0);
+    expect(resolveSpec(spec({ modality: 'zero', speed: 'x3' })).u.Iaud).toBe(0);
+    // Speed compounds with intensity.
+    expect(resolveSpec(spec({ modality: 'auditory', intensity: 'light', speed: 'x2' })).u.Iaud).toBeCloseTo(0.35 * 0.7 * 2, 10);
+    expect(nearestSpeed(1.6)).toBe('x15');
+    expect(nearestSpeed(2.2)).toBe('x2');
+    expect(nearestSpeed(0.5)).toBe('x075');
+  });
+
+  it('makes a fast audiobook cost more per minute than a slow one', () => {
+    const x = state({ E: 0.5, B: 0.3, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 });
+    const run = (speed: BlockSpec['speed']) => integrateBlock(x, 4, resolveSpec(spec({ modality: 'auditory', anchor: 'none', density: 'analysis', somatic: 'supine', speed })), 15, k);
+    const slow = run('x075');
+    const fast = run('x25');
+    expect(fast.mean.accrual).toBeGreaterThan(slow.mean.accrual);
+    expect(fast.delta.B).toBeGreaterThan(slow.delta.B);
+    expect(fast.mean.phiIn).toBeLessThan(slow.mean.phiIn);
+  });
+
+  it('applies the usual listening speed to the built-in listening entries only', () => {
+    const x = state({ E: 0.45, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const d = diagnose(x, 4, 0.2, k);
+    const r = route(x, d, k);
+    const preset = { id: 'p1', name: 'Slow audiobook', spec: spec({ modality: 'auditory', speed: 'x075' }), createdAt: '2026-09-27T00:00:00.000Z' };
+    const list = gradeCatalog(x, 4, d, r, k, [preset], 15, 'x2');
+    for (const g of list) {
+      if (!g.spec) continue;
+      if (g.entry.presetId) expect(g.spec.speed).toBe('x075');
+      else if (g.spec.modality === 'auditory') expect(g.spec.speed).toBe('x2');
+      else expect(g.spec.speed).toBeUndefined();
+    }
+    const normal = gradeCatalog(x, 4, d, r, k, [], 15);
+    const audio = (l: typeof list) => l.find((g) => g.entry.id === 'absorb-audio')!;
+    expect(audio(normal).spec!.speed).toBeUndefined();
+    expect(audio(list).delta!.B).toBeGreaterThan(audio(normal).delta!.B);
+  });
+
+  it('persists the speed on specs and the usual listening speed', () => {
+    const store = defaultPersisted();
+    store.spec = spec({ modality: 'auditory', speed: 'x15' });
+    store.listeningSpeed = 'x175';
+    const back = decodePersisted(encodePersisted(store));
+    expect(back.spec.speed).toBe('x15');
+    expect(back.listeningSpeed).toBe('x175');
+    const bad = decodePersisted(JSON.stringify({ spec: { modality: 'auditory', speed: 'x99' }, listeningSpeed: 'fast' }));
+    expect(bad.spec.speed).toBeUndefined();
+    expect(bad.listeningSpeed).toBe('x1');
   });
 });
 

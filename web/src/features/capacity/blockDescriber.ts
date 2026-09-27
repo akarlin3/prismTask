@@ -8,8 +8,12 @@ import {
   CADENCES,
   CUSTOM_CADENCE,
   DEFAULT_SPEC,
+  DEFAULT_SPEED,
   MAX_CUSTOM_MINUTES,
   MIN_CUSTOM_MINUTES,
+  PLAYBACK_SPEEDS,
+  modalityHasIntake,
+  nearestSpeed,
   type AnchorKey,
   type BlockSpec,
   type ContextKey,
@@ -19,10 +23,11 @@ import {
   type NoveltyKey,
   type ScratchpadKey,
   type SomaticKey,
+  type SpeedKey,
   type ValuationKey,
 } from './capacityModel';
 
-export type DescribedField = 'modality' | 'anchor' | 'valuation' | 'density' | 'context' | 'scratchpad' | 'novelty' | 'somatic' | 'intensity' | 'duration';
+export type DescribedField = 'modality' | 'anchor' | 'valuation' | 'density' | 'context' | 'scratchpad' | 'novelty' | 'somatic' | 'intensity' | 'duration' | 'speed';
 
 export interface Cue {
   field: DescribedField;
@@ -172,10 +177,34 @@ export function parseMinutes(text: string): { minutes: number; word: string } | 
   return null;
 }
 
+/** Parse a playback speed ("at 1.5x", "2× speed", "double speed", "slowed down"); null when none is stated. */
+export function parseSpeed(text: string): { factor: number; word: string } | null {
+  const t = text.toLowerCase();
+  let m: RegExpMatchArray | null;
+  // "1.5x", "2×", "1.25 x speed" — but not "3 x 10" (sets × reps) or "2xl".
+  if ((m = t.match(/(\d(?:[.,]\d{1,2})?)\s*(?:×|x)(?:\s*(?:speed|playback))?(?![a-z0-9])(?!\s*\d)/))) {
+    const f = parseFloat(m[1].replace(',', '.'));
+    if (f >= 0.5 && f <= 4) return { factor: f, word: m[0].trim() };
+  }
+  if ((m = t.match(/\b(?:at|on)\s+(\d(?:[.,]\d{1,2})?)\s*(?:times(?: the)?(?: normal)? speed|speed)\b/))) {
+    const f = parseFloat(m[1].replace(',', '.'));
+    if (f >= 0.5 && f <= 4) return { factor: f, word: m[0].trim() };
+  }
+  if ((m = t.match(/\b(?:double|twice the|2x) speed\b/))) return { factor: 2, word: m[0] };
+  if ((m = t.match(/\btriple speed\b/))) return { factor: 3, word: m[0] };
+  if ((m = t.match(/\b(?:half speed|slowed (?:it |them )?down|slower speed|slow speed|at a slower pace)\b/))) return { factor: 0.75, word: m[0] };
+  if ((m = t.match(/\b(?:sped up|speeded up|faster speed|fast speed|on fast|on high speed)\b/))) return { factor: 1.5, word: m[0] };
+  if ((m = t.match(/\b(?:normal speed|regular speed|1x)\b/))) return { factor: 1, word: m[0] };
+  return null;
+}
+
 const RELATIONAL = rx('mom|mum|mother|dad|father|parents?|kids?|child(?:ren)?|son|daughter|baby|toddler|wife|husband|partner|spouse|girlfriend|boyfriend|family|sister|brother|sibling|grand(?:ma|pa|mother|father)|in-laws?|friend|friends|caregiv\\w*|looked after|took care of|helping (?:my|a)|helped (?:my|a)|visit(?:ed|ing)? (?:my|the)|argument|argued|fight with|comfort(?:ed|ing)?|support(?:ed|ing)? (?:my|a)');
 
-/** Describe a block from free text. `defaultMinutes` applies when no duration is stated. */
-export function describeBlock(text: string, defaultMinutes = 15): DescribedBlock {
+/**
+ * Describe a block from free text. `defaultMinutes` applies when no duration is stated;
+ * `defaultSpeed` is the usual playback speed, applied to listening blocks that state none.
+ */
+export function describeBlock(text: string, defaultMinutes = 15, defaultSpeed: SpeedKey = DEFAULT_SPEED): DescribedBlock {
   const t = ` ${text.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim()} `;
   const cues: Cue[] = [];
   const unsure: DescribedField[] = [];
@@ -226,6 +255,18 @@ export function describeBlock(text: string, defaultMinutes = 15): DescribedBlock
   if (modalityKey === 'zero') {
     spec.density = 'null';
     spec.scratchpad = 'single';
+  }
+  // Playback speed only means something when something is coming in.
+  const speed = parseSpeed(t);
+  if (modalityHasIntake(modalityKey)) {
+    if (speed) {
+      spec.speed = nearestSpeed(speed.factor);
+      cues.push({ field: 'speed', word: speed.word, choice: PLAYBACK_SPEEDS.find((o) => o.key === spec.speed)?.label ?? spec.speed });
+    } else if (modalityKey === 'auditory' && defaultSpeed !== DEFAULT_SPEED) {
+      spec.speed = defaultSpeed;
+    }
+  } else {
+    delete spec.speed;
   }
   if (modalityKey === 'expressive' || modalityKey === 'execution') spec.density = spec.density === 'null' && modalityKey === 'execution' ? 'analysis' : spec.density;
   if (modalityKey === 'expressive') spec.density = 'null';

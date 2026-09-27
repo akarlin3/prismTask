@@ -4,9 +4,11 @@
  */
 import {
   compositeStrain,
+  type Comparison,
   type Diagnostics,
   type GradedBlock,
   type Routing,
+  type Standing,
   type StateKey,
   type StateVector,
 } from './capacityModel';
@@ -107,16 +109,69 @@ export function plainEffect(before: StateVector, after: StateVector): string[] {
   return out;
 }
 
-/** One plain sentence explaining a graded block's score. */
-export function plainReason(g: GradedBlock, x: StateVector): string {
+/**
+ * One plain sentence explaining a scored block: the cap that applies, else fit, predicted effect
+ * and safe duration. `skipCaps` leaves the cap out (when the comparison line already names it).
+ */
+export function plainReason(g: GradedBlock, x: StateVector, skipCaps = false): string {
   const fit = g.fit >= 90 ? 'Fits what you need now' : g.fit >= 60 ? 'Reasonable now' : g.fit >= 30 ? 'Not the priority now' : 'Wrong move for this state';
-  if (g.caps.length > 0) return `${plainCap(g.caps[0])} ${fit}.`;
+  if (g.caps.length > 0 && !skipCaps) return `${plainCap(g.caps[0])} ${fit}.`;
   const effect = g.predicted ? plainEffect(x, g.predicted).join(', ') : 'no simulated effect';
-  const horizon = g.entry.kind === 'sleep' ? '' : g.horizon < 100 ? ` Safe for about ${g.boundMinutes} minutes.` : '';
+  const horizon = g.entry.kind === 'sleep' ? '' : g.horizon < 100 ? (g.boundMinutes < 15 ? ' Hits a limit within fifteen minutes.' : ` Safe for about ${g.boundMinutes} minutes.`) : '';
   return `${fit}; ${effect}.${horizon}`;
 }
 
 export function joinEffects(parts: string[]): string {
   if (parts.length <= 1) return parts[0] ?? '';
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
+
+/** Short label for where a block stands against the best option right now. */
+export const STANDING_LABEL: Record<Standing, string> = {
+  best: 'Best now',
+  close: 'Nearly as good',
+  behind: 'A step behind',
+  far: 'Well behind',
+  blocked: 'Not now',
+};
+
+const DIFF_THRESHOLD = 0.02;
+
+/** Phrases for how a block's predicted end state differs from the reference block's. */
+export function plainDifferences(c: Comparison): string[] {
+  if (!c.deltas) return [];
+  const out: string[] = [];
+  const d = c.deltas;
+  if (d.E >= DIFF_THRESHOLD) out.push('more energy');
+  else if (d.E <= -DIFF_THRESHOLD) out.push('less energy');
+  if (d.B <= -DIFF_THRESHOLD) out.push('less backlog');
+  else if (d.B >= DIFF_THRESHOLD) out.push('more backlog');
+  const dF = c.strainDelta ?? 0;
+  if (dF <= -DIFF_THRESHOLD) out.push('less strain');
+  else if (dF >= DIFF_THRESHOLD) out.push('more strain');
+  const dA = c.arousalErrorDelta ?? 0;
+  if (dA <= -DIFF_THRESHOLD) out.push('activation closer to the sweet spot');
+  else if (dA >= DIFF_THRESHOLD) out.push('activation further from the sweet spot');
+  if (d.V >= DIFF_THRESHOLD) out.push('more depth');
+  else if (d.V <= -DIFF_THRESHOLD) out.push('less depth');
+  // Three differences at most, in meter order, so the sentence stays readable.
+  return out.slice(0, 3);
+}
+
+/** One sentence comparing a block with the best option for the current state. */
+export function plainComparison(g: GradedBlock): string {
+  const c = g.comparison;
+  const self = c.standing === 'best' && c.against.id === g.entry.id;
+  if (c.standing === 'blocked') {
+    const cap = plainCap(g.caps[0] ?? '');
+    return `Not now: ${cap.charAt(0).toLowerCase()}${cap.slice(1)}`;
+  }
+  if (self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'The best option for your state right now.';
+  const diffs = joinEffects(plainDifferences(c));
+  if (c.standing === 'best') {
+    if (c.margin > 0) return diffs ? `Better than anything on the list: ${diffs} than ${c.against.name}.` : `Better than anything on the list.`;
+    return diffs ? `As good as ${c.against.name}: ${diffs}.` : `As good as ${c.against.name}.`;
+  }
+  const lead = c.standing === 'close' ? `Nearly as good as ${c.against.name}` : c.standing === 'behind' ? `A step behind ${c.against.name}` : `Well behind ${c.against.name}`;
+  return `${lead}: ${diffs || 'about the same result'}.`;
 }

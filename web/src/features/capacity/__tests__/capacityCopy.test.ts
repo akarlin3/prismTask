@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONSTANTS, DEFAULT_STATE, diagnose, gradeCatalog, route, type StateVector } from '../capacityModel';
-import { PLAIN_SERIES, joinEffects, plainCap, plainEffect, plainQuadrant, plainReason, plainRegime } from '../capacityCopy';
+import { PLAIN_SERIES, STANDING_LABEL, joinEffects, plainCap, plainComparison, plainDifferences, plainEffect, plainQuadrant, plainReason, plainRegime } from '../capacityCopy';
 
 const k = DEFAULT_CONSTANTS;
 const state = (over: Partial<StateVector>): StateVector => ({ ...DEFAULT_STATE, ...over });
@@ -47,12 +47,34 @@ describe('plain-language copy', () => {
     expect(joinEffects(['a'])).toBe('a');
   });
 
-  it('explains a graded block in one sentence', () => {
+  it('explains a scored block in one sentence', () => {
     const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
     const d = diagnose(x, 4, 0.9, k);
     const list = gradeCatalog(x, 4, d, route(x, d, k), k);
     expect(plainReason(list[0], x)).toMatch(/^Fits what you need now;/);
     const locked = list.find((g) => g.caps.length > 0);
     if (locked) expect(plainReason(locked, x)).not.toMatch(/[ΓΦψ]/);
+  });
+
+  it('compares every block with the best one in words, never with a letter', () => {
+    const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    const d = diagnose(x, 4, 0.9, k);
+    const list = gradeCatalog(x, 4, d, route(x, d, k), k);
+    const best = list[0];
+    expect(plainComparison(best)).toBe('The best option for your state right now.');
+    for (const g of list.slice(1)) {
+      const text = plainComparison(g);
+      expect(text).not.toMatch(/\b[A-F]\b(?! )|grade/i);
+      if (g.comparison.standing === 'blocked') expect(text).toMatch(/^Not now: /);
+      else expect(text).toContain(best.entry.name);
+      expect(text).toMatch(/\.$/);
+    }
+    const behind = list.find((g) => g.comparison.standing === 'behind' || g.comparison.standing === 'far');
+    if (behind) expect(plainComparison(behind)).toMatch(new RegExp(`^(A step behind|Well behind) ${best.entry.name}: `));
+    expect(Object.values(STANDING_LABEL)).toEqual(['Best now', 'Nearly as good', 'A step behind', 'Well behind', 'Not now']);
+    const c = { ...best.comparison, deltas: { E: -0.05, B: 0.03, Fvis: 0, Fbody: 0, A: 0, V: 0 }, strainDelta: 0.04, arousalErrorDelta: -0.03 };
+    expect(plainDifferences(c)).toEqual(['less energy', 'more backlog', 'more strain']);
+    expect(plainDifferences({ ...c, strainDelta: 0 })).toEqual(['less energy', 'more backlog', 'activation closer to the sweet spot']);
+    expect(plainDifferences({ ...c, deltas: null })).toEqual([]);
   });
 });
