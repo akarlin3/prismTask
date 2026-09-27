@@ -17,7 +17,9 @@ import {
   encodePersisted,
   gammaArousal,
   integrateBlock,
+  blockMinutes,
   gradeCatalog,
+  inferKind,
   letterGrade,
   nextBacklogLatch,
   prescribe,
@@ -445,6 +447,59 @@ describe('graded block catalog', () => {
     expect(late.list[0].entry.kind).toBe('sleep');
     expect(late.list[0].grade).toBe('A');
     for (const g of late.list) if (g.spec && resolveSpec(g.spec).u.Ivis + resolveSpec(g.spec).u.Iaud > 0) expect(g.score).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('flexibility: intensity, custom duration, presets', () => {
+  it('scales intake and output intensities and keeps them on [0, 1]', () => {
+    const light = resolveSpec(spec({ modality: 'dense', intensity: 'light' })).u;
+    const heavy = resolveSpec(spec({ modality: 'dense', intensity: 'heavy' })).u;
+    expect(light.Ivis).toBeCloseTo(0.85 * 0.7, 10);
+    expect(heavy.Ivis).toBe(1);
+    expect(resolveSpec(spec({ modality: 'execution', intensity: 'heavy' })).u.O1).toBe(1);
+    expect(resolveSpec(spec({ modality: 'execution' })).u.O1).toBe(0.8);
+  });
+
+  it('honours custom durations within bounds', () => {
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 37 }))).toBe(37);
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 1 }))).toBe(5);
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 999 }))).toBe(240);
+    expect(blockMinutes(spec({ cadence: 'm45' }))).toBe(45);
+    const back = decodePersisted(JSON.stringify({ spec: { cadence: 'custom', customMinutes: 37, intensity: 'heavy' } }));
+    expect(back.spec.cadence).toBe('custom');
+    expect(back.spec.customMinutes).toBe(37);
+    expect(back.spec.intensity).toBe('heavy');
+    // A custom cadence without minutes falls back to the default cadence.
+    expect(decodePersisted(JSON.stringify({ spec: { cadence: 'custom' } })).spec.cadence).toBe(DEFAULT_SPEC.cadence);
+  });
+
+  it('grades user presets alongside the built-in catalog and infers their kind', () => {
+    const twinSpec: BlockSpec = { cadence: 'm25', modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'routine', somatic: 'supine' };
+    const preset = { id: 'p1', name: 'Bass practice', spec: { ...twinSpec, cadence: 'custom' as const, customMinutes: 40 }, createdAt: '2026-09-27T00:00:00.000Z' };
+    expect(inferKind(preset.spec)).toBe('express');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'treadmill' }))).toBe('somatic');
+    expect(inferKind(spec({ modality: 'reading' }))).toBe('absorb');
+    const x = state({ E: 0.6, B: 0.7, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.8 });
+    const d = diagnose(x, 4, 0.4, k);
+    const r = route(x, d, k);
+    expect(r.quadrant).toBe('I-B');
+    const list = gradeCatalog(x, 4, d, r, k, [preset]);
+    const mine = list.find((g) => g.entry.presetId === 'p1')!;
+    expect(mine).toBeDefined();
+    expect(mine.entry.name).toBe('Bass practice');
+    expect(mine.fit).toBe(100);
+    expect(mine.grade).toMatch(/[ABC]/);
+
+    expect(mine.spec?.cadence).toBe('custom');
+    expect(mine.spec?.customMinutes).toBe(40);
+    // An identical preset at the built-in cadence scores exactly like its built-in twin.
+    const same = gradeCatalog(x, 4, d, r, k, [{ ...preset, id: 'p3', spec: twinSpec }]);
+    const clone = same.find((g) => g.entry.presetId === 'p3')!;
+    const builtIn = same.find((g) => g.entry.id === 'express-silence')!;
+    expect(clone.score).toBe(builtIn.score);
+    const back = decodePersisted(JSON.stringify({ presets: [preset, { id: 'bad' }, { id: 'p2', name: '   ' }] }));
+    expect(back.presets).toHaveLength(1);
+    expect(back.presets[0].name).toBe('Bass practice');
   });
 });
 

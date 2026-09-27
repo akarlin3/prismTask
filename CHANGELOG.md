@@ -24,8 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Update* report (with Markdown copy), a single trailing operational
   prompt, and a graded block catalog (every archetype always listed,
   forward-simulated and scored A–F for the current state, one-click arm).
-  Opens in a simple single-column flow (status → next block → short log
-  card) with an Advanced toggle for the full instrument panel.
+  Opens in a simple single-column flow written in plain language (status
+  headline → graded "what to do next" cards → short log card) with a
+  Show-math toggle, custom durations, an intensity setting, saveable user
+  presets graded alongside the catalog, and an Advanced toggle for the full
+  instrument panel.
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

@@ -220,6 +220,10 @@ export const DEFAULT_STATE: StateVector = Object.freeze({
 // ---------------------------------------------------------------------------
 
 export type CadenceKey = 'm15' | 'm25' | 'm45' | 'm60' | 'm90';
+export type IntensityKey = 'light' | 'standard' | 'heavy';
+export const CUSTOM_CADENCE = 'custom';
+export const MIN_CUSTOM_MINUTES = 5;
+export const MAX_CUSTOM_MINUTES = 240;
 export type ModalityKey = 'zero' | 'auditory' | 'reading' | 'dense' | 'expressive' | 'execution';
 export type AnchorKey = 'none' | 'brown' | 'music' | 'fidget' | 'treadmill';
 export type ValuationKey = 'churn' | 'utility' | 'art' | 'architecture';
@@ -230,7 +234,11 @@ export type NoveltyKey = 'monotonous' | 'routine' | 'novel';
 export type SomaticKey = 'supine' | 'seated' | 'ocular' | 'slump';
 
 export interface BlockSpec {
-  cadence: CadenceKey;
+  /** A standard cadence, or `custom` with `customMinutes`. */
+  cadence: CadenceKey | typeof CUSTOM_CADENCE;
+  customMinutes?: number;
+  /** Scales the modality's I / O intensities: light ×0.7, standard ×1, heavy ×1.25. */
+  intensity?: IntensityKey;
   modality: ModalityKey;
   anchor: AnchorKey;
   valuation: ValuationKey;
@@ -258,7 +266,7 @@ export const CADENCES: readonly (Option<CadenceKey> & { minutes: number })[] = [
 ];
 
 export const MODALITIES: readonly (Option<ModalityKey> & { Ivis: number; Iaud: number; O1: number })[] = [
-  { key: 'zero', label: 'Zero-Vector', detail: 'Mask / Rest', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0 },
+  { key: 'zero', label: 'Nothing / Rest', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0 },
   { key: 'auditory', label: 'Auditory Narrative', detail: 'Audiobook, podcast', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0 },
   { key: 'reading', label: 'Visual Reading', detail: 'Prose on page', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0 },
   { key: 'dense', label: 'Dense Technical In', detail: 'Papers, docs, code review', params: 'I_vis=0.85', Ivis: 0.85, Iaud: 0, O1: 0 },
@@ -360,8 +368,15 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   },
 ];
 
+export const INTENSITIES: readonly (Option<IntensityKey> & { factor: number })[] = [
+  { key: 'light', label: 'Light', detail: 'Easy pace, ×0.7 intensity', params: '×0.70', factor: 0.7 },
+  { key: 'standard', label: 'Standard', detail: 'As modelled', params: '×1.00', factor: 1 },
+  { key: 'heavy', label: 'Heavy', detail: 'Pushing, ×1.25 intensity', params: '×1.25', factor: 1.25 },
+];
+
 export const DEFAULT_SPEC: BlockSpec = Object.freeze({
   cadence: 'm25',
+  intensity: 'standard',
   modality: 'execution',
   anchor: 'music',
   valuation: 'architecture',
@@ -382,6 +397,19 @@ export function cadenceMinutes(key: CadenceKey): number {
   return find(CADENCES, key).minutes;
 }
 
+/** Block length in minutes, honouring a custom cadence. */
+export function blockMinutes(spec: BlockSpec): number {
+  if (spec.cadence === CUSTOM_CADENCE) {
+    const m = spec.customMinutes ?? 25;
+    return Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(m)));
+  }
+  return cadenceMinutes(spec.cadence);
+}
+
+export function intensityFactor(spec: BlockSpec): number {
+  return INTENSITIES.find((o) => o.key === (spec.intensity ?? 'standard'))?.factor ?? 1;
+}
+
 /** Resolve a form spec into the numeric control/context vectors. */
 export function resolveSpec(spec: BlockSpec): BlockInputs {
   const modality = find(MODALITIES, spec.modality);
@@ -393,12 +421,13 @@ export function resolveSpec(spec: BlockSpec): BlockInputs {
   const novelty = find(NOVELTIES, spec.novelty);
   const somatic = find(SOMATICS, spec.somatic);
   const kinetic = anchor.kinetic;
+  const f = intensityFactor(spec);
   return {
     u: {
-      Ivis: modality.Ivis,
-      Iaud: modality.Iaud,
+      Ivis: clamp01(modality.Ivis * f),
+      Iaud: clamp01(modality.Iaud * f),
       Ianchor: anchor.Ianchor,
-      O1: modality.O1,
+      O1: clamp01(modality.O1 * f),
       Oanchor: anchor.Oanchor,
     },
     theta: { Cin: density.Cin, P: context.P, S: context.S },
@@ -1337,6 +1366,41 @@ export interface CatalogEntry {
   /** Default cadence in minutes; the grade uses min(cadence, simulated horizon). */
   minutes: number;
   spec: SpecBase | null;
+  /** Set for user presets. */
+  presetId?: string;
+}
+
+/** Block kind implied by a spec's control vector (used for user presets). */
+export function inferKind(spec: BlockSpec): Exclude<ConfigKind, 'sleep'> {
+  const m = MODALITIES.find((o) => o.key === spec.modality)!;
+  if (m.O1 >= 0.6) return 'execute';
+  if (m.O1 > 0) return 'express';
+  if (m.Ivis + m.Iaud > 0) return 'absorb';
+  return spec.anchor === 'treadmill' || spec.anchor === 'fidget' ? 'somatic' : 'rest';
+}
+
+export function presetEntry(p: UserPreset): CatalogEntry {
+  const s = p.spec;
+  const base: SpecBase = {
+    modality: s.modality,
+    anchor: s.anchor,
+    valuation: s.valuation,
+    density: s.density,
+    context: s.context,
+    scratchpad: s.scratchpad,
+    novelty: s.novelty,
+    somatic: s.somatic,
+    intensity: s.intensity,
+  };
+  return {
+    id: `preset:${p.id}`,
+    name: p.name,
+    kind: inferKind(p.spec),
+    detail: 'Your preset',
+    minutes: blockMinutes(p.spec),
+    spec: base,
+    presetId: p.id,
+  };
 }
 
 export const BLOCK_CATALOG: readonly CatalogEntry[] = [
@@ -1417,13 +1481,14 @@ function fitTable(r: Routing, d: Diagnostics, F: number): FitRow {
   }
 }
 
-/** Grade every catalog entry against the current state; sorted best first. */
-export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): GradedBlock[] {
+/** Grade every catalog entry (and any user presets) against the current state; sorted best first. */
+export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, presets: readonly UserPreset[] = []): GradedBlock[] {
   const F = compositeStrain(x);
   const fits = fitTable(r, d, F);
   const g = d.guardrails;
   const U0 = stateUtility(x, k);
-  const out: GradedBlock[] = BLOCK_CATALOG.map((entry) => {
+  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG];
+  const out: GradedBlock[] = entries.map((entry) => {
     const caps: string[] = [];
     const fit = fits[entry.kind];
     if (entry.kind === 'sleep' || !entry.spec) {
@@ -1469,7 +1534,11 @@ export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics,
       stopReason = `no boundary inside ${entry.minutes} m`;
     }
     const effective = Math.max(bound, 15);
-    const inputs = resolveSpec(withCadence(entry.spec, effective));
+    const specOut: BlockSpec =
+      entry.presetId && CADENCES.every((c) => c.minutes !== effective)
+        ? { novelty: 'routine', ...entry.spec, cadence: CUSTOM_CADENCE, customMinutes: effective }
+        : withCadence(entry.spec, effective);
+    const inputs = resolveSpec(specOut);
     const I1 = inputs.u.Ivis + inputs.u.Iaud;
     const result = integrateBlock(x, hoursAwake, inputs, effective, k);
     const dU = stateUtility(result.x, k) - U0;
@@ -1491,7 +1560,7 @@ export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics,
     score = Math.round(Math.max(0, Math.min(100, score)));
     return {
       entry,
-      spec: withCadence(entry.spec, effective),
+      spec: specOut,
       score,
       grade: letterGrade(score),
       fit: Math.round(fit),
@@ -1528,10 +1597,21 @@ export interface HistoryEntry {
   quadrant: QuadrantId;
 }
 
+export interface UserPreset {
+  id: string;
+  name: string;
+  spec: BlockSpec;
+  createdAt: string;
+}
+
 export interface PersistedState {
   version: 1;
   x: StateVector;
   hoursAwake: number;
+  /** User-defined block presets; graded alongside the built-in catalog. */
+  presets: UserPreset[];
+  /** Simple mode: show symbols, predicates and mono diagnostics alongside the plain copy. */
+  showMath: boolean;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
   /** Simple (single-column flow) or advanced (full instrument panel) interface. */
@@ -1551,6 +1631,8 @@ export function defaultPersisted(): PersistedState {
     version: 1,
     x: { ...DEFAULT_STATE },
     hoursAwake: 0,
+    presets: [],
+    showMath: false,
     backlogLatch: false,
     uiMode: 'simple',
     blockIndex: 0,
@@ -1588,8 +1670,9 @@ function sanitizeConstants(raw: unknown): Constants {
   return out;
 }
 
-const SPEC_KEYS: readonly (keyof BlockSpec)[] = ['cadence', 'modality', 'anchor', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'somatic'];
-const SPEC_CATALOG: Record<keyof BlockSpec, readonly Option<string>[]> = {
+type CatalogedSpecKey = 'cadence' | 'modality' | 'anchor' | 'valuation' | 'density' | 'context' | 'scratchpad' | 'novelty' | 'somatic';
+const SPEC_KEYS: readonly CatalogedSpecKey[] = ['cadence', 'modality', 'anchor', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'somatic'];
+const SPEC_CATALOG: Record<CatalogedSpecKey, readonly Option<string>[]> = {
   cadence: CADENCES,
   modality: MODALITIES,
   anchor: ANCHORS,
@@ -1602,13 +1685,16 @@ const SPEC_CATALOG: Record<keyof BlockSpec, readonly Option<string>[]> = {
 };
 
 export function sanitizeSpec(raw: unknown): BlockSpec {
-  const out = { ...DEFAULT_SPEC } as Record<keyof BlockSpec, string>;
+  const out: Record<string, unknown> = { ...DEFAULT_SPEC };
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
     for (const key of SPEC_KEYS) {
       const v = r[key];
       if (typeof v === 'string' && SPEC_CATALOG[key].some((o) => o.key === v)) out[key] = v;
     }
+    if (typeof r.intensity === 'string' && INTENSITIES.some((o) => o.key === r.intensity)) out.intensity = r.intensity;
+    if (isFiniteNumber(r.customMinutes)) out.customMinutes = Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.customMinutes)));
+    if (r.cadence === CUSTOM_CADENCE && isFiniteNumber(out.customMinutes)) out.cadence = CUSTOM_CADENCE;
   }
   return out as unknown as BlockSpec;
 }
@@ -1637,10 +1723,19 @@ export function decodePersisted(json: string | null): PersistedState {
         })
         .slice(-HISTORY_LIMIT)
     : [];
+  const presets: UserPreset[] = Array.isArray(r.presets)
+    ? (r.presets as unknown[])
+        .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+        .filter((e) => typeof e.id === 'string' && typeof e.name === 'string' && e.name.trim().length > 0)
+        .slice(0, 50)
+        .map((e) => ({ id: e.id as string, name: (e.name as string).trim().slice(0, 60), spec: sanitizeSpec(e.spec), createdAt: typeof e.createdAt === 'string' ? e.createdAt : base.updatedAt }))
+    : [];
   return {
     version: 1,
     x,
     hoursAwake,
+    presets,
+    showMath: r.showMath === true,
     backlogLatch: r.backlogLatch === true,
     uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,

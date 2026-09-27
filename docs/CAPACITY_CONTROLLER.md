@@ -161,22 +161,44 @@ the stop rule).
 
 ## Simple and advanced interface
 
-The screen opens in **Simple** mode (persisted as `uiMode`), a single column:
+The screen opens in **Simple** mode (persisted as `uiMode`), a single column written in plain
+language; **Show math** (persisted as `showMath`) reveals the symbols, predicates and mono
+diagnostics beside the plain copy.
 
-1. **Status** — routed quadrant and title, the regime pill, the one-sentence summary and the
-   first two flags, six compact meters, and one mono line with `I*`, `Γ`, `ψ`, `t_awake`, `k`.
-2. **Next Block** — the 2–3 routed prescriptions with their hard boundaries; **Start** arms the
-   top one, **Pick** arms another; *All N blocks, graded for now* expands the graded catalog as
-   compact rows.
-3. **Log The Block You Just Did** — the armed block in one mono line, then only what usually
-   changes: duration, *Tangents* (Clean / Sub-Threads / Rabbit Hole) and *Body* (As Planned /
-   Eye Strain / Slumped), the predicted Δx line, any guardrail warnings, and **Log Block**. *Did
-   something else?* opens the full nine-group audit form inline.
+1. **How this works** — a collapsed three-step explainer.
+2. **Status** — a plain headline for the routed quadrant (*Good to build*, *Write it out*, *Move
+   your body*, *Rest, no input*, *Take in something gentle*, *Stop and sleep*, …), a regime chip
+   in words (*Intake helps right now* / *Wake up first* / *Nothing to refill* / *Intake drains
+   you*), one sentence of guidance, six meters with plain names and a "higher / lower is better"
+   hint (definitions on hover), and the awake time / block count.
+3. **What to do next** — the top three graded blocks (built-in catalog plus your presets) as
+   cards: grade, name, a one-sentence reason in words (fit, predicted effect, safe duration, or
+   the cap that applies), the boundary, and **Start**. *Show all N blocks* lists the rest.
+4. **Log the block you just did** — the armed block summarised in one line with *Change what you
+   did* (opens the full form with plain legends: How long, Intensity, What you did, Background
+   anchor, How substantive, How dense, Pressure and control, Tangents, Novelty, Body and posture),
+   then duration (standard cadences or a custom 5–240 min), Tangents and Body, an expected-effect
+   sentence (*restores energy, clears backlog → then: Good to build*), warnings in words, **Log
+   Block**, and *Save this block as a preset*.
+
+The copy layer lives in `capacityCopy.ts` (`PLAIN_SERIES`, `plainQuadrant`, `plainRegime`,
+`plainCap`, `plainEffect`, `plainReason`).
 
 **Advanced** restores the full instrument panel (status strip, HUD with sparklines and rates,
 trajectory chart, full audit form, state-vector report, prescription cards, trailing prompt,
 block log, catalog cards, constants panel, JSON export). The header toggle switches modes;
 Calibrate / Sleep Reset / Undo are available in both.
+
+### Flexibility
+
+- **Custom duration**: `cadence: 'custom'` with `customMinutes` (5–240) anywhere a block is logged;
+  prescriptions and catalog boundaries still snap to the standard cadences.
+- **Intensity**: Light ×0.7 / Standard ×1 / Heavy ×1.25 scales the modality's `I_vis`, `I_aud` and
+  `O₁` (clamped to 1) before integration.
+- **Presets**: any armed block can be saved by name (`presets`, up to 50). Presets are graded like
+  built-in catalog entries (kind inferred from the control vector: `O₁ ≥ 0.6` execute, `O₁ > 0`
+  express, `I₁ > 0` absorb, kinetic anchor somatic, else rest), carry a *your preset* tag, and can
+  be deleted from the list.
 
 ## Operating protocol in the UI
 

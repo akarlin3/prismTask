@@ -12,33 +12,61 @@ describe('CapacityControllerScreen', () => {
     localStorage.clear();
   });
 
-  it('opens in the simple flow by default: status, next block with Start, and a short log card', () => {
+  it('opens in the simple flow by default: plain status, graded next blocks with Start, and a short log card', () => {
     render(<CapacityControllerScreen />);
-    expect(screen.getByRole('region', { name: /^Status$/i })).toBeInTheDocument();
+    const status = screen.getByRole('region', { name: /^Status$/i });
+    expect(within(status).getByRole('heading', { name: /Good to build/i })).toBeInTheDocument();
+    expect(within(status).getByLabelText('Energy')).toBeInTheDocument();
+    expect(within(status).queryByText(/I\* /)).not.toBeInTheDocument();
     const next = screen.getByRole('region', { name: /Next block/i });
-    expect(within(next).getByRole('button', { name: /^Start$/ })).toBeInTheDocument();
+    expect(within(next).getAllByLabelText(/^Grade [A-F]$/)).toHaveLength(3);
     const log = screen.getByRole('region', { name: /Log block/i });
-    expect(within(log).getByRole('radiogroup', { name: /Duration/i })).toBeInTheDocument();
+    expect(within(log).getByRole('radiogroup', { name: /How long/i })).toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Tangents/i })).toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Body/i })).toBeInTheDocument();
-    expect(within(log).queryByRole('radiogroup', { name: /Primary Modality Vector/i })).not.toBeInTheDocument();
+    expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
+    expect(within(log).getByText(/Expected over 25 min:/i)).toBeInTheDocument();
 
-    // Start arms the top prescription; Log Block integrates it.
-    fireEvent.click(within(next).getByRole('button', { name: /^Start$/ }));
+    // Start arms the top graded block; Log Block integrates it.
+    fireEvent.click(within(next).getAllByRole('button', { name: /^Start$/ })[0]);
     fireEvent.click(within(log).getByRole('button', { name: /^Log Block$/i }));
-    expect(screen.getByText(/block k1 · t_awake/i)).toBeInTheDocument();
+    expect(screen.getByText(/Block k1 · \d+\.\d h awake/i)).toBeInTheDocument();
 
-    // The full audit form and the graded list are one click away.
-    fireEvent.click(within(log).getByRole('button', { name: /Open the full audit form/i }));
-    expect(within(log).getByRole('radiogroup', { name: /Primary Modality Vector/i })).toBeInTheDocument();
-    fireEvent.click(within(next).getByRole('button', { name: /blocks, graded/i }));
+    // The full form (plain legends) and the rest of the graded list are one click away.
+    fireEvent.click(within(log).getByRole('button', { name: /Change what you did/i }));
+    expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
+    expect(within(log).getByRole('radiogroup', { name: /Intensity/i })).toBeInTheDocument();
+    fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
     expect(within(next).getAllByLabelText(/^Grade [A-F]$/).length).toBeGreaterThanOrEqual(15);
+
+    // Show math reveals symbols and the diagnostics line.
+    fireEvent.click(screen.getByRole('button', { name: /Show math/i }));
+    expect(within(status).getByText(/I\* /)).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).showMath).toBe(true);
 
     // Advanced reveals the instrument panel and persists.
     fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
     expect(screen.getByRole('region', { name: /State-space HUD/i })).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).uiMode).toBe('advanced');
+  });
+
+  it('supports custom durations and user presets in the simple flow', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /Log block/i });
+    fireEvent.change(within(log).getByLabelText(/Custom duration in minutes/i), { target: { value: '37' } });
+    expect(within(log).getByText(/Expected over 37 min:/i)).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.customMinutes).toBe(37);
+
+    fireEvent.click(within(log).getByRole('button', { name: /Save this block as a preset/i }));
+    fireEvent.change(within(log).getByLabelText(/Preset name/i), { target: { value: 'Bass practice' } });
+    fireEvent.submit(within(log).getByLabelText(/Preset name/i).closest('form')!);
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).presets.map((p) => p.name)).toEqual(['Bass practice']);
+    const next = screen.getByRole('region', { name: /Next block/i });
+    fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
+    expect(within(next).getByText('Bass practice')).toBeInTheDocument();
+    fireEvent.click(within(next).getByRole('button', { name: /Delete preset Bass practice/i }));
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).presets).toHaveLength(0);
   });
 
   it('renders the HUD, status strip, audit form and prescription engine', () => {
@@ -59,7 +87,7 @@ describe('CapacityControllerScreen', () => {
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
     expect(within(form).getByRole('radiogroup', { name: /Novelty/i })).toBeInTheDocument();
     expect(within(form).getByRole('radio', { name: /Unbuffered Speculative Intake/i })).toBeInTheDocument();
-    fireEvent.click(within(form).getByRole('radio', { name: /Zero-Vector/i }));
+    fireEvent.click(within(form).getByRole('radio', { name: /Nothing \/ Rest/i }));
     fireEvent.click(within(form).getByRole('radio', { name: /^25m/i }));
     fireEvent.click(screen.getByRole('button', { name: /Integrate Discrete Flux/i }));
 

@@ -9,6 +9,8 @@ import {
   ChevronUp,
   ClipboardCopy,
   Grid2x2,
+  HelpCircle,
+  Save,
   Footprints,
   Gauge,
   Info,
@@ -28,6 +30,10 @@ import {
 import {
   ANCHORS,
   CADENCES,
+  CUSTOM_CADENCE,
+  INTENSITIES,
+  MAX_CUSTOM_MINUTES,
+  MIN_CUSTOM_MINUTES,
   CONSTANT_META,
   CONTEXTS,
   DEFAULT_CONSTANTS,
@@ -43,7 +49,7 @@ import {
   VALUATIONS,
   applySleepReset,
   arousalPotential,
-  cadenceMinutes,
+  blockMinutes,
   compositeStrain,
   decodePersisted,
   defaultPersisted,
@@ -69,7 +75,9 @@ import {
   type Routing,
   type StateKey,
   type StateVector,
+  type UserPreset,
 } from './capacityModel';
+import { PLAIN_BY_KEY, joinEffects, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
 
 // ---------------------------------------------------------------------------
 // Presentation metadata
@@ -336,47 +344,6 @@ function StateTile({
   );
 }
 
-function MiniMeter({ meta, value }: { meta: SeriesMeta; value: number }) {
-  return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-2 py-1.5">
-      <div className="flex items-baseline justify-between gap-1">
-        <span className={`font-mono text-[11px] font-semibold ${meta.text}`}>{meta.symbol}</span>
-        <span className="font-mono text-[12px] text-zinc-100">{fmt(value)}</span>
-      </div>
-      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-zinc-800" role="meter" aria-valuemin={0} aria-valuemax={1} aria-valuenow={Number(value.toFixed(2))} aria-label={meta.label}>
-        <div className={`h-full rounded-full ${meta.bg}`} style={{ width: `${(value * 100).toFixed(1)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function RegimePill({ regime, mode }: { regime: InputRegime; mode: Diagnostics['singularityMode'] }) {
-  const cls =
-    regime === 'singularity'
-      ? 'border-red-500/60 bg-red-500/15 text-red-200 motion-safe:animate-pulse'
-      : regime === 'nominal'
-        ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200'
-        : 'border-amber-400/50 bg-amber-400/10 text-amber-200';
-  const text =
-    regime === 'singularity'
-      ? mode === 'late'
-        ? 'Singularity · sleep'
-        : mode === 'somatic'
-          ? 'Terminal strain · sleep'
-          : 'Singularity · rest'
-      : regime === 'saturated'
-        ? 'I* ≤ 0 · saturated'
-        : regime === 'arousal-limited'
-          ? 'I* ≤ 0 · arousal-limited'
-          : 'Nominal';
-  return (
-    <span role={regime === 'singularity' ? 'alert' : 'status'} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] ${cls}`}>
-      {regime !== 'nominal' && <TriangleAlert className="h-3 w-3" aria-hidden="true" />}
-      {text}
-    </span>
-  );
-}
-
 function StatCell({ label, value, sub, tone = 'text-zinc-100' }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <div className="bg-zinc-950 px-3 py-2.5">
@@ -608,7 +575,7 @@ function Segmented<K extends string>({
     <fieldset className={`min-w-0 transition-opacity ${dimmed ? 'opacity-45' : ''}`}>
       <legend className="mb-1.5 flex w-full items-baseline justify-between gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{legend}</span>
-        <span className="font-mono text-[10.5px] text-zinc-500">{symbol}</span>
+        {symbol && <span className="font-mono text-[10.5px] text-zinc-500">{symbol}</span>}
       </legend>
       <div role="radiogroup" aria-label={legend} onKeyDown={onKey} className={`grid gap-1.5 ${columns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {options.map((o) => {
@@ -983,6 +950,93 @@ function PrescriptionCard({ p, x, k, onArm, onSleep }: { p: Prescription; x: Sta
 }
 
 // ---------------------------------------------------------------------------
+// Duration control (standard cadences + custom minutes)
+// ---------------------------------------------------------------------------
+
+function DurationControl({ spec, onChange, legend, symbol }: { spec: BlockSpec; onChange: (patch: Partial<BlockSpec>) => void; legend: string; symbol: string }) {
+  const custom = spec.cadence === CUSTOM_CADENCE;
+  const minutes = spec.customMinutes ?? 25;
+  return (
+    <div className="grid gap-1.5">
+      <Segmented legend={legend} symbol={symbol} options={CADENCES} value={custom ? ('' as never) : spec.cadence} onChange={(v) => onChange({ cadence: v })} columns={3} />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={custom}
+          onClick={() => onChange({ cadence: CUSTOM_CADENCE, customMinutes: minutes })}
+          className={`rounded-md border px-2 py-1.5 text-[12px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-400 ${
+            custom ? 'border-zinc-400 bg-zinc-800 text-zinc-50' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+          }`}
+        >
+          Custom
+        </button>
+        <input
+          id="cc-custom-minutes"
+          type="number"
+          min={MIN_CUSTOM_MINUTES}
+          max={MAX_CUSTOM_MINUTES}
+          step={1}
+          value={minutes}
+          onChange={(e) => {
+            const v = Math.round(Number(e.target.value));
+            if (!Number.isFinite(v)) return;
+            onChange({ cadence: CUSTOM_CADENCE, customMinutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, v)) });
+          }}
+          aria-label="Custom duration in minutes"
+          className="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+        />
+        <span className="text-[11px] text-zinc-500">
+          minutes ({MIN_CUSTOM_MINUTES}–{MAX_CUSTOM_MINUTES})
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PresetSaver({ onSave }: { onSave: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 justify-self-start text-[11.5px] text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400">
+        <Save className="h-3.5 w-3.5" aria-hidden="true" /> Save this block as a preset
+      </button>
+    );
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        onSave(trimmed);
+        setName('');
+        setOpen(false);
+      }}
+    >
+      <input
+        id="cc-preset-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Preset name"
+        maxLength={60}
+        aria-label="Preset name"
+        className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+      />
+      <button
+        type="submit"
+        disabled={!name.trim()}
+        className="rounded-md border border-cyan-400/60 bg-cyan-400/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Save Preset
+      </button>
+      <GhostButton onClick={() => setOpen(false)}>Cancel</GhostButton>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Graded catalog card
 // ---------------------------------------------------------------------------
 
@@ -1085,7 +1139,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [armedBaseline, setArmedBaseline] = useState<BlockSpec | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath } = store;
 
   useEffect(() => {
     try {
@@ -1102,7 +1156,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   }, [notice]);
 
   const inputs = useMemo(() => resolveSpec(spec), [spec]);
-  const dt = cadenceMinutes(spec.cadence);
+  const dt = blockMinutes(spec);
   const diag: Diagnostics = useMemo(() => diagnose(x, hoursAwake, inputs.theta.Cin, k, backlogLatch), [x, hoursAwake, inputs.theta.Cin, k, backlogLatch]);
   const routing = useMemo(() => route(x, diag, k), [x, diag, k]);
   const prescriptions = useMemo(() => prescribe(x, hoursAwake, diag, routing, k), [x, hoursAwake, diag, routing, k]);
@@ -1112,7 +1166,9 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     [preview, inputs, k, backlogLatch],
   );
   const report = useMemo(() => (lastDeltaEntry(history) ? buildMarkdownReport(lastDeltaEntry(history)!, diag, routing, prescriptions, k) : null), [history, diag, routing, prescriptions, k]);
-  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k), [x, hoursAwake, diag, routing, k]);
+  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets), [x, hoursAwake, diag, routing, k, presets]);
+  const plainQ = plainQuadrant(routing);
+  const plainR = plainRegime(diag);
 
   const lastBlock = useMemo(() => [...history].reverse().find((h) => h.kind === 'block') ?? null, [history]);
   const lastEntry = history.length ? history[history.length - 1] : null;
@@ -1213,11 +1269,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     setSpec({ scratchpad: v === 'clean' ? (armedBaseline?.scratchpad === 'single' ? 'single' : 'tokenized') : v });
   const setSimpleSomatic = (v: SimpleSomaticKey) => setSpec({ somatic: v === 'planned' ? (armedBaseline?.somatic === 'supine' ? 'supine' : 'seated') : v });
 
+  const savePreset = (name: string) => {
+    const preset: UserPreset = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, spec, createdAt: new Date().toISOString() };
+    update({ presets: [...presets, preset].slice(-50) });
+    setNotice(`Saved preset “${name}”`);
+  };
+  const deletePreset = (id: string) => update({ presets: presets.filter((p) => p.id !== id) });
+
   const arm = (s: BlockSpec) => {
     setArmedBaseline(s);
     setShowFullForm(false);
     update({ spec: s });
-    setNotice(`Armed: ${describeSpec(s)} · Δt = ${cadenceMinutes(s.cadence)} m`);
+    setNotice(`Armed: ${describeSpec(s)} · Δt = ${blockMinutes(s)} m`);
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
@@ -1248,14 +1311,15 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     return map[key];
   };
 
-  const auditFormGroups = (
+  const auditFormGroups = (plain: boolean) => (
     <>
-          <Segmented legend="Cadence" symbol="Δt" options={CADENCES} value={spec.cadence} onChange={(v) => setSpec({ cadence: v })} columns={3} />
-          <Segmented legend="Primary Modality Vector" symbol="T₁" options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} />
-          <Segmented legend="Secondary Anchor" symbol="T₂" options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} />
+          <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} />
+          <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} />
+          <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} />
+          <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} />
           <Segmented
-            legend="Substantive Valuation"
-            symbol="V_target"
+            legend={plain ? 'How substantive' : 'Substantive Valuation'}
+            symbol={plain && !showMath ? '' : 'V_target'}
             options={VALUATIONS}
             value={spec.valuation}
             onChange={(v) => setSpec({ valuation: v })}
@@ -1263,11 +1327,11 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             note={zeroVector ? 'Zero-vector block: V holds its current value.' : undefined}
             tag={(key) => (key === 'churn' ? <span className="rounded bg-rose-500/20 px-1 text-[9px] font-semibold uppercase tracking-wider text-rose-300">inadmissible</span> : null)}
           />
-          <Segmented legend="Cognitive Density" symbol="C_in" options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? 'I₁ = 0 for this modality: density only sets the I*(t) readout.' : undefined} />
-          <Segmented legend="Operational Context" symbol="P, S_agency" options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} dimmed={zeroVector} />
-          <Segmented legend="ADHD Scratchpad Discipline" symbol="γ_assoc, Ω_switch" options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} dimmed={zeroVector} />
-          <Segmented legend="Novelty / Entropy Stimulation" symbol="ξ_novelty" options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} dimmed={zeroVector} />
-          <Segmented legend="Somatic & Biomechanical Marker" symbol="𝟙seat, 𝟙kin" options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} />
+          <Segmented legend={plain ? 'How dense' : 'Cognitive Density'} symbol={plain && !showMath ? '' : 'C_in'} options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? (plain ? 'No intake in this block: density only affects the intake readout.' : 'I₁ = 0 for this modality: density only sets the I*(t) readout.') : undefined} />
+          <Segmented legend={plain ? 'Pressure and control' : 'Operational Context'} symbol={plain && !showMath ? '' : 'P, S_agency'} options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Tangents' : 'ADHD Scratchpad Discipline'} symbol={plain && !showMath ? '' : 'γ_assoc, Ω_switch'} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Novelty' : 'Novelty / Entropy Stimulation'} symbol={plain && !showMath ? '' : 'ξ_novelty'} options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Body and posture' : 'Somatic & Biomechanical Marker'} symbol={plain && !showMath ? '' : '𝟙seat, 𝟙kin'} options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} />
     </>
   );
 
@@ -1342,9 +1406,15 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             <Gauge className="h-5 w-5 text-cyan-400" aria-hidden="true" />
             6D Capacity Controller
           </h1>
-          <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
-            x = [E, B, F_vis, F_body, A, V]ᵀ ∈ [0,1]⁶ · discrete-time diagnostic engine · block k{blockIndex} · t_awake {hoursAwake.toFixed(1)} h
-          </p>
+          {simple && !showMath ? (
+            <p className="mt-0.5 text-[11.5px] text-zinc-500">
+              Your capacity, block by block · Block k{blockIndex} · {hoursAwake.toFixed(1)} h awake
+            </p>
+          ) : (
+            <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
+              x = [E, B, F_vis, F_body, A, V]ᵀ ∈ [0,1]⁶ · discrete-time diagnostic engine · block k{blockIndex} · t_awake {hoursAwake.toFixed(1)} h
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div role="group" aria-label="Interface mode" className="mr-1 inline-flex overflow-hidden rounded-md border border-zinc-800 text-xs font-medium">
@@ -1362,6 +1432,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               </button>
             ))}
           </div>
+          {simple && (
+            <button
+              type="button"
+              aria-pressed={showMath}
+              onClick={() => update({ showMath: !showMath })}
+              className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${
+                showMath ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-100' : 'border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100'
+              }`}
+            >
+              Show math
+            </button>
+          )}
           <IconButton icon={SlidersHorizontal} label={simple ? 'Calibrate' : 'Override'} onClick={() => setModal('override')} />
           {!simple && <IconButton icon={Settings2} label="Constants" onClick={() => setModal('constants')} />}
           <IconButton
@@ -1382,56 +1464,135 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
       {simple && (
         <div className="mx-auto mt-3 grid max-w-3xl gap-4">
+          <details className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-2.5 text-[12.5px] text-zinc-300">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+              <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" /> How this works
+            </summary>
+            <ol className="mt-2 grid list-decimal gap-1 pl-5 leading-relaxed">
+              <li>The six meters are a model of your current capacity, updated every time you log a block of work or rest.</li>
+              <li>“What to do next” grades every kind of block for this exact state: A means it fits and helps, F means it would hurt or is locked out.</li>
+              <li>Press Start on a block, do it, then log how long it ran and whether tangents or strain crept in. The meters update and the grades refresh.</li>
+            </ol>
+            <p className="mt-2 text-[11.5px] text-zinc-500">Calibrate sets the meters by hand when the model drifts from how you feel. Show math reveals the symbols and the rules behind every number.</p>
+          </details>
+
           <section aria-label="Status" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded border px-1.5 py-0.5 font-mono text-[11px] font-bold ${QUADRANT_TONE[routing.quadrant]}`}>{routing.quadrant}</span>
-              <span className="text-[15px] font-semibold text-zinc-50">{routing.title}</span>
-              <span className="ml-auto">
-                <RegimePill regime={diag.regime} mode={diag.singularityMode} />
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-[19px] font-semibold leading-tight text-zinc-50">{plainQ.headline}</h2>
+                {showMath && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-zinc-500">
+                    <span className={`rounded border px-1.5 py-0.5 font-bold ${QUADRANT_TONE[routing.quadrant]}`}>{routing.quadrant}</span>
+                    <span>{routing.title}</span>
+                    <span>· {routing.trigger}</span>
+                  </div>
+                )}
+              </div>
+              <span
+                role={plainR.tone === 'bad' ? 'alert' : 'status'}
+                title={plainR.detail}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                  plainR.tone === 'good'
+                    ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200'
+                    : plainR.tone === 'warn'
+                      ? 'border-amber-400/50 bg-amber-400/10 text-amber-200'
+                      : 'border-red-500/60 bg-red-500/15 text-red-200 motion-safe:animate-pulse'
+                }`}
+              >
+                {plainR.tone !== 'good' && <TriangleAlert className="h-3 w-3" aria-hidden="true" />}
+                {plainR.label}
               </span>
             </div>
-            <p className="mt-2 text-[13px] leading-relaxed text-zinc-300">{routing.summary}</p>
-            {routing.flags.slice(0, 2).map((f) => (
+            <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-300">{plainQ.guidance}</p>
+            {showMath && <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">{routing.summary}</p>}
+            {(showMath ? routing.flags : []).map((f) => (
               <p key={f} className="mt-1.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-zinc-400">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden="true" />
                 <span>{f}</span>
               </p>
             ))}
-            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {SERIES.map((s) => (
-                <MiniMeter key={s.key} meta={s} value={x[s.key]} />
-              ))}
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+              {SERIES.map((sm) => {
+                const pl = PLAIN_BY_KEY[sm.key];
+                return (
+                  <div key={sm.key} className="rounded-md border border-zinc-800 bg-zinc-950/60 px-2 py-1.5" title={pl.meaning}>
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="truncate text-[11px] font-medium text-zinc-300">
+                        {pl.name}
+                        {showMath && <span className={`ml-1 font-mono ${sm.text}`}>{sm.symbol}</span>}
+                      </span>
+                      <span className="font-mono text-[12px] text-zinc-100">{fmt(x[sm.key])}</span>
+                    </div>
+                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-zinc-800" role="meter" aria-valuemin={0} aria-valuemax={1} aria-valuenow={Number(x[sm.key].toFixed(2))} aria-label={pl.name}>
+                      <div className={`h-full rounded-full ${sm.bg}`} style={{ width: `${(x[sm.key] * 100).toFixed(1)}%` }} />
+                    </div>
+                    <div className="mt-0.5 truncate text-[9.5px] text-zinc-600">{pl.better === 'high' ? 'higher is better' : pl.better === 'low' ? 'lower is better' : '0.50 is the sweet spot'}</div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-2 font-mono text-[10.5px] text-zinc-500">
-              I* {fmt(diag.Istar)} · Γ {fmt(diag.gamma)} · ψ {fmt(diag.psi)} · t_awake {hoursAwake.toFixed(1)} h · block k{blockIndex}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-zinc-500">
+              <span>{hoursAwake.toFixed(1)} h awake</span>
+              <span>·</span>
+              <span>{blockIndex} blocks logged</span>
+              {showMath && (
+                <>
+                  <span>·</span>
+                  <span className="font-mono">
+                    I* {fmt(diag.Istar)} · Γ {fmt(diag.gamma)} · ψ {fmt(diag.psi)} · regime {diag.regime}
+                  </span>
+                </>
+              )}
             </div>
           </section>
 
           <section aria-label="Next block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Next Block</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">What to do next</h2>
+              <span className="text-[10.5px] text-zinc-500">every block graded for your state right now</span>
+            </div>
             <div className="mt-2 grid gap-2">
-              {prescriptions.map((p, i) => (
-                <div key={p.name} className={`rounded-lg border p-3 ${i === 0 ? 'border-cyan-400/50 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/40'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-zinc-100">{p.name}</div>
-                      <div className="mt-1 text-[11.5px] leading-snug text-zinc-400">{p.rationale}</div>
+              {catalog.slice(0, 3).map((g, i) => (
+                <div key={g.entry.id} className={`rounded-lg border p-3 ${i === 0 ? 'border-cyan-400/50 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/40'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border font-mono text-lg font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
+                      {g.grade}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-[13.5px] font-semibold text-zinc-100">{g.entry.name}</span>
+                        {g.entry.presetId && (
+                          <>
+                            <span className="rounded bg-indigo-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-indigo-200">your preset</span>
+                            <button type="button" onClick={() => deletePreset(g.entry.presetId!)} aria-label={`Delete preset ${g.entry.name}`} className="rounded p-0.5 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-[11.5px] text-zinc-500">{g.entry.detail}</div>
+                      <div className="mt-1 text-[12px] leading-snug text-zinc-300">{plainReason(g, x)}</div>
+                      {showMath && (
+                        <div className="mt-1 font-mono text-[10px] text-zinc-500">
+                          score {g.score} · fit {g.fit} · outcome {g.outcome} · horizon {g.horizon} · stop: {g.stopReason}
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <span className="font-mono text-lg font-semibold leading-none text-zinc-100">{p.kind === 'sleep' ? `${p.sleepHours ?? 7.5} h` : `${p.boundMinutes} m`}</span>
-                      {p.kind === 'sleep' ? (
+                      <span className="font-mono text-lg font-semibold leading-none text-zinc-100">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</span>
+                      {g.entry.kind === 'sleep' ? (
                         <PrimaryButton
                           onClick={() => {
-                            setSleepHours(p.sleepHours ?? 7.5);
+                            setSleepHours(7.5);
                             setModal('sleep');
                           }}
                         >
                           Log Sleep
                         </PrimaryButton>
                       ) : i === 0 ? (
-                        <PrimaryButton onClick={() => p.spec && arm(p.spec)}>Start</PrimaryButton>
+                        <PrimaryButton onClick={() => g.spec && arm(g.spec)}>Start</PrimaryButton>
                       ) : (
-                        <GhostButton onClick={() => p.spec && arm(p.spec)}>Pick</GhostButton>
+                        <GhostButton onClick={() => g.spec && arm(g.spec)}>Start</GhostButton>
                       )}
                     </div>
                   </div>
@@ -1444,19 +1605,30 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               onClick={() => setCatalogOpen((o) => !o)}
               className="mt-3 text-[11.5px] text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400"
             >
-              {catalogOpen ? 'Hide the graded list' : `All ${catalog.length} blocks, graded for now`}
+              {catalogOpen ? 'Show fewer' : `Show all ${catalog.length} blocks`}
             </button>
             {catalogOpen && (
               <ul className="mt-2 grid gap-1" aria-label="Graded blocks">
-                {catalog.map((g) => (
+                {catalog.slice(3).map((g) => (
                   <li key={g.entry.id} className="flex items-center gap-2 rounded-md border border-zinc-800 px-2 py-1.5">
                     <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border font-mono text-xs font-bold ${GRADE_TONE[g.grade]}`} aria-label={`Grade ${g.grade}`}>
                       {g.grade}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-zinc-200">{g.entry.name}</span>
-                    <span className="shrink-0 font-mono text-[10.5px] text-zinc-500">
-                      {g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`} · {g.score}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] text-zinc-200">
+                        {g.entry.name}
+                        {g.entry.presetId && <span className="ml-1.5 rounded bg-indigo-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-200">preset</span>}
+                      </span>
+                      <span className="block truncate text-[10.5px] text-zinc-500" title={plainReason(g, x)}>
+                        {plainReason(g, x)}
+                      </span>
                     </span>
+                    <span className="shrink-0 font-mono text-[10.5px] text-zinc-500">{g.entry.kind === 'sleep' ? 'sleep' : g.boundMinutes < 15 ? '<15 m' : `${g.boundMinutes} m`}</span>
+                    {g.entry.presetId && (
+                      <button type="button" onClick={() => deletePreset(g.entry.presetId!)} aria-label={`Delete preset ${g.entry.name}`} className="rounded p-1 text-zinc-500 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-cyan-400">
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    )}
                     {g.entry.kind === 'sleep' ? (
                       <GhostButton
                         onClick={() => {
@@ -1467,7 +1639,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                         Log
                       </GhostButton>
                     ) : (
-                      <GhostButton onClick={() => g.spec && arm(g.spec)}>Pick</GhostButton>
+                      <GhostButton onClick={() => g.spec && arm(g.spec)}>Start</GhostButton>
                     )}
                   </li>
                 ))}
@@ -1476,26 +1648,95 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           </section>
 
           <section aria-label="Log block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4" ref={formRef}>
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log The Block You Just Did</h2>
-            <div className="mt-1 font-mono text-[10.5px] leading-snug text-zinc-500">{describeSpec(spec)}</div>
-            <div className="mt-3 grid gap-3">
-              <Segmented legend="Duration" symbol="Δt" options={CADENCES} value={spec.cadence} onChange={(v) => setSpec({ cadence: v })} columns={3} />
-              {!zeroVector && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Segmented legend="Tangents" symbol="γ_assoc, Ω" options={SIMPLE_TANGENTS} value={simpleTangent} onChange={setSimpleTangent} columns={3} />
-                  <Segmented legend="Body" symbol="F" options={SIMPLE_SOMATICS} value={simpleSomatic} onChange={setSimpleSomatic} columns={3} />
-                </div>
-              )}
-              {integratePanel('Log Block')}
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log the block you just did</h2>
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-2">
+              <span className="min-w-0 text-[12px] text-zinc-200">
+                <span className="font-semibold">{MODALITIES.find((o) => o.key === spec.modality)!.label}</span>
+                <span className="text-zinc-500">
+                  {' '}
+                  · {ANCHORS.find((o) => o.key === spec.anchor)!.label} · {CONTEXTS.find((o) => o.key === spec.context)!.label}
+                  {(spec.intensity ?? 'standard') !== 'standard' ? ` · ${INTENSITIES.find((o) => o.key === spec.intensity)!.label} intensity` : ''}
+                </span>
+              </span>
               <button
                 type="button"
                 aria-expanded={showFullForm}
                 onClick={() => setShowFullForm((o) => !o)}
-                className="justify-self-start text-[11.5px] text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400"
+                className="text-[11.5px] font-medium text-cyan-200 hover:text-cyan-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
               >
-                {showFullForm ? 'Hide the full audit form' : 'Did something else? Open the full audit form'}
+                {showFullForm ? 'Done changing' : 'Change what you did'}
               </button>
-              {showFullForm && <div className="grid gap-4 border-t border-zinc-800 pt-4">{auditFormGroups}</div>}
+            </div>
+            {showMath && <div className="mt-1 font-mono text-[10.5px] leading-snug text-zinc-500">{describeSpec(spec)}</div>}
+            <div className="mt-3 grid gap-3">
+              {showFullForm ? (
+                <div className="grid gap-4">{auditFormGroups(true)}</div>
+              ) : (
+                <>
+                  <DurationControl spec={spec} onChange={setSpec} legend="How long" symbol={showMath ? 'Δt' : ''} />
+                  {!zeroVector && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Segmented legend="Tangents" symbol={showMath ? 'γ_assoc, Ω' : ''} options={SIMPLE_TANGENTS} value={simpleTangent} onChange={setSimpleTangent} columns={3} />
+                      <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SIMPLE_SOMATICS} value={simpleSomatic} onChange={setSimpleSomatic} columns={3} />
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-[12px] text-zinc-300">
+                <span className="text-zinc-500">Expected over {dt} min: </span>
+                {joinEffects(plainEffect(x, preview.x))}
+                <span className="text-zinc-500"> → then: </span>
+                {plainQuadrant(previewRouting).headline}
+                {showMath && (
+                  <div className="mt-1 flex flex-wrap gap-1.5 font-mono text-[10.5px]">
+                    {STATE_KEYS.map((key) => (
+                      <span key={key} className="inline-flex items-center gap-1 rounded border border-zinc-800 px-1.5 py-0.5">
+                        <span className={SERIES_BY_KEY[key].text}>{SERIES_BY_KEY[key].symbol}</span>
+                        <span className={deltaTone(key, preview.delta[key], x[key], k)}>{fmtSigned(preview.delta[key], 3)}</span>
+                      </span>
+                    ))}
+                    <span className={`rounded border px-1.5 py-0.5 ${QUADRANT_TONE[previewRouting.quadrant]}`}>→ {previewRouting.quadrant}</span>
+                  </div>
+                )}
+              </div>
+              {!valuation.admissible && !zeroVector && (
+                <p className="flex items-start gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[11.5px] text-rose-200">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  This counts as churn. Logging it records what happened; it does not make it a good idea.
+                </p>
+              )}
+              {inputProhibited && (
+                <p className="flex items-start gap-2 rounded-md border border-red-500/50 bg-red-500/10 px-2.5 py-2 text-[11.5px] text-red-200">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Taking things in drains you in this state. This block has intake in it.
+                </p>
+              )}
+              {opticalViolation && (
+                <p className="flex items-start gap-2 rounded-md border border-rose-500/50 bg-rose-500/10 px-2.5 py-2 text-[11.5px] text-rose-200">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Your eyes are past the cutoff. This block uses them; switch to audio or darkness.
+                </p>
+              )}
+              {backlogViolation && (
+                <p className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-2.5 py-2 text-[11.5px] text-amber-100">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Your backlog is saturated. Intake is locked until you write something out.
+                </p>
+              )}
+              {maskingActive && (
+                <p className="flex items-start gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11.5px] text-zinc-300">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-300" aria-hidden="true" />
+                  Deep focus hides strain. Trust the boundary, not how your body feels mid-sprint.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={integrate}
+                className="w-full rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+              >
+                Log Block
+              </button>
+              <PresetSaver onSave={savePreset} />
             </div>
           </section>
         </div>
@@ -1552,7 +1793,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             Telemetry Ingestion Audit
           </SectionTitle>
           <div className="grid gap-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-            {auditFormGroups}
+            {auditFormGroups(false)}
 
             {integratePanel('Integrate Discrete Flux & Advance Block')}
           </div>
