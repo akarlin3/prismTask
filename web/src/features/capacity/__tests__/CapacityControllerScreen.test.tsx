@@ -23,8 +23,15 @@ describe('CapacityControllerScreen', () => {
     const log = screen.getByRole('region', { name: /Log block/i });
     expect(within(log).getByRole('heading', { name: /Log the 15-minute block/i })).toBeInTheDocument();
     expect(within(log).queryByRole('radiogroup', { name: /How long/i })).not.toBeInTheDocument();
-    expect(within(log).getByRole('radiogroup', { name: /Tangents/i })).toBeInTheDocument();
-    expect(within(log).getByRole('radiogroup', { name: /Body/i })).toBeInTheDocument();
+    // Every field of the armed block is a chip that opens a picker for just that field.
+    const chips = within(log).getByLabelText(/This block/i);
+    expect(within(chips).getByRole('button', { name: /^Tangents:/i })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(within(chips).getByRole('button', { name: /^Tangents:/i }));
+    expect(within(chips).getByRole('group', { name: /Adjust Tangents/i })).toBeInTheDocument();
+    fireEvent.click(within(chips).getByRole('radio', { name: /Fell down a rabbit hole/i }));
+    expect(within(chips).getByRole('button', { name: /^Tangents: Fell down a rabbit hole ← you/i })).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.scratchpad).toBe('rabbit');
+    fireEvent.click(within(chips).getByRole('button', { name: /^Done$/i }));
     expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
     expect(within(log).getByText(/Expected over 15 min:/i)).toBeInTheDocument();
@@ -35,7 +42,7 @@ describe('CapacityControllerScreen', () => {
     expect(screen.getByText(/Block k1 · \d+\.\d h awake/i)).toBeInTheDocument();
 
     // The full form (plain legends) and the rest of the graded list are one click away.
-    fireEvent.click(within(log).getByRole('button', { name: /Change what you did/i }));
+    fireEvent.click(within(log).getByRole('button', { name: /Open the full form/i }));
     expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Intensity/i })).toBeInTheDocument();
     fireEvent.click(within(next).getByRole('button', { name: /Show all \d+ blocks/i }));
@@ -62,12 +69,32 @@ describe('CapacityControllerScreen', () => {
     expect(understood).toHaveTextContent(/Body: Lying down or moving/);
     expect(understood).toHaveTextContent(/Length: 15 min/);
     expect(understood).toHaveTextContent(/Fairly sure/);
+    // Adjust one field in place: the chip records that you changed it.
+    fireEvent.click(within(understood).getByRole('button', { name: /^Body:/i }));
+    fireEvent.click(within(understood).getByRole('radio', { name: /^Sitting/i }));
+    expect(within(understood).getByRole('button', { name: /^Body: Sitting ← you/i })).toBeInTheDocument();
     fireEvent.click(within(log).getByRole('button', { name: /^Log Block$/i }));
     const persisted = decodePersisted(localStorage.getItem(STORAGE_KEY));
     expect(persisted.history).toHaveLength(1);
     expect(persisted.history[0].note).toBe('read a novel on the couch');
     expect(persisted.history[0].spec?.modality).toBe('reading');
+    expect(persisted.history[0].spec?.somatic).toBe('seated');
     expect(persisted.history[0].dtMinutes).toBe(15);
+  });
+
+  it('runs the block through the seven pillars', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /Log block/i });
+    const pillars = within(log).getByLabelText(/Seven pillars/i);
+    expect(within(pillars).getAllByRole('button')).toHaveLength(7);
+    expect(within(pillars).getByRole('button', { name: /Curiosity: pass/i })).toBeInTheDocument();
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled twitter, my mom kept calling and I had to answer' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    expect(within(pillars).getByRole('button', { name: /Curiosity: block/i })).toBeInTheDocument();
+    expect(within(pillars).getByRole('button', { name: /Radical Empathy: flag/i })).toBeInTheDocument();
+    expect(pillars).toHaveTextContent(/blocking/);
+    fireEvent.click(within(pillars).getByRole('button', { name: /Radical Empathy: flag/i }));
+    expect(pillars).toHaveTextContent(/chosen, bounded act/);
   });
 
   it('opens the full form when a description cannot be placed', () => {
@@ -76,18 +103,19 @@ describe('CapacityControllerScreen', () => {
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'the thing with Bob' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
     expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Could not tell/);
-    expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
+    // The activity picker opens by itself with the guess pre-selected.
+    expect(within(log).getByRole('group', { name: /Adjust Activity/i })).toBeInTheDocument();
     expect(within(log).getByRole('radio', { name: /Focused work \(making things\)/i })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('supports custom durations and user presets in the simple flow', () => {
     render(<CapacityControllerScreen />);
     const log = screen.getByRole('region', { name: /Log block/i });
-    fireEvent.click(within(log).getByRole('button', { name: /Change what you did/i }));
+    fireEvent.click(within(log).getByRole('button', { name: /^Length:/i }));
     fireEvent.change(within(log).getByLabelText(/Custom duration in minutes/i), { target: { value: '37' } });
     expect(within(log).getByText(/Expected over 37 min:/i)).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.customMinutes).toBe(37);
-    fireEvent.click(within(log).getByRole('button', { name: /Done changing/i }));
+    fireEvent.click(within(log).getByRole('button', { name: /^Done$/i }));
 
     fireEvent.click(within(log).getByRole('button', { name: /Save this block as a preset/i }));
     fireEvent.change(within(log).getByLabelText(/Preset name/i), { target: { value: 'Bass practice' } });
@@ -157,6 +185,11 @@ describe('CapacityControllerScreen', () => {
     const dialog = screen.getByRole('dialog', { name: /Manual Override/i });
     fireEvent.change(within(dialog).getByLabelText('Cognitive Backlog value'), { target: { value: '0.9' } });
     fireEvent.change(within(dialog).getByLabelText('Systemic Energy value'), { target: { value: '0.2' } });
+    // Objective Impartiality: the report is blended at the Kalman gain (0.6 by default)...
+    expect(within(dialog).getByLabelText(/Blended calibration/i)).toHaveTextContent(/0\.25 → 0\.64/);
+    // ...unless trust is set to 1, which copies the report.
+    fireEvent.change(within(dialog).getByLabelText('Trust in self-report value'), { target: { value: '1' } });
+    expect(within(dialog).getByLabelText(/Blended calibration/i)).toHaveTextContent(/0\.25 → 0\.90/);
     fireEvent.click(within(dialog).getByRole('button', { name: /Apply Calibration/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('Zero-Input Flush')).toBeInTheDocument();

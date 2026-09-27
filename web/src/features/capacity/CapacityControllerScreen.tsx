@@ -11,6 +11,7 @@ import {
   Grid2x2,
   HelpCircle,
   Save,
+  ShieldCheck,
   Sparkles,
   Footprints,
   Gauge,
@@ -51,6 +52,7 @@ import {
   VALUATIONS,
   applySleepReset,
   arousalPotential,
+  blendCalibration,
   blockMinutes,
   compositeStrain,
   decodePersisted,
@@ -82,6 +84,7 @@ import {
 } from './capacityModel';
 import { PLAIN_BY_KEY, joinEffects, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
 import { describeBlock, type DescribedBlock, type DescribedField } from './blockDescriber';
+import { evaluatePillars, pillarSummary, type PillarVerdict } from './pillars';
 
 // ---------------------------------------------------------------------------
 // Presentation metadata
@@ -137,21 +140,6 @@ const GRADE_TONE: Record<Grade, string> = {
   D: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
   F: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
 };
-
-type SimpleTangentKey = 'clean' | 'speculative' | 'rabbit';
-type SimpleSomaticKey = 'planned' | 'ocular' | 'slump';
-
-const SIMPLE_TANGENTS: readonly Option<SimpleTangentKey>[] = [
-  { key: 'clean', label: 'Clean', detail: 'Single thread, or tangents tokenized to the scratchpad', params: 'γ_a=0 Ω=0' },
-  { key: 'speculative', label: 'Sub-Threads', detail: 'Unbuffered speculative intake', params: 'γ_a=0.5' },
-  { key: 'rabbit', label: 'Rabbit Hole', detail: 'Divergent context switch', params: 'γ_a=1 Ω=0.25' },
-];
-
-const SIMPLE_SOMATICS: readonly Option<SimpleSomaticKey>[] = [
-  { key: 'planned', label: 'As Planned', detail: 'Posture as armed', params: '𝟙 as armed' },
-  { key: 'ocular', label: 'Eye Strain', detail: 'Accommodation fatigue reported', params: 'γ_vis×1.6' },
-  { key: 'slump', label: 'Slumped', detail: 'Cervical / lumbar collapse', params: 'γ_post×2' },
-];
 
 const SLEEP_OPTIONS = [
   { hours: 4, label: '4 h', detail: 'Fragmented' },
@@ -706,11 +694,13 @@ function OverrideModal({
 }) {
   const [draft, setDraft] = useState<StateVector>(x);
   const [hours, setHours] = useState(hoursAwake);
+  const [gain, setGain] = useState(k.kalmanGain);
   const [confirmClear, setConfirmClear] = useState(false);
+  const blended = useMemo(() => blendCalibration(x, draft, gain), [x, draft, gain]);
   const preview = useMemo(() => {
-    const d = diagnose(draft, hours, 0.4, k);
-    return route(draft, d, k);
-  }, [draft, hours, k]);
+    const d = diagnose(blended, hours, 0.4, k);
+    return route(blended, d, k);
+  }, [blended, hours, k]);
   const set = (key: StateKey, v: number) => setDraft((d) => ({ ...d, [key]: Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0)) }));
   return (
     <Panel
@@ -739,7 +729,7 @@ function OverrideModal({
               >
                 Restore Defaults
               </GhostButton>
-              <PrimaryButton onClick={() => onApply(draft, hours)}>Apply Calibration</PrimaryButton>
+              <PrimaryButton onClick={() => onApply(blended, hours)}>Apply Calibration</PrimaryButton>
             </>
           )}
         </>
@@ -794,6 +784,38 @@ function OverrideModal({
             aria-label="Hours awake value"
           />
         </label>
+        <label className="grid grid-cols-[5rem_1fr_4.5rem] items-center gap-3 border-t border-zinc-800 pt-3">
+          <span className="min-w-0">
+            <span className="block font-mono text-sm font-semibold text-zinc-200">K_filter</span>
+            <span className="block truncate text-[10px] uppercase tracking-wider text-zinc-500">Trust in self-report</span>
+          </span>
+          <input id="cc-override-gain" type="range" min={0} max={1} step={0.05} value={gain} onChange={(e) => setGain(Number(e.target.value))} className="w-full accent-cyan-400" aria-label="Trust in self-report slider" />
+          <input
+            id="cc-override-gain-num"
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={gain}
+            onChange={(e) => setGain(Math.min(1, Math.max(0, Number(e.target.value) || 0)))}
+            className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+            aria-label="Trust in self-report value"
+          />
+        </label>
+        <p className="text-[11px] leading-snug text-zinc-500">
+          Objective Impartiality: your report is blended into the model's estimate at this gain rather than copied, so a tired-day rationalisation or a hyper-focus high does not overwrite
+          the audit. Set it to 1 to copy your values exactly.
+        </p>
+        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6" aria-label="Blended calibration">
+          {SERIES.map((s) => (
+            <div key={s.key} className="rounded border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
+              <div className={`font-mono text-[10.5px] ${s.text}`}>{s.symbol}</div>
+              <div className="font-mono text-xs text-zinc-200">
+                {fmt(x[s.key])} → {fmt(blended[s.key])}
+              </div>
+            </div>
+          ))}
+        </div>
         <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 font-mono text-[11px] text-zinc-400">
           Routes to <span className={`rounded border px-1.5 py-0.5 ${QUADRANT_TONE[preview.quadrant]}`}>{preview.quadrant}</span> {preview.title} · {preview.trigger}
         </div>
@@ -1216,6 +1238,63 @@ function CatalogCard({ g, x, k, onArm, onSleep }: { g: GradedBlock; x: StateVect
 }
 
 // ---------------------------------------------------------------------------
+// Seven pillars row
+// ---------------------------------------------------------------------------
+
+const PILLAR_TONE: Record<PillarVerdict['status'], string> = {
+  pass: 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200',
+  flag: 'border-amber-400/50 bg-amber-400/10 text-amber-100',
+  block: 'border-rose-500/60 bg-rose-500/10 text-rose-200',
+  na: 'border-zinc-800 bg-zinc-900/40 text-zinc-500',
+};
+
+function PillarRow({ verdicts, showMath }: { verdicts: PillarVerdict[]; showMath: boolean }) {
+  const [open, setOpen] = useState<PillarVerdict['id'] | null>(null);
+  const { blocks, flags } = pillarSummary(verdicts);
+  const active = verdicts.find((v) => v.id === open) ?? null;
+  return (
+    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-2" aria-label="Seven pillars">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Seven pillars
+        </span>
+        <span className="text-[10.5px] text-zinc-500">{blocks > 0 ? `${blocks} blocking` : flags > 0 ? `${flags} to watch` : 'all clear'}</span>
+      </div>
+      <ul className="mt-1.5 flex flex-wrap gap-1.5">
+        {verdicts.map((v) => (
+          <li key={v.id}>
+            <button
+              type="button"
+              aria-expanded={open === v.id}
+              aria-label={`${v.name}: ${v.status === 'na' ? 'not applicable' : v.status}`}
+              title={v.note}
+              onClick={() => setOpen((o) => (o === v.id ? null : v.id))}
+              className={`rounded border px-1.5 py-0.5 text-[10.5px] transition-colors focus-visible:outline-2 focus-visible:outline-cyan-400 ${PILLAR_TONE[v.status]} ${open === v.id ? 'ring-1 ring-cyan-400' : ''}`}
+            >
+              {v.status === 'block' ? '✕ ' : v.status === 'flag' ? '! ' : v.status === 'pass' ? '✓ ' : '– '}
+              {v.name}
+              {showMath && <span className="ml-1 font-mono opacity-70">{v.symbol}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {active && <p className="mt-1.5 text-[11.5px] leading-snug text-zinc-300">{active.note}</p>}
+      {!active && verdicts.some((v) => v.status === 'block' || v.status === 'flag') && (
+        <ul className="mt-1.5 grid gap-0.5">
+          {verdicts
+            .filter((v) => v.status === 'block' || v.status === 'flag')
+            .map((v) => (
+              <li key={v.id} className="text-[11px] leading-snug text-zinc-400">
+                <span className={v.status === 'block' ? 'text-rose-300' : 'text-amber-300'}>{v.name}:</span> {v.note}
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
@@ -1228,8 +1307,9 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [logOpen, setLogOpen] = useState(true);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
-  const [armedBaseline, setArmedBaseline] = useState<BlockSpec | null>(null);
   const [described, setDescribed] = useState<{ text: string; result: DescribedBlock } | null>(null);
+  const [adjustField, setAdjustField] = useState<DescribedField | null>(null);
+  const [adjusted, setAdjusted] = useState<ReadonlySet<DescribedField>>(() => new Set());
   const formRef = useRef<HTMLDivElement>(null);
 
   const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength } = store;
@@ -1262,6 +1342,10 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength), [x, hoursAwake, diag, routing, k, presets, blockLength]);
   const plainQ = plainQuadrant(routing);
   const plainR = plainRegime(diag);
+  const pillars = useMemo(
+    () => evaluatePillars(spec, x, diag, k, { relational: described?.result.relational, relationalCue: described?.result.relationalCue, predicted: preview.x }),
+    [spec, x, diag, k, described, preview.x],
+  );
 
   const lastBlock = useMemo(() => [...history].reverse().find((h) => h.kind === 'block') ?? null, [history]);
   const lastEntry = history.length ? history[history.length - 1] : null;
@@ -1286,8 +1370,6 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const maskingActive = inputs.u.O1 >= 0.8;
   const topPrescription = prescriptions[0] ?? null;
   const simple = store.uiMode !== 'advanced';
-  const simpleTangent: SimpleTangentKey = spec.scratchpad === 'rabbit' ? 'rabbit' : spec.scratchpad === 'speculative' ? 'speculative' : 'clean';
-  const simpleSomatic: SimpleSomaticKey = spec.somatic === 'ocular' ? 'ocular' : spec.somatic === 'slump' ? 'slump' : 'planned';
 
   const update = (patch: Partial<PersistedState>) => setStore((s) => ({ ...s, ...patch, updatedAt: new Date().toISOString() }));
   const setSpec = (patch: Partial<BlockSpec>) => update({ spec: { ...spec, ...patch } });
@@ -1321,13 +1403,49 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
       `Block k${nextIndex} logged (Δt ${dt} m) · E ${fmt(x.E)}→${fmt(result.x.E)} · B ${fmt(x.B)}→${fmt(result.x.B)} · F ${fmt(compositeStrain(x))}→${fmt(compositeStrain(result.x))} → ${q}`,
     );
     setDescribed(null);
+    setAdjusted(new Set());
+    setAdjustField(null);
   };
 
   const applyDescribed = (text: string, result: DescribedBlock) => {
     setDescribed({ text, result });
-    setArmedBaseline(result.spec);
-    setShowFullForm(result.confidence < 0.5);
+    setAdjusted(new Set());
+    setAdjustField(result.confidence < 0.5 ? 'modality' : null);
+    setShowFullForm(false);
     update({ spec: result.spec });
+  };
+
+  const adjust = (field: DescribedField, patch: Partial<BlockSpec>) => {
+    setSpec(patch);
+    setAdjusted((a) => new Set([...a, field]));
+  };
+
+  const fieldEditor = (field: DescribedField): ReactNode => {
+    const common = { plain: true, showParams: showMath } as const;
+    switch (field) {
+      case 'modality':
+        return <Segmented legend="Activity" symbol={showMath ? 'T₁' : ''} options={MODALITIES} value={spec.modality} onChange={(v) => adjust(field, { modality: v })} {...common} />;
+      case 'anchor':
+        return <Segmented legend="Background" symbol={showMath ? 'T₂' : ''} options={ANCHORS} value={spec.anchor} onChange={(v) => adjust(field, { anchor: v })} {...common} />;
+      case 'valuation':
+        return <Segmented legend="Kind of thing" symbol={showMath ? 'V_target' : ''} options={VALUATIONS} value={spec.valuation} onChange={(v) => adjust(field, { valuation: v })} {...common} />;
+      case 'density':
+        return <Segmented legend="Density" symbol={showMath ? 'C_in' : ''} options={DENSITIES} value={spec.density} onChange={(v) => adjust(field, { density: v })} {...common} />;
+      case 'context':
+        return <Segmented legend="Pressure" symbol={showMath ? 'P, S_agency' : ''} options={CONTEXTS} value={spec.context} onChange={(v) => adjust(field, { context: v })} {...common} />;
+      case 'scratchpad':
+        return <Segmented legend="Tangents" symbol={showMath ? 'γ_assoc, Ω' : ''} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => adjust(field, { scratchpad: v })} {...common} />;
+      case 'novelty':
+        return <Segmented legend="Novelty" symbol={showMath ? 'ξ' : ''} options={NOVELTIES} value={spec.novelty} onChange={(v) => adjust(field, { novelty: v })} columns={3} {...common} />;
+      case 'somatic':
+        return <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SOMATICS} value={spec.somatic} onChange={(v) => adjust(field, { somatic: v })} {...common} />;
+      case 'intensity':
+        return <Segmented legend="Intensity" symbol={showMath ? '×(I, O₁)' : ''} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => adjust(field, { intensity: v })} columns={3} {...common} />;
+      case 'duration':
+        return <DurationControl spec={spec} onChange={(patch) => adjust(field, patch)} legend="Length" symbol={showMath ? 'Δt' : ''} showParams={showMath} />;
+      default:
+        return null;
+    }
   };
 
   const undo = () => {
@@ -1367,10 +1485,6 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     setNotice('All data cleared');
   };
 
-  const setSimpleTangent = (v: SimpleTangentKey) =>
-    setSpec({ scratchpad: v === 'clean' ? (armedBaseline?.scratchpad === 'single' ? 'single' : 'tokenized') : v });
-  const setSimpleSomatic = (v: SimpleSomaticKey) => setSpec({ somatic: v === 'planned' ? (armedBaseline?.somatic === 'supine' ? 'supine' : 'seated') : v });
-
   const savePreset = (name: string) => {
     const preset: UserPreset = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, spec, createdAt: new Date().toISOString() };
     update({ presets: [...presets, preset].slice(-50) });
@@ -1380,9 +1494,10 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const arm = (raw: BlockSpec) => {
     const s = simple ? withMinutes(raw, blockLength) : raw;
-    setArmedBaseline(s);
     setShowFullForm(false);
     setDescribed(null);
+    setAdjusted(new Set());
+    setAdjustField(null);
     update({ spec: s });
     setNotice(`Armed: ${describeSpec(s)} · Δt = ${blockMinutes(s)} m`);
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
@@ -1443,6 +1558,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const integratePanel = (label: string) => (
     <>
+          <PillarRow verdicts={pillars} showMath />
           <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Predicted Δx over {dt} m</span>
@@ -1776,62 +1892,81 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             <div className="mt-3">
               <DescribeBox defaultMinutes={blockLength} onDescribed={applyDescribed} />
             </div>
-            {described && (
-              <div className="mt-2 rounded-md border border-cyan-400/30 bg-cyan-400/5 px-3 py-2" aria-label="Understood as">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">Understood as</span>
-                  <span className="text-[10.5px] text-zinc-500">
-                    {described.result.confidence >= 0.75 ? 'Fairly sure.' : described.result.confidence >= 0.5 ? 'Best guess; check the details.' : 'Could not tell what this was; pick the activity below.'}
-                  </span>
-                </div>
-                <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                  {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'context', 'scratchpad', 'intensity'] as DescribedField[]).map((field) => {
-                    const cue = described.result.cues.find((c) => c.field === field);
-                    const assumed = !cue && described.result.unsure.includes(field);
-                    return (
-                      <li key={field} className={`rounded border px-1.5 py-0.5 text-[11px] ${assumed ? 'border-zinc-800 text-zinc-500' : 'border-zinc-700 text-zinc-200'}`} title={cue ? `from “${cue.word}”` : 'assumed'}>
-                        <span className="text-zinc-500">{FIELD_LABEL[field]}: </span>
-                        {plainChoice(spec, field)}
-                        {cue && <span className="text-zinc-500"> ← “{cue.word}”</span>}
-                        {assumed && <span className="text-zinc-600"> (assumed)</span>}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-2">
-              <span className="min-w-0 text-[12px] text-zinc-200">
-                <span className="font-semibold">{MODALITIES.find((o) => o.key === spec.modality)!.plain}</span>
-                <span className="text-zinc-500">
-                  {' '}
-                  · {ANCHORS.find((o) => o.key === spec.anchor)!.plain} · {CONTEXTS.find((o) => o.key === spec.context)!.plain} · {blockMinutes(spec)} min
-                  {(spec.intensity ?? 'standard') !== 'standard' ? ` · ${INTENSITIES.find((o) => o.key === spec.intensity)!.plain}` : ''}
+            <div className={`mt-2 rounded-md border px-3 py-2 ${described ? 'border-cyan-400/30 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/60'}`} aria-label={described ? 'Understood as' : 'This block'}>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${described ? 'text-cyan-200' : 'text-zinc-400'}`}>{described ? 'Understood as' : 'This block'}</span>
+                <span className="text-[10.5px] text-zinc-500">
+                  {described
+                    ? described.result.confidence >= 0.75
+                      ? 'Fairly sure. Tap anything to adjust it.'
+                      : described.result.confidence >= 0.5
+                        ? 'Best guess. Tap anything to adjust it.'
+                        : 'Could not tell what this was. Pick the activity, then adjust the rest.'
+                    : 'Tap anything to adjust it.'}
                 </span>
-              </span>
-              <button
-                type="button"
-                aria-expanded={showFullForm}
-                onClick={() => setShowFullForm((o) => !o)}
-                className="text-[11.5px] font-medium text-cyan-200 hover:text-cyan-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
-              >
-                {showFullForm ? 'Done changing' : 'Change what you did'}
-              </button>
-            </div>
-            {showMath && <div className="mt-1 font-mono text-[10.5px] leading-snug text-zinc-500">{describeSpec(spec)}</div>}
-            <div className="mt-3 grid gap-3">
-              {showFullForm ? (
-                <div className="grid gap-4">{auditFormGroups(true)}</div>
-              ) : (
-                <>
-                  {!zeroVector && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Segmented legend="Tangents" symbol={showMath ? 'γ_assoc, Ω' : ''} options={SIMPLE_TANGENTS} value={simpleTangent} onChange={setSimpleTangent} columns={3} showParams={showMath} />
-                      <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SIMPLE_SOMATICS} value={simpleSomatic} onChange={setSimpleSomatic} columns={3} showParams={showMath} />
-                    </div>
-                  )}
-                </>
+              </div>
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'density', 'context', 'scratchpad', 'novelty', 'intensity'] as DescribedField[]).map((field) => {
+                  const cue = described?.result.cues.find((c) => c.field === field);
+                  const isAdjusted = adjusted.has(field);
+                  const assumed = !!described && !cue && !isAdjusted;
+                  const open = adjustField === field;
+                  return (
+                    <li key={field}>
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setAdjustField(open ? null : field)}
+                        title={isAdjusted ? 'adjusted by you' : cue ? `from “${cue.word}”` : described ? 'assumed' : 'tap to adjust'}
+                        className={`rounded border px-1.5 py-0.5 text-left text-[11px] transition-colors focus-visible:outline-2 focus-visible:outline-cyan-400 ${
+                          open ? 'border-cyan-400 bg-cyan-400/15 text-cyan-50' : assumed ? 'border-zinc-800 text-zinc-500 hover:border-zinc-600' : 'border-zinc-700 text-zinc-200 hover:border-zinc-500'
+                        }`}
+                      >
+                        <span className="text-zinc-500">{FIELD_LABEL[field]}:</span> {plainChoice(spec, field)}
+                        {isAdjusted ? (
+                          <>
+                            {' '}
+                            <span className="text-cyan-300">← you</span>
+                          </>
+                        ) : cue ? (
+                          <>
+                            {' '}
+                            <span className="text-zinc-500">← “{cue.word}”</span>
+                          </>
+                        ) : assumed ? (
+                          <>
+                            {' '}
+                            <span className="text-zinc-600">(assumed)</span>
+                          </>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {adjustField && (
+                <div role="group" aria-label={`Adjust ${FIELD_LABEL[adjustField]}`} className="mt-2 grid gap-2 border-t border-zinc-800 pt-2">
+                  {fieldEditor(adjustField)}
+                  <div className="flex justify-end">
+                    <GhostButton onClick={() => setAdjustField(null)}>Done</GhostButton>
+                  </div>
+                </div>
               )}
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-zinc-500">{describeSpec(spec).length > 0 && showMath ? <span className="font-mono">{describeSpec(spec)}</span> : `${blockMinutes(spec)} min · ${MODALITIES.find((o) => o.key === spec.modality)!.plain}`}</span>
+                <button
+                  type="button"
+                  aria-expanded={showFullForm}
+                  onClick={() => setShowFullForm((o) => !o)}
+                  className="text-[11.5px] font-medium text-cyan-200 hover:text-cyan-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+                >
+                  {showFullForm ? 'Hide the full form' : 'Open the full form'}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3">
+              {showFullForm && <div className="grid gap-4">{auditFormGroups(true)}</div>}
+              <PillarRow verdicts={pillars} showMath={showMath} />
               <div className="rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-[12px] text-zinc-300">
                 <span className="text-zinc-500">Expected over {dt} min: </span>
                 {joinEffects(plainEffect(x, preview.x))}

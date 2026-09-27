@@ -204,6 +204,29 @@ cue word behind each choice, and the fields that were assumed. The log card show
 *Understood as* with the plain choice per field; below 0.5 confidence the full form opens with the
 guess pre-selected. The description is kept as a `note` on the log entry.
 
+### Adjusting a categorised block
+
+Every field of the armed block is a chip (*Activity*, *Length*, *Background*, *Body*, *Kind of
+thing*, *Density*, *Pressure*, *Tangents*, *Novelty*, *Intensity*). Tapping a chip opens a picker
+for that field alone; a changed chip reads *← you*, a described one shows the cue word, an
+assumed one is dimmed. *Open the full form* still shows every group at once.
+
+### The Seven Pillars
+
+Every evaluation of a block runs through seven constitutional filters (`pillars.ts`,
+`evaluatePillars`), each returning pass / flag / block / n/a with a one-line reason, shown as a
+row under the block being logged (simple and advanced):
+
+| Pillar | Operator | Check |
+|---|---|---|
+| Objective Impartiality | `O_filter` | Calibrations are blended into the model estimate with a Kalman gain `K_filter` (default 0.6, `blendCalibration`) instead of copied; deep output (`O₁ ≥ 0.8`) flags that felt strain under-reports the integrated `F`. |
+| Curiosity | `V_curiosity` | Blocks churn (`V_target < V_min`); flags intake while recent depth `V < V_min`. |
+| Intellectual Deconstruction | `C_deconstruct` | Watches the quadratic intake cost `β_in C_in I₁²` (flag ≥ 0.12 / h, block ≥ 0.25 / h) and untokenized tangents. |
+| Somatic Grounding | `F_somatic` | Blocks intake or output in a singularity and visual intake past the optical cutoff; flags seated blocks at `F ≥ 0.5`. |
+| Creativity | `O_creative` | Blocks intake under the backlog lock; flags passive consumption at `B ≥ 0.4`; passes expressive or generative output. |
+| Strength Through Hardship | `σ_strength` | A deadline the operator owns (`S ≥ 0.7`) has its `β_out·P` drag attenuated by `σ_strength` (default 0.35) in `Φ_out`; pressure without agency is flagged. |
+| Radical Empathy | `R_empathy` | Relational cues in the description (family, partner, friends, caregiving) at high pressure or low agency are flagged as reactive; with agency they pass as sovereign action. |
+
 ### Fixed block length
 
 `blockLength` (default 15 min, editable in *How this works*) is the length of every block in the

@@ -92,6 +92,13 @@ describe('describeBlock', () => {
     expect(chores.spec.novelty).toBe('monotonous');
     expect(chores.spec.intensity).toBe('light');
 
+    const taxes = describeBlock('helped my mom with her taxes for an hour, had to');
+    expect(taxes.spec.modality).toBe('reading');
+    expect(taxes.spec.valuation).toBe('churn');
+    expect(taxes.spec.context).toBe('sprint');
+    expect(taxes.minutes).toBe(60);
+    expect(taxes.relational).toBe(true);
+
     const scroll = describeBlock('scrolled tiktok in bed');
     expect(scroll.spec.valuation).toBe('churn');
     expect(scroll.spec.somatic).toBe('supine');

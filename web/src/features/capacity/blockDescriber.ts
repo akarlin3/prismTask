@@ -38,7 +38,11 @@ export interface DescribedBlock {
   cues: Cue[];
   /** Fields for which no evidence was found (defaults were used). */
   unsure: DescribedField[];
+  /** Familial or relational stewardship was mentioned (Radical Empathy pillar). */
+  relational: boolean;
+  relationalCue?: string;
 }
+
 
 type Lexicon<K extends string> = readonly (readonly [RegExp, K, number])[];
 
@@ -56,7 +60,7 @@ const TEMPLATES: readonly Template[] = [
   { pattern: rx('nap|napped|dozed|slept|sleeping|lay in the dark|lie in the dark|eye mask|meditat\\w*|breathing exercise|breathwork|rested|resting|zoned out'), word: 'rest', spec: { modality: 'zero', anchor: 'none', somatic: 'supine', density: 'null', valuation: 'utility', scratchpad: 'single' } },
   { pattern: rx('cook(?:ed|ing)?|dishes|laundry|clean(?:ed|ing)?|tidied|tidying|chores|vacuum\\w*|groceries|errands|ironing'), word: 'chores', spec: { modality: 'expressive', anchor: 'none', somatic: 'supine', density: 'null', valuation: 'utility', intensity: 'light', novelty: 'monotonous' } },
   { pattern: rx('meeting|standup|stand-up|1:1|one on one|sync|call with|on a call|zoom|teams call|interview'), word: 'meeting', spec: { modality: 'auditory', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'utility', context: 'sprint' } },
-  { pattern: rx('emails?|inbox|slack|teams messages|admin|paperwork|forms|invoices?|expenses|triage'), word: 'admin', spec: { modality: 'reading', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'churn' } },
+  { pattern: rx('emails?|inbox|slack|teams messages|admin|paperwork|forms|invoices?|expenses|triage|taxes|tax return|bills|banking|insurance|bureaucracy|scheduling|calendar'), word: 'admin', spec: { modality: 'reading', anchor: 'none', somatic: 'seated', density: 'analysis', valuation: 'churn' } },
   { pattern: rx('scroll(?:ed|ing)?|doomscroll\\w*|twitter|x\\.com|instagram|insta|tiktok|reels|shorts|reddit|facebook|feed|threads app'), word: 'scrolling', spec: { modality: 'reading', anchor: 'none', density: 'fiction', valuation: 'churn', scratchpad: 'speculative' } },
   { pattern: rx('youtube|watched videos?|video essays?'), word: 'videos', spec: { modality: 'reading', anchor: 'none', density: 'analysis', valuation: 'churn' } },
   { pattern: rx('movie|film|cinema|documentary'), word: 'film', spec: { modality: 'reading', anchor: 'none', density: 'fiction', valuation: 'art', somatic: 'supine' } },
@@ -168,6 +172,8 @@ export function parseMinutes(text: string): { minutes: number; word: string } | 
   return null;
 }
 
+const RELATIONAL = rx('mom|mum|mother|dad|father|parents?|kids?|child(?:ren)?|son|daughter|baby|toddler|wife|husband|partner|spouse|girlfriend|boyfriend|family|sister|brother|sibling|grand(?:ma|pa|mother|father)|in-laws?|friend|friends|caregiv\\w*|looked after|took care of|helping (?:my|a)|helped (?:my|a)|visit(?:ed|ing)? (?:my|the)|argument|argued|fight with|comfort(?:ed|ing)?|support(?:ed|ing)? (?:my|a)');
+
 /** Describe a block from free text. `defaultMinutes` applies when no duration is stated. */
 export function describeBlock(text: string, defaultMinutes = 15): DescribedBlock {
   const t = ` ${text.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim()} `;
@@ -248,5 +254,6 @@ export function describeBlock(text: string, defaultMinutes = 15): DescribedBlock
   if (valuation || setBy.has('valuation')) confidence += 0.05;
   confidence = Math.min(1, confidence);
 
-  return { spec, minutes, confidence, cues, unsure };
+  const rel = t.match(RELATIONAL);
+  return { spec, minutes, confidence, cues, unsure, relational: !!rel, relationalCue: rel ? rel[0] : undefined };
 }

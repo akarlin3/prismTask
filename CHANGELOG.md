@@ -30,8 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   presets graded alongside the catalog, an Advanced toggle for the full
   instrument panel, a free-text block describer ("read a novel on the
   couch" → activity, posture, anchor, pressure, tangents, length, with the
-  cue behind each choice), plain everyday option labels, an everyday block
-  catalog, and a fixed 15-minute block length for the simple flow.
+  cue behind each choice, every field adjustable in place), plain everyday
+  option labels, an everyday block catalog, a fixed 15-minute block length
+  for the simple flow, and the Seven Pillars filter row (Objective
+  Impartiality as a Kalman-blended calibration, Curiosity, Intellectual
+  Deconstruction, Somatic Grounding, Creativity, Strength Through Hardship
+  as σ_strength drag attenuation, Radical Empathy).
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

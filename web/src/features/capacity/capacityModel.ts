@@ -126,6 +126,11 @@ export interface Constants {
   AunderArousal: number;
   Fterminal: number;
   absorbCapFraction: number;
+  // — Seven pillars —
+  /** Strength Through Hardship: attenuates the β_out·P drag when the operator owns the deadline (S ≥ 0.7). */
+  sigmaStrength: number;
+  /** Objective Impartiality: Kalman gain applied to self-reported calibrations (1 = copy the report). */
+  kalmanGain: number;
 }
 
 export const DEFAULT_CONSTANTS: Constants = Object.freeze({
@@ -160,6 +165,8 @@ export const DEFAULT_CONSTANTS: Constants = Object.freeze({
   AunderArousal: 0.35,
   Fterminal: 0.8,
   absorbCapFraction: 0.7,
+  sigmaStrength: 0.35,
+  kalmanGain: 0.6,
 });
 
 export interface ConstantMeta {
@@ -204,6 +211,8 @@ export const CONSTANT_META: readonly ConstantMeta[] = [
   { key: 'AunderArousal', symbol: 'A_under', label: 'Under-arousal gate on A', group: 'guardrail', min: 0.05, max: 0.5, step: 0.01 },
   { key: 'Fterminal', symbol: 'F_term', label: 'Terminal sleep reset on F', group: 'guardrail', min: 0.5, max: 1, step: 0.01 },
   { key: 'absorbCapFraction', symbol: 'c_II', label: 'Quadrant II cap fraction of I*', group: 'guardrail', min: 0.1, max: 1, step: 0.05 },
+  { key: 'sigmaStrength', symbol: 'σ_strength', label: 'Pressure drag attenuation when owned (S ≥ 0.7)', group: 'guardrail', min: 0, max: 1, step: 0.05 },
+  { key: 'kalmanGain', symbol: 'K_filter', label: 'Trust in self-reported calibration', group: 'guardrail', min: 0, max: 1, step: 0.05 },
 ];
 
 export const DEFAULT_STATE: StateVector = Object.freeze({
@@ -549,7 +558,9 @@ export function derivatives(x: StateVector, b: BlockInputs, psi: number, k: Cons
     psi * I1;
 
   const yieldOut = k.etaFlow * theta.S * (1 - theta.P) * x.E * u.O1 * gamma;
-  const costOut = (k.betaOut * theta.P + k.omega * F) * load2;
+  // Strength Through Hardship: a deadline the operator owns (S ≥ 0.7) carries attenuated quadratic drag.
+  const owned = theta.S >= 0.7 ? 1 - k.sigmaStrength : 1;
+  const costOut = (k.betaOut * theta.P * owned + k.omega * F) * load2;
   const phiOut = yieldOut - costOut;
 
   const Ecap = clamp01(1 - psi);
@@ -702,6 +713,17 @@ export function nextBacklogLatch(latch: boolean, xAfter: StateVector, b: BlockIn
   if (xAfter.B < 0.4) return false;
   if (b && b.u.O1 > 0 && b.u.Ivis + b.u.Iaud === 0) return false;
   return latch;
+}
+
+/**
+ * Objective Impartiality: blend a self-reported state into the model's estimate with a
+ * scalar Kalman gain instead of overwriting it. K = 1 copies the report; K = 0 ignores it.
+ */
+export function blendCalibration(model: StateVector, reported: StateVector, gain: number): StateVector {
+  const K = Math.min(1, Math.max(0, gain));
+  const out = { ...model };
+  for (const key of STATE_KEYS) out[key] = clamp01(model[key] + K * (reported[key] - model[key]));
+  return out;
 }
 
 /** Biological sleep reset applied to the state vector. */
