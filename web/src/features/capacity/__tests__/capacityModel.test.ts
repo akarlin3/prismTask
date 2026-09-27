@@ -403,6 +403,21 @@ describe('graded block catalog', () => {
     for (const g of ia.list.filter((g) => g.entry.kind === 'execute')) expect(g.score).toBeLessThan(50);
   });
 
+  it('treats a reached goal as a shortened horizon, not a violation', () => {
+    // E just under the rest goal and B already clear: rest and digestion reach their goals
+    // within minutes, which must not read as "boundary trips inside 15 m".
+    const { list } = gradeAll({ E: 0.64, B: 0.02, Fvis: 0.05, Fbody: 0.51, A: 0.5, V: 0.98 });
+    for (const g of list.filter((g) => g.entry.kind === 'rest' || g.entry.kind === 'express')) {
+      expect(g.caps.some((c) => c.startsWith('boundary trips'))).toBe(false);
+      expect(g.horizon).toBe(100);
+      expect(g.boundMinutes).toBeGreaterThanOrEqual(15);
+    }
+    // Execution at F_body = 0.51 does trip the F ≥ 0.55 gate inside 15 m.
+    const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
+    expect(sprint.caps.some((c) => c.startsWith('boundary trips'))).toBe(true);
+    expect(sprint.grade).toBe('F');
+  });
+
   it('caps intake blocks under the backlog lock and visual blocks under the optical cutoff', () => {
     const locked = gradeAll({ E: 0.7, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 4, true);
     for (const g of locked.list) {

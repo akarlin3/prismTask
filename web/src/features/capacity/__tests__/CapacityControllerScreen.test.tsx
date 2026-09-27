@@ -3,12 +3,46 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapacityControllerScreen } from '../CapacityControllerScreen';
 import { STORAGE_KEY, decodePersisted } from '../capacityModel';
 
+function seed(extra: Record<string, unknown> = {}) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, uiMode: 'advanced', ...extra }));
+}
+
 describe('CapacityControllerScreen', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
+  it('opens in the simple flow by default: status, next block with Start, and a short log card', () => {
+    render(<CapacityControllerScreen />);
+    expect(screen.getByRole('region', { name: /^Status$/i })).toBeInTheDocument();
+    const next = screen.getByRole('region', { name: /Next block/i });
+    expect(within(next).getByRole('button', { name: /^Start$/ })).toBeInTheDocument();
+    const log = screen.getByRole('region', { name: /Log block/i });
+    expect(within(log).getByRole('radiogroup', { name: /Duration/i })).toBeInTheDocument();
+    expect(within(log).getByRole('radiogroup', { name: /Tangents/i })).toBeInTheDocument();
+    expect(within(log).getByRole('radiogroup', { name: /Body/i })).toBeInTheDocument();
+    expect(within(log).queryByRole('radiogroup', { name: /Primary Modality Vector/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
+
+    // Start arms the top prescription; Log Block integrates it.
+    fireEvent.click(within(next).getByRole('button', { name: /^Start$/ }));
+    fireEvent.click(within(log).getByRole('button', { name: /^Log Block$/i }));
+    expect(screen.getByText(/block k1 · t_awake/i)).toBeInTheDocument();
+
+    // The full audit form and the graded list are one click away.
+    fireEvent.click(within(log).getByRole('button', { name: /Open the full audit form/i }));
+    expect(within(log).getByRole('radiogroup', { name: /Primary Modality Vector/i })).toBeInTheDocument();
+    fireEvent.click(within(next).getByRole('button', { name: /blocks, graded/i }));
+    expect(within(next).getAllByLabelText(/^Grade [A-F]$/).length).toBeGreaterThanOrEqual(15);
+
+    // Advanced reveals the instrument panel and persists.
+    fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
+    expect(screen.getByRole('region', { name: /State-space HUD/i })).toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).uiMode).toBe('advanced');
+  });
+
   it('renders the HUD, status strip, audit form and prescription engine', () => {
+    seed();
     render(<CapacityControllerScreen />);
     expect(screen.getByRole('heading', { name: /6D Capacity Controller/i })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: /State-space HUD/i })).toBeInTheDocument();
@@ -20,6 +54,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('integrates a block, advances the counter, logs it, reports the transition and persists to localStorage', () => {
+    seed();
     render(<CapacityControllerScreen />);
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
     expect(within(form).getByRole('radiogroup', { name: /Novelty/i })).toBeInTheDocument();
@@ -44,17 +79,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('restores persisted state on mount and supports undo', () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        x: { E: 0.31, B: 0.72, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 },
-        hoursAwake: 5,
-        blockIndex: 3,
-        history: [],
-        spec: { modality: 'auditory' },
-      }),
-    );
+    seed({ x: { E: 0.31, B: 0.72, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 }, hoursAwake: 5, blockIndex: 3, history: [], spec: { modality: 'auditory' } });
     render(<CapacityControllerScreen />);
     // B ≥ 0.60 ∧ E < 0.40 routes to Quadrant I-A.
     expect(screen.getByText('Zero-Input Flush')).toBeInTheDocument();
@@ -67,6 +92,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('calibrates the state vector through the override modal', () => {
+    seed();
     render(<CapacityControllerScreen />);
     fireEvent.click(screen.getByRole('button', { name: /Override/i }));
     const dialog = screen.getByRole('dialog', { name: /Manual Override/i });
@@ -79,17 +105,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('surfaces guardrail violations for the armed block', () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        x: { E: 0.7, B: 0.7, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.8 },
-        hoursAwake: 3,
-        blockIndex: 2,
-        history: [],
-        spec: { modality: 'reading', cadence: 'm25' },
-      }),
-    );
+    seed({ x: { E: 0.7, B: 0.7, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.8 }, hoursAwake: 3, blockIndex: 2, history: [], spec: { modality: 'reading', cadence: 'm25' } });
     render(<CapacityControllerScreen />);
     const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
     expect(within(form).getByText(/Optical cutoff: F_vis = 0\.65 ≥ 0\.60 forces I_vis = 0/i)).toBeInTheDocument();
@@ -99,10 +115,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('lists every catalog block with a grade and arms one into the audit form', () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: 1, x: { E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 }, hoursAwake: 3, blockIndex: 0, history: [], spec: { modality: 'zero' } }),
-    );
+    seed({ x: { E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 }, hoursAwake: 3, blockIndex: 0, history: [], spec: { modality: 'zero' } });
     render(<CapacityControllerScreen />);
     const catalog = screen.getByRole('region', { name: /Block catalog/i });
     const grades = within(catalog).getAllByLabelText(/^Grade [A-F]$/);
@@ -117,10 +130,7 @@ describe('CapacityControllerScreen', () => {
   });
 
   it('flags the burnout singularity late in the circadian phase', () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: 1, x: { E: 0.3, B: 0.5, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 }, hoursAwake: 17, blockIndex: 9, history: [] }),
-    );
+    seed({ x: { E: 0.3, B: 0.5, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 }, hoursAwake: 17, blockIndex: 9, history: [] });
     render(<CapacityControllerScreen />);
     expect(screen.getByRole('alert')).toHaveTextContent(/Burnout Singularity/i);
     // Prescription card, trailing prompt and catalog entry all offer the reset.

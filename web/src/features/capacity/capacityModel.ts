@@ -917,9 +917,29 @@ function snapCadence(minutes: number): number {
   return best;
 }
 
-interface StopCheck {
-  (x: StateVector, d: Derivatives, minute: number, hoursAwake: number): string | null;
+/** Smallest standard cadence that covers `minutes` (90 if none does). */
+function snapCadenceUp(minutes: number): number {
+  for (const m of CADENCE_MINUTES) if (m >= minutes) return m;
+  return CADENCE_MINUTES[CADENCE_MINUTES.length - 1];
 }
+
+/**
+ * A stop is either a goal (the block has done its job: rest has recovered E,
+ * digestion has cleared B) or a violation (a guardrail or flux sign trips).
+ * Goals shorten the useful horizon; violations bound it hard.
+ */
+export type StopKind = 'goal' | 'violation';
+export interface Stop {
+  kind: StopKind;
+  reason: string;
+}
+
+interface StopCheck {
+  (x: StateVector, d: Derivatives, minute: number, hoursAwake: number): Stop | null;
+}
+
+const goal = (reason: string): Stop => ({ kind: 'goal', reason });
+const violation = (reason: string): Stop => ({ kind: 'violation', reason });
 
 function simulateHorizon(
   x0: StateVector,
@@ -928,7 +948,7 @@ function simulateHorizon(
   k: Constants,
   check: StopCheck,
   maxMinutes = 120,
-): { horizon: number; reason: string } {
+): { horizon: number; reason: string; kind: StopKind | 'none' } {
   const b = resolveSpec(spec);
   let x = clampState(x0);
   let hoursAwake = hoursAwake0;
@@ -937,7 +957,7 @@ function simulateHorizon(
     const psi = circadianDrag(hoursAwake, k);
     const d = derivatives(x, b, psi, k);
     const stop = check(x, d, m, hoursAwake);
-    if (stop) return { horizon: m, reason: stop };
+    if (stop) return { horizon: m, reason: stop.reason, kind: stop.kind };
     x = clampState({
       E: x.E + h * d.dE,
       B: x.B + h * d.dB,
@@ -948,58 +968,58 @@ function simulateHorizon(
     });
     hoursAwake += h;
   }
-  return { horizon: maxMinutes, reason: `no violation within ${maxMinutes} m` };
+  return { horizon: maxMinutes, reason: `no boundary within ${maxMinutes} m`, kind: 'none' };
 }
 
 const STOP_RULES: Record<Exclude<ConfigKind, 'sleep'>, { text: string; check: StopCheck }> = {
   rest: {
     text: 'stop when E ≥ 0.65 (recovered) or the block elapses',
-    check: (x, _d, m) => (m > 0 && x.E >= 0.65 ? 'E ≥ 0.65' : null),
+    check: (x, _d, m) => (m > 0 && x.E >= 0.65 ? goal('E ≥ 0.65') : null),
   },
   absorb: {
-    text: 'stop when Φ_in < 0, B ≥ 0.60, F_vis ≥ 0.60, or E ≥ 0.70',
+    text: 'stop when Φ_in < 0, B ≥ 0.60, F_vis ≥ 0.60 (violations) or E ≥ 0.70 (recovered)',
     check: (x, d, m) =>
       m > 0 && d.phiIn < 0
-        ? 'Φ_in < 0'
+        ? violation('Φ_in < 0')
         : x.B >= 0.6
-          ? 'B ≥ 0.60'
+          ? violation('B ≥ 0.60')
           : x.Fvis >= 0.6
-            ? 'F_vis ≥ 0.60'
+            ? violation('F_vis ≥ 0.60')
             : m > 0 && x.E >= 0.7
-              ? 'E ≥ 0.70'
+              ? goal('E ≥ 0.70')
               : null,
   },
   express: {
-    text: 'stop when B ≤ 0.35 (digested), E < 0.30, F ≥ 0.60, or Φ_out < 0',
+    text: 'stop when E < 0.30, F ≥ 0.60, Φ_out < 0 (violations) or B ≤ 0.35 (digested)',
     check: (x, d, m) =>
-      m > 0 && x.B <= 0.35
-        ? 'B ≤ 0.35'
-        : x.E < 0.3
-          ? 'E < 0.30'
-          : compositeStrain(x) >= 0.6
-            ? 'F ≥ 0.60'
-            : m > 0 && d.phiOut < 0
-              ? 'Φ_out < 0'
+      x.E < 0.3
+        ? violation('E < 0.30')
+        : compositeStrain(x) >= 0.6
+          ? violation('F ≥ 0.60')
+          : m > 0 && d.phiOut < 0
+            ? violation('Φ_out < 0')
+            : m > 0 && x.B <= 0.35
+              ? goal('B ≤ 0.35')
               : null,
   },
   execute: {
     text: 'stop when E < 0.35, B ≥ 0.60, F ≥ 0.55, Φ_out < 0, or t_late trips',
     check: (x, d, m, hoursAwake) =>
       x.E < 0.35
-        ? 'E < 0.35'
+        ? violation('E < 0.35')
         : x.B >= 0.6
-          ? 'B ≥ 0.60'
+          ? violation('B ≥ 0.60')
           : compositeStrain(x) >= 0.55
-            ? 'F ≥ 0.55'
+            ? violation('F ≥ 0.55')
             : m > 0 && d.phiOut < 0
-              ? 'Φ_out < 0'
+              ? violation('Φ_out < 0')
               : hoursAwake >= 16
-                ? 't_late'
+                ? violation('t_late')
                 : null,
   },
   somatic: {
-    text: 'stop when F ≤ 0.30 (deloaded) or E < 0.30',
-    check: (x, _d, m) => (m > 0 && compositeStrain(x) <= 0.3 ? 'F ≤ 0.30' : x.E < 0.3 ? 'E < 0.30' : null),
+    text: 'stop when E < 0.30 (violation) or F ≤ 0.30 (deloaded)',
+    check: (x, _d, m) => (x.E < 0.3 ? violation('E < 0.30') : m > 0 && compositeStrain(x) <= 0.3 ? goal('F ≤ 0.30') : null),
   },
 };
 
@@ -1022,15 +1042,27 @@ function buildPrescription(
 ): Prescription {
   const rule = STOP_RULES[kind];
   const probe = withCadence(base, 90);
-  const { horizon, reason } = simulateHorizon(x, hoursAwake, probe, k, rule.check);
-  const snapped = Math.min(snapCadence(horizon), preferredMax);
-  const admissible = snapped >= 15;
-  const bound = admissible ? snapped : 15;
+  const { horizon, reason, kind: stopKind } = simulateHorizon(x, hoursAwake, probe, k, rule.check);
+  let bound: number;
+  let admissible: boolean;
+  let stopRule: string;
+  if (stopKind === 'violation') {
+    const snapped = Math.min(snapCadence(horizon), preferredMax);
+    admissible = snapped >= 15;
+    bound = admissible ? snapped : 15;
+    stopRule = admissible
+      ? `${rule.text}. Simulated first violation: ${reason} at ${horizon} m → hard boundary ${bound} m.`
+      : `${rule.text}. Violation (${reason}) inside 15 m — no admissible window; re-route.`;
+  } else {
+    bound = Math.max(15, Math.min(snapCadenceUp(horizon), preferredMax));
+    admissible = true;
+    stopRule =
+      stopKind === 'goal'
+        ? `${rule.text}. Simulated: ${reason} reached at ${horizon} m → boundary ${bound} m.`
+        : `${rule.text}. No boundary inside 120 m → boundary ${bound} m.`;
+  }
   const spec = withCadence(base, bound);
   const result = integrateBlock(x, hoursAwake, resolveSpec(spec), bound, k);
-  const stopRule = admissible
-    ? `${rule.text}. Simulated first violation: ${reason} at ${horizon} m → hard boundary ${bound} m.`
-    : `${rule.text}. Violation (${reason}) inside 15 m — no admissible window; re-route.`;
   return {
     kind,
     name,
@@ -1419,23 +1451,36 @@ export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics,
     const kind = entry.kind as Exclude<ConfigKind, 'sleep'>;
     const rule = STOP_RULES[kind];
     const probe = withCadence(entry.spec, 90);
-    const { horizon, reason } = simulateHorizon(x, hoursAwake, probe, k, rule.check, entry.minutes);
-    const survives = horizon >= entry.minutes;
-    const bound = survives ? entry.minutes : snapCadence(horizon);
-    const inputs = resolveSpec(withCadence(entry.spec, Math.max(bound, 15)));
-    const I1 = inputs.u.Ivis + inputs.u.Iaud;
+    const { horizon, reason, kind: stopKind } = simulateHorizon(x, hoursAwake, probe, k, rule.check, entry.minutes);
+    let bound: number;
+    let horizonScore: number;
+    let stopReason: string;
+    if (stopKind === 'violation') {
+      bound = snapCadence(horizon);
+      horizonScore = 100 * Math.min(1, horizon / entry.minutes);
+      stopReason = `${reason} at ${horizon} m`;
+    } else if (stopKind === 'goal') {
+      bound = Math.min(entry.minutes, Math.max(15, snapCadenceUp(horizon)));
+      horizonScore = 100;
+      stopReason = `${reason} reached at ${horizon} m`;
+    } else {
+      bound = entry.minutes;
+      horizonScore = 100;
+      stopReason = `no boundary inside ${entry.minutes} m`;
+    }
     const effective = Math.max(bound, 15);
+    const inputs = resolveSpec(withCadence(entry.spec, effective));
+    const I1 = inputs.u.Ivis + inputs.u.Iaud;
     const result = integrateBlock(x, hoursAwake, inputs, effective, k);
     const dU = stateUtility(result.x, k) - U0;
     const outcome = 50 + 50 * Math.max(-1, Math.min(1, dU / 0.2));
-    const horizonScore = 100 * Math.min(1, horizon / entry.minutes);
     let score = 0.45 * fit + 0.4 * outcome + 0.15 * horizonScore;
     let cap = 100;
     const capTo = (v: number, why: string) => {
       cap = Math.min(cap, v);
       caps.push(why);
     };
-    if (bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
+    if (stopKind === 'violation' && bound < 15) capTo(25, `boundary trips inside 15 m (${reason})`);
     if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'input prohibited: I*(t) ≤ 0');
     if (I1 > 0 && g.backlogSaturated) capTo(15, `backlog lock: B ≥ ${k.BsatLock.toFixed(2)} until an output block runs`);
     if (inputs.u.Ivis > 0 && g.opticalCutoff) capTo(15, `optical cutoff: F_vis ≥ ${k.FvisCutoff.toFixed(2)} forces I_vis = 0`);
@@ -1455,7 +1500,7 @@ export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics,
       caps,
       boundMinutes: bound,
       horizonMinutes: horizon,
-      stopReason: survives ? `no boundary inside ${entry.minutes} m` : `${reason} at ${horizon} m`,
+      stopReason,
       predicted: result.x,
       delta: result.delta,
       deltaUtility: dU,
@@ -1489,6 +1534,8 @@ export interface PersistedState {
   hoursAwake: number;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
+  /** Simple (single-column flow) or advanced (full instrument panel) interface. */
+  uiMode: 'simple' | 'advanced';
   blockIndex: number;
   history: HistoryEntry[];
   constants: Constants;
@@ -1505,6 +1552,7 @@ export function defaultPersisted(): PersistedState {
     x: { ...DEFAULT_STATE },
     hoursAwake: 0,
     backlogLatch: false,
+    uiMode: 'simple',
     blockIndex: 0,
     history: [],
     constants: { ...DEFAULT_CONSTANTS },
@@ -1594,6 +1642,7 @@ export function decodePersisted(json: string | null): PersistedState {
     x,
     hoursAwake,
     backlogLatch: r.backlogLatch === true,
+    uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,
     history,
     constants: sanitizeConstants(r.constants),

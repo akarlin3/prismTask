@@ -159,6 +159,25 @@ Letters: A ≥ 80, B ≥ 65, C ≥ 50, D ≥ 35, F below. **Arm** loads the entr
 with its effective cadence (the catalog cadence, or the largest standard cadence that survives
 the stop rule).
 
+## Simple and advanced interface
+
+The screen opens in **Simple** mode (persisted as `uiMode`), a single column:
+
+1. **Status** — routed quadrant and title, the regime pill, the one-sentence summary and the
+   first two flags, six compact meters, and one mono line with `I*`, `Γ`, `ψ`, `t_awake`, `k`.
+2. **Next Block** — the 2–3 routed prescriptions with their hard boundaries; **Start** arms the
+   top one, **Pick** arms another; *All N blocks, graded for now* expands the graded catalog as
+   compact rows.
+3. **Log The Block You Just Did** — the armed block in one mono line, then only what usually
+   changes: duration, *Tangents* (Clean / Sub-Threads / Rabbit Hole) and *Body* (As Planned /
+   Eye Strain / Slumped), the predicted Δx line, any guardrail warnings, and **Log Block**. *Did
+   something else?* opens the full nine-group audit form inline.
+
+**Advanced** restores the full instrument panel (status strip, HUD with sparklines and rates,
+trajectory chart, full audit form, state-vector report, prescription cards, trailing prompt,
+block log, catalog cards, constants panel, JSON export). The header toggle switches modes;
+Calibrate / Sleep Reset / Undo are available in both.
+
 ## Operating protocol in the UI
 
 The copilot's three-step protocol maps onto the screen:
