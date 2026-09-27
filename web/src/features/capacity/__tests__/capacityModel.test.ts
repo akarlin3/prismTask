@@ -373,6 +373,15 @@ describe('graded block catalog', () => {
     return { x, d, r: route(x, d, k), list: gradeCatalog(x, hours, d, route(x, d, k), k) };
   };
 
+  it('grades every block at the fixed block length when one is given', () => {
+    const x = state({ E: 0.6, B: 0.3 });
+    const d = diagnose(x, 4, 0.4, k);
+    const list = gradeCatalog(x, 4, d, route(x, d, k), k, [], 15);
+    for (const g of list) if (g.entry.kind !== 'sleep') expect(g.boundMinutes).toBeLessThanOrEqual(15);
+    const ps = prescribe(x, 4, d, route(x, d, k), k, 15);
+    for (const p of ps) if (p.kind !== 'sleep') expect(p.boundMinutes).toBe(15);
+  });
+
   it('grades every catalog entry on [0, 100] with a consistent letter, best first', () => {
     const { list } = gradeAll({ E: 0.6, B: 0.3 });
     expect(list.length).toBeGreaterThanOrEqual(15);
@@ -465,6 +474,8 @@ describe('flexibility: intensity, custom duration, presets', () => {
     expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 1 }))).toBe(5);
     expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 999 }))).toBe(240);
     expect(blockMinutes(spec({ cadence: 'm45' }))).toBe(45);
+    expect(decodePersisted(JSON.stringify({ blockLength: 20 })).blockLength).toBe(20);
+    expect(decodePersisted(JSON.stringify({})).blockLength).toBe(15);
     const back = decodePersisted(JSON.stringify({ spec: { cadence: 'custom', customMinutes: 37, intensity: 'heavy' } }));
     expect(back.spec.cadence).toBe('custom');
     expect(back.spec.customMinutes).toBe(37);

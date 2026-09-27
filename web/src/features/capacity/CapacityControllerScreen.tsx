@@ -11,6 +11,7 @@ import {
   Grid2x2,
   HelpCircle,
   Save,
+  Sparkles,
   Footprints,
   Gauge,
   Info,
@@ -31,6 +32,7 @@ import {
   ANCHORS,
   CADENCES,
   CUSTOM_CADENCE,
+  DEFAULT_BLOCK_LENGTH,
   INTENSITIES,
   MAX_CUSTOM_MINUTES,
   MIN_CUSTOM_MINUTES,
@@ -76,8 +78,10 @@ import {
   type StateKey,
   type StateVector,
   type UserPreset,
+  withMinutes,
 } from './capacityModel';
 import { PLAIN_BY_KEY, joinEffects, plainEffect, plainQuadrant, plainReason, plainRegime } from './capacityCopy';
+import { describeBlock, type DescribedBlock, type DescribedField } from './blockDescriber';
 
 // ---------------------------------------------------------------------------
 // Presentation metadata
@@ -549,6 +553,8 @@ function Segmented<K extends string>({
   dimmed = false,
   note,
   tag,
+  plain = false,
+  showParams = true,
 }: {
   legend: string;
   symbol: string;
@@ -559,6 +565,10 @@ function Segmented<K extends string>({
   dimmed?: boolean;
   note?: string;
   tag?: (key: K) => ReactNode;
+  /** Everyday wording for option labels. */
+  plain?: boolean;
+  /** Show the mono parameter line under each option. */
+  showParams?: boolean;
 }) {
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const idx = options.findIndex((o) => o.key === value);
@@ -593,11 +603,13 @@ function Segmented<K extends string>({
                 selected ? 'border-zinc-400 bg-zinc-800 text-zinc-50' : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
               }`}
             >
-              <span className="block truncate text-[12px] font-medium leading-tight">{o.label}</span>
-              <span className="mt-0.5 flex items-center justify-between gap-1">
-                <span className="truncate font-mono text-[10px] text-zinc-500">{o.params}</span>
-                {tag?.(o.key)}
-              </span>
+              <span className="block truncate text-[12px] font-medium leading-tight">{plain ? (o.plain ?? o.label) : o.label}</span>
+              {(showParams || tag) && (
+                <span className="mt-0.5 flex items-center justify-between gap-1">
+                  {showParams ? <span className="truncate font-mono text-[10px] text-zinc-500">{o.params}</span> : <span />}
+                  {tag?.(o.key)}
+                </span>
+              )}
             </button>
           );
         })}
@@ -953,12 +965,12 @@ function PrescriptionCard({ p, x, k, onArm, onSleep }: { p: Prescription; x: Sta
 // Duration control (standard cadences + custom minutes)
 // ---------------------------------------------------------------------------
 
-function DurationControl({ spec, onChange, legend, symbol }: { spec: BlockSpec; onChange: (patch: Partial<BlockSpec>) => void; legend: string; symbol: string }) {
+function DurationControl({ spec, onChange, legend, symbol, showParams = true }: { spec: BlockSpec; onChange: (patch: Partial<BlockSpec>) => void; legend: string; symbol: string; showParams?: boolean }) {
   const custom = spec.cadence === CUSTOM_CADENCE;
-  const minutes = spec.customMinutes ?? 25;
+  const minutes = spec.customMinutes ?? DEFAULT_BLOCK_LENGTH;
   return (
     <div className="grid gap-1.5">
-      <Segmented legend={legend} symbol={symbol} options={CADENCES} value={custom ? ('' as never) : spec.cadence} onChange={(v) => onChange({ cadence: v })} columns={3} />
+      <Segmented legend={legend} symbol={symbol} options={CADENCES} value={custom ? ('' as never) : spec.cadence} onChange={(v) => onChange({ cadence: v })} columns={3} showParams={showParams} />
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -991,6 +1003,86 @@ function DurationControl({ spec, onChange, legend, symbol }: { spec: BlockSpec; 
         </span>
       </div>
     </div>
+  );
+}
+
+const FIELD_LABEL: Record<DescribedField, string> = {
+  modality: 'Activity',
+  anchor: 'Background',
+  valuation: 'Kind of thing',
+  density: 'Density',
+  context: 'Pressure',
+  scratchpad: 'Tangents',
+  novelty: 'Novelty',
+  somatic: 'Body',
+  intensity: 'Intensity',
+  duration: 'Length',
+};
+
+function plainChoice(spec: BlockSpec, field: DescribedField): string {
+  const find = <K extends string>(list: readonly Option<K>[], key: K) => {
+    const o = list.find((x) => x.key === key);
+    return o ? (o.plain ?? o.label) : key;
+  };
+  switch (field) {
+    case 'modality':
+      return find(MODALITIES, spec.modality);
+    case 'anchor':
+      return find(ANCHORS, spec.anchor);
+    case 'valuation':
+      return find(VALUATIONS, spec.valuation);
+    case 'density':
+      return find(DENSITIES, spec.density);
+    case 'context':
+      return find(CONTEXTS, spec.context);
+    case 'scratchpad':
+      return find(SCRATCHPADS, spec.scratchpad);
+    case 'novelty':
+      return find(NOVELTIES, spec.novelty);
+    case 'somatic':
+      return find(SOMATICS, spec.somatic);
+    case 'intensity':
+      return find(INTENSITIES, spec.intensity ?? 'standard');
+    case 'duration':
+      return `${blockMinutes(spec)} min`;
+    default:
+      return '';
+  }
+}
+
+function DescribeBox({ defaultMinutes, onDescribed }: { defaultMinutes: number; onDescribed: (text: string, result: DescribedBlock) => void }) {
+  const [text, setText] = useState('');
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        onDescribed(trimmed, describeBlock(trimmed, defaultMinutes));
+      }}
+    >
+      <label htmlFor="cc-describe" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+        Describe it in your own words
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <input
+          id="cc-describe"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={`e.g. "read a novel on the couch" or "emails at my desk, got distracted"`}
+          maxLength={240}
+          className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus-visible:outline-2 focus-visible:outline-cyan-400"
+        />
+        <button
+          type="submit"
+          disabled={!text.trim()}
+          className="inline-flex items-center gap-1.5 rounded-md border border-cyan-400/60 bg-cyan-400/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Read it
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -1137,9 +1229,10 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
   const [armedBaseline, setArmedBaseline] = useState<BlockSpec | null>(null);
+  const [described, setDescribed] = useState<{ text: string; result: DescribedBlock } | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength } = store;
 
   useEffect(() => {
     try {
@@ -1159,14 +1252,14 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const dt = blockMinutes(spec);
   const diag: Diagnostics = useMemo(() => diagnose(x, hoursAwake, inputs.theta.Cin, k, backlogLatch), [x, hoursAwake, inputs.theta.Cin, k, backlogLatch]);
   const routing = useMemo(() => route(x, diag, k), [x, diag, k]);
-  const prescriptions = useMemo(() => prescribe(x, hoursAwake, diag, routing, k), [x, hoursAwake, diag, routing, k]);
+  const prescriptions = useMemo(() => prescribe(x, hoursAwake, diag, routing, k, blockLength), [x, hoursAwake, diag, routing, k, blockLength]);
   const preview = useMemo(() => integrateBlock(x, hoursAwake, inputs, dt, k), [x, hoursAwake, inputs, dt, k]);
   const previewRouting = useMemo(
     () => route(preview.x, diagnose(preview.x, preview.hoursAwake, inputs.theta.Cin, k, nextBacklogLatch(backlogLatch, preview.x, inputs, k)), k),
     [preview, inputs, k, backlogLatch],
   );
   const report = useMemo(() => (lastDeltaEntry(history) ? buildMarkdownReport(lastDeltaEntry(history)!, diag, routing, prescriptions, k) : null), [history, diag, routing, prescriptions, k]);
-  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets), [x, hoursAwake, diag, routing, k, presets]);
+  const catalog = useMemo(() => gradeCatalog(x, hoursAwake, diag, routing, k, presets, blockLength), [x, hoursAwake, diag, routing, k, presets, blockLength]);
   const plainQ = plainQuadrant(routing);
   const plainR = plainRegime(diag);
 
@@ -1202,7 +1295,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const pushHistory = (entry: HistoryEntry, patch: Partial<PersistedState>) =>
     update({ ...patch, history: [...history, entry].slice(-HISTORY_LIMIT) });
 
-  const integrate = () => {
+  const integrate = (note?: string) => {
     const result = integrateBlock(x, hoursAwake, inputs, dt, k);
     const nextIndex = blockIndex + 1;
     const latch = nextBacklogLatch(backlogLatch, result.x, inputs, k);
@@ -1212,6 +1305,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
         k: nextIndex,
         at: new Date().toISOString(),
         kind: 'block',
+        note: note?.trim() || undefined,
         dtMinutes: dt,
         spec,
         xBefore: x,
@@ -1226,6 +1320,14 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
     setNotice(
       `Block k${nextIndex} logged (Δt ${dt} m) · E ${fmt(x.E)}→${fmt(result.x.E)} · B ${fmt(x.B)}→${fmt(result.x.B)} · F ${fmt(compositeStrain(x))}→${fmt(compositeStrain(result.x))} → ${q}`,
     );
+    setDescribed(null);
+  };
+
+  const applyDescribed = (text: string, result: DescribedBlock) => {
+    setDescribed({ text, result });
+    setArmedBaseline(result.spec);
+    setShowFullForm(result.confidence < 0.5);
+    update({ spec: result.spec });
   };
 
   const undo = () => {
@@ -1276,9 +1378,11 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   };
   const deletePreset = (id: string) => update({ presets: presets.filter((p) => p.id !== id) });
 
-  const arm = (s: BlockSpec) => {
+  const arm = (raw: BlockSpec) => {
+    const s = simple ? withMinutes(raw, blockLength) : raw;
     setArmedBaseline(s);
     setShowFullForm(false);
+    setDescribed(null);
     update({ spec: s });
     setNotice(`Armed: ${describeSpec(s)} · Δt = ${blockMinutes(s)} m`);
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
@@ -1313,25 +1417,27 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const auditFormGroups = (plain: boolean) => (
     <>
-          <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} />
-          <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} />
-          <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} />
-          <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} />
+          <DurationControl spec={spec} onChange={setSpec} legend={plain ? 'How long' : 'Cadence'} symbol={plain && !showMath ? '' : 'Δt'} showParams={!plain || showMath} />
+          <Segmented legend="Intensity" symbol={plain && !showMath ? '' : '×(I, O₁)'} options={INTENSITIES} value={spec.intensity ?? 'standard'} onChange={(v) => setSpec({ intensity: v })} columns={3} plain={plain} showParams={!plain || showMath} />
+          <Segmented legend={plain ? 'What you did' : 'Primary Modality Vector'} symbol={plain && !showMath ? '' : 'T₁'} options={MODALITIES} value={spec.modality} onChange={(v) => setSpec({ modality: v })} plain={plain} showParams={!plain || showMath} />
+          <Segmented legend={plain ? 'Background anchor' : 'Secondary Anchor'} symbol={plain && !showMath ? '' : 'T₂'} options={ANCHORS} value={spec.anchor} onChange={(v) => setSpec({ anchor: v })} plain={plain} showParams={!plain || showMath} />
           <Segmented
             legend={plain ? 'How substantive' : 'Substantive Valuation'}
             symbol={plain && !showMath ? '' : 'V_target'}
             options={VALUATIONS}
             value={spec.valuation}
             onChange={(v) => setSpec({ valuation: v })}
+        plain={plain}
+        showParams={!plain || showMath}
             dimmed={zeroVector}
             note={zeroVector ? 'Zero-vector block: V holds its current value.' : undefined}
             tag={(key) => (key === 'churn' ? <span className="rounded bg-rose-500/20 px-1 text-[9px] font-semibold uppercase tracking-wider text-rose-300">inadmissible</span> : null)}
           />
-          <Segmented legend={plain ? 'How dense' : 'Cognitive Density'} symbol={plain && !showMath ? '' : 'C_in'} options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? (plain ? 'No intake in this block: density only affects the intake readout.' : 'I₁ = 0 for this modality: density only sets the I*(t) readout.') : undefined} />
-          <Segmented legend={plain ? 'Pressure and control' : 'Operational Context'} symbol={plain && !showMath ? '' : 'P, S_agency'} options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Tangents' : 'ADHD Scratchpad Discipline'} symbol={plain && !showMath ? '' : 'γ_assoc, Ω_switch'} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Novelty' : 'Novelty / Entropy Stimulation'} symbol={plain && !showMath ? '' : 'ξ_novelty'} options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} dimmed={zeroVector} />
-          <Segmented legend={plain ? 'Body and posture' : 'Somatic & Biomechanical Marker'} symbol={plain && !showMath ? '' : '𝟙seat, 𝟙kin'} options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} />
+          <Segmented legend={plain ? 'How dense' : 'Cognitive Density'} symbol={plain && !showMath ? '' : 'C_in'} options={DENSITIES} value={spec.density} onChange={(v) => setSpec({ density: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} note={armedI1 === 0 && !zeroVector ? (plain ? 'No intake in this block: density only affects the intake readout.' : 'I₁ = 0 for this modality: density only sets the I*(t) readout.') : undefined} />
+          <Segmented legend={plain ? 'Pressure and control' : 'Operational Context'} symbol={plain && !showMath ? '' : 'P, S_agency'} options={CONTEXTS} value={spec.context} onChange={(v) => setSpec({ context: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Tangents' : 'ADHD Scratchpad Discipline'} symbol={plain && !showMath ? '' : 'γ_assoc, Ω_switch'} options={SCRATCHPADS} value={spec.scratchpad} onChange={(v) => setSpec({ scratchpad: v })} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Novelty' : 'Novelty / Entropy Stimulation'} symbol={plain && !showMath ? '' : 'ξ_novelty'} options={NOVELTIES} value={spec.novelty} onChange={(v) => setSpec({ novelty: v })} columns={3} plain={plain} showParams={!plain || showMath} dimmed={zeroVector} />
+          <Segmented legend={plain ? 'Body and posture' : 'Somatic & Biomechanical Marker'} symbol={plain && !showMath ? '' : '𝟙seat, 𝟙kin'} options={SOMATICS} value={spec.somatic} onChange={(v) => setSpec({ somatic: v })} plain={plain} showParams={!plain || showMath} />
     </>
   );
 
@@ -1389,7 +1495,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
           <button
             type="button"
-            onClick={integrate}
+            onClick={() => integrate()}
             className="w-full rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
           >
             {label}
@@ -1474,6 +1580,24 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               <li>Press Start on a block, do it, then log how long it ran and whether tangents or strain crept in. The meters update and the grades refresh.</li>
             </ol>
             <p className="mt-2 text-[11.5px] text-zinc-500">Calibrate sets the meters by hand when the model drifts from how you feel. Show math reveals the symbols and the rules behind every number.</p>
+            <label className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-zinc-400">
+              <span>Every block is</span>
+              <input
+                id="cc-block-length"
+                type="number"
+                min={MIN_CUSTOM_MINUTES}
+                max={MAX_CUSTOM_MINUTES}
+                step={5}
+                value={blockLength}
+                onChange={(e) => {
+                  const v = Math.round(Number(e.target.value));
+                  if (Number.isFinite(v)) update({ blockLength: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, v)) });
+                }}
+                aria-label="Block length in minutes"
+                className="w-16 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-cyan-400"
+              />
+              <span>minutes long. Grades, boundaries and one-click logging all use this length.</span>
+            </label>
           </details>
 
           <section aria-label="Status" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
@@ -1648,14 +1772,41 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           </section>
 
           <section aria-label="Log block" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4" ref={formRef}>
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log the block you just did</h2>
-            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-2">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Log the {blockLength}-minute block you just did</h2>
+            <div className="mt-3">
+              <DescribeBox defaultMinutes={blockLength} onDescribed={applyDescribed} />
+            </div>
+            {described && (
+              <div className="mt-2 rounded-md border border-cyan-400/30 bg-cyan-400/5 px-3 py-2" aria-label="Understood as">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">Understood as</span>
+                  <span className="text-[10.5px] text-zinc-500">
+                    {described.result.confidence >= 0.75 ? 'Fairly sure.' : described.result.confidence >= 0.5 ? 'Best guess; check the details.' : 'Could not tell what this was; pick the activity below.'}
+                  </span>
+                </div>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {(['modality', 'duration', 'anchor', 'somatic', 'valuation', 'context', 'scratchpad', 'intensity'] as DescribedField[]).map((field) => {
+                    const cue = described.result.cues.find((c) => c.field === field);
+                    const assumed = !cue && described.result.unsure.includes(field);
+                    return (
+                      <li key={field} className={`rounded border px-1.5 py-0.5 text-[11px] ${assumed ? 'border-zinc-800 text-zinc-500' : 'border-zinc-700 text-zinc-200'}`} title={cue ? `from “${cue.word}”` : 'assumed'}>
+                        <span className="text-zinc-500">{FIELD_LABEL[field]}: </span>
+                        {plainChoice(spec, field)}
+                        {cue && <span className="text-zinc-500"> ← “{cue.word}”</span>}
+                        {assumed && <span className="text-zinc-600"> (assumed)</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-2.5 py-2">
               <span className="min-w-0 text-[12px] text-zinc-200">
-                <span className="font-semibold">{MODALITIES.find((o) => o.key === spec.modality)!.label}</span>
+                <span className="font-semibold">{MODALITIES.find((o) => o.key === spec.modality)!.plain}</span>
                 <span className="text-zinc-500">
                   {' '}
-                  · {ANCHORS.find((o) => o.key === spec.anchor)!.label} · {CONTEXTS.find((o) => o.key === spec.context)!.label}
-                  {(spec.intensity ?? 'standard') !== 'standard' ? ` · ${INTENSITIES.find((o) => o.key === spec.intensity)!.label} intensity` : ''}
+                  · {ANCHORS.find((o) => o.key === spec.anchor)!.plain} · {CONTEXTS.find((o) => o.key === spec.context)!.plain} · {blockMinutes(spec)} min
+                  {(spec.intensity ?? 'standard') !== 'standard' ? ` · ${INTENSITIES.find((o) => o.key === spec.intensity)!.plain}` : ''}
                 </span>
               </span>
               <button
@@ -1673,11 +1824,10 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                 <div className="grid gap-4">{auditFormGroups(true)}</div>
               ) : (
                 <>
-                  <DurationControl spec={spec} onChange={setSpec} legend="How long" symbol={showMath ? 'Δt' : ''} />
                   {!zeroVector && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Segmented legend="Tangents" symbol={showMath ? 'γ_assoc, Ω' : ''} options={SIMPLE_TANGENTS} value={simpleTangent} onChange={setSimpleTangent} columns={3} />
-                      <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SIMPLE_SOMATICS} value={simpleSomatic} onChange={setSimpleSomatic} columns={3} />
+                      <Segmented legend="Tangents" symbol={showMath ? 'γ_assoc, Ω' : ''} options={SIMPLE_TANGENTS} value={simpleTangent} onChange={setSimpleTangent} columns={3} showParams={showMath} />
+                      <Segmented legend="Body" symbol={showMath ? 'F' : ''} options={SIMPLE_SOMATICS} value={simpleSomatic} onChange={setSimpleSomatic} columns={3} showParams={showMath} />
                     </div>
                   )}
                 </>
@@ -1731,7 +1881,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               )}
               <button
                 type="button"
-                onClick={integrate}
+                onClick={() => integrate(described?.text)}
                 className="w-full rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
               >
                 Log Block
@@ -1955,7 +2105,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                         <tr key={`${h.at}-${i}`} className="border-t border-zinc-800/80 text-zinc-300 [&>td]:whitespace-nowrap">
                           <td className="px-2 py-1">{h.kind === 'block' ? `k${h.k}` : h.kind === 'sleep' ? 'sleep' : 'cal'}</td>
                           <td className="px-2 py-1">{h.kind === 'sleep' ? `${h.sleepHours ?? ''} h` : h.kind === 'block' ? `${h.dtMinutes} m` : '—'}</td>
-                          <td className="max-w-[9rem] truncate px-2 py-1">{m?.label ?? '—'}</td>
+                          <td className="max-w-[9rem] truncate px-2 py-1" title={h.note ?? undefined}>{h.note ? `${m?.label ?? '—'} · “${h.note}”` : (m?.label ?? '—')}</td>
                           <td className="max-w-[8rem] truncate px-2 py-1">{a?.label ?? '—'}</td>
                           <td className="px-2 py-1">{v ? fmt(v.V) : '—'}</td>
                           <td className="px-2 py-1">{d ? fmt(d.Cin) : '—'}</td>

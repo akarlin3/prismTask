@@ -21,12 +21,13 @@ describe('CapacityControllerScreen', () => {
     const next = screen.getByRole('region', { name: /Next block/i });
     expect(within(next).getAllByLabelText(/^Grade [A-F]$/)).toHaveLength(3);
     const log = screen.getByRole('region', { name: /Log block/i });
-    expect(within(log).getByRole('radiogroup', { name: /How long/i })).toBeInTheDocument();
+    expect(within(log).getByRole('heading', { name: /Log the 15-minute block/i })).toBeInTheDocument();
+    expect(within(log).queryByRole('radiogroup', { name: /How long/i })).not.toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Tangents/i })).toBeInTheDocument();
     expect(within(log).getByRole('radiogroup', { name: /Body/i })).toBeInTheDocument();
     expect(within(log).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /State-space HUD/i })).not.toBeInTheDocument();
-    expect(within(log).getByText(/Expected over 25 min:/i)).toBeInTheDocument();
+    expect(within(log).getByText(/Expected over 15 min:/i)).toBeInTheDocument();
 
     // Start arms the top graded block; Log Block integrates it.
     fireEvent.click(within(next).getAllByRole('button', { name: /^Start$/ })[0]);
@@ -51,12 +52,42 @@ describe('CapacityControllerScreen', () => {
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).uiMode).toBe('advanced');
   });
 
+  it('describes a block in plain words, shows what it understood, and logs it with the note', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /Log block/i });
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'read a novel on the couch' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    const understood = within(log).getByLabelText(/Understood as/i);
+    expect(understood).toHaveTextContent(/Activity: Reading or watching/);
+    expect(understood).toHaveTextContent(/Body: Lying down or moving/);
+    expect(understood).toHaveTextContent(/Length: 15 min/);
+    expect(understood).toHaveTextContent(/Fairly sure/);
+    fireEvent.click(within(log).getByRole('button', { name: /^Log Block$/i }));
+    const persisted = decodePersisted(localStorage.getItem(STORAGE_KEY));
+    expect(persisted.history).toHaveLength(1);
+    expect(persisted.history[0].note).toBe('read a novel on the couch');
+    expect(persisted.history[0].spec?.modality).toBe('reading');
+    expect(persisted.history[0].dtMinutes).toBe(15);
+  });
+
+  it('opens the full form when a description cannot be placed', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /Log block/i });
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'the thing with Bob' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Could not tell/);
+    expect(within(log).getByRole('radiogroup', { name: /What you did/i })).toBeInTheDocument();
+    expect(within(log).getByRole('radio', { name: /Focused work \(making things\)/i })).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('supports custom durations and user presets in the simple flow', () => {
     render(<CapacityControllerScreen />);
     const log = screen.getByRole('region', { name: /Log block/i });
+    fireEvent.click(within(log).getByRole('button', { name: /Change what you did/i }));
     fireEvent.change(within(log).getByLabelText(/Custom duration in minutes/i), { target: { value: '37' } });
     expect(within(log).getByText(/Expected over 37 min:/i)).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.customMinutes).toBe(37);
+    fireEvent.click(within(log).getByRole('button', { name: /Done changing/i }));
 
     fireEvent.click(within(log).getByRole('button', { name: /Save this block as a preset/i }));
     fireEvent.change(within(log).getByLabelText(/Preset name/i), { target: { value: 'Bass practice' } });
@@ -149,7 +180,7 @@ describe('CapacityControllerScreen', () => {
     const grades = within(catalog).getAllByLabelText(/^Grade [A-F]$/);
     expect(grades.length).toBeGreaterThanOrEqual(15);
     // Quadrant IV: the top card is an execution block.
-    expect(within(catalog).getByText('Core generative sprint, music loop')).toBeInTheDocument();
+    expect(within(catalog).getByText('Deep work with music on repeat')).toBeInTheDocument();
     expect(grades[0]).toHaveTextContent('A');
     const armButtons = within(catalog).getAllByRole('button', { name: /^Arm$/ });
     fireEvent.click(armButtons[0]);
@@ -165,6 +196,6 @@ describe('CapacityControllerScreen', () => {
     expect(screen.getAllByRole('button', { name: /Log Sleep Reset/i }).length).toBeGreaterThanOrEqual(2);
     const catalog = screen.getByRole('region', { name: /Block catalog/i });
     expect(within(catalog).getAllByLabelText(/^Grade [A-F]$/)[0]).toHaveTextContent('A');
-    expect(within(catalog).getByText('Terminal sleep reset')).toBeInTheDocument();
+    expect(within(catalog).getByText('Go to sleep')).toBeInTheDocument();
   });
 });

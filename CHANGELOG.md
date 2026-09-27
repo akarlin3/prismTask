@@ -27,8 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Opens in a simple single-column flow written in plain language (status
   headline → graded "what to do next" cards → short log card) with a
   Show-math toggle, custom durations, an intensity setting, saveable user
-  presets graded alongside the catalog, and an Advanced toggle for the full
-  instrument panel.
+  presets graded alongside the catalog, an Advanced toggle for the full
+  instrument panel, a free-text block describer ("read a novel on the
+  couch" → activity, posture, anchor, pressure, tangents, length, with the
+  cue behind each choice), plain everyday option labels, an everyday block
+  catalog, and a fixed 15-minute block length for the simple flow.
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

@@ -224,6 +224,20 @@ export type IntensityKey = 'light' | 'standard' | 'heavy';
 export const CUSTOM_CADENCE = 'custom';
 export const MIN_CUSTOM_MINUTES = 5;
 export const MAX_CUSTOM_MINUTES = 240;
+/** Every block is fifteen minutes unless the user says otherwise. */
+export const DEFAULT_BLOCK_LENGTH = 15;
+
+/** A spec whose length is `minutes`: a standard cadence key when one matches, else custom. */
+export function withMinutes(spec: BlockSpec, minutes: number): BlockSpec {
+  const m = Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(minutes)));
+  const standard = CADENCES.find((c) => c.minutes === m);
+  if (standard) {
+    const { customMinutes: _cm, ...rest } = spec;
+    void _cm;
+    return { ...rest, cadence: standard.key };
+  }
+  return { ...spec, cadence: CUSTOM_CADENCE, customMinutes: m };
+}
 export type ModalityKey = 'zero' | 'auditory' | 'reading' | 'dense' | 'expressive' | 'execution';
 export type AnchorKey = 'none' | 'brown' | 'music' | 'fidget' | 'treadmill';
 export type ValuationKey = 'churn' | 'utility' | 'art' | 'architecture';
@@ -255,6 +269,8 @@ export interface Option<K extends string> {
   detail: string;
   /** Short mono parameter readout shown on the segmented button. */
   params: string;
+  /** Everyday wording for the simple interface (falls back to `label`). */
+  plain?: string;
 }
 
 export const CADENCES: readonly (Option<CadenceKey> & { minutes: number })[] = [
@@ -266,62 +282,63 @@ export const CADENCES: readonly (Option<CadenceKey> & { minutes: number })[] = [
 ];
 
 export const MODALITIES: readonly (Option<ModalityKey> & { Ivis: number; Iaud: number; O1: number })[] = [
-  { key: 'zero', label: 'Nothing / Rest', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0 },
-  { key: 'auditory', label: 'Auditory Narrative', detail: 'Audiobook, podcast', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0 },
-  { key: 'reading', label: 'Visual Reading', detail: 'Prose on page', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0 },
-  { key: 'dense', label: 'Dense Technical In', detail: 'Papers, docs, code review', params: 'I_vis=0.85', Ivis: 0.85, Iaud: 0, O1: 0 },
-  { key: 'expressive', label: 'Expressive Out', detail: 'Journal / Improv', params: 'O_1=0.35', Ivis: 0, Iaud: 0, O1: 0.35 },
-  { key: 'execution', label: 'Deep Execution', detail: 'Code / Drafting', params: 'O_1=0.80', Ivis: 0, Iaud: 0, O1: 0.8 },
+  { key: 'zero', label: 'Nothing / Rest', plain: 'Rest, nothing going in', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0 },
+  { key: 'auditory', label: 'Auditory Narrative', plain: 'Listening', detail: 'Audiobook, podcast, conversation', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0 },
+  { key: 'reading', label: 'Visual Reading', plain: 'Reading or watching', detail: 'Prose on page, screens', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0 },
+  { key: 'dense', label: 'Dense Technical In', plain: 'Studying dense material', detail: 'Papers, docs, code review', params: 'I_vis=0.85', Ivis: 0.85, Iaud: 0, O1: 0 },
+  { key: 'expressive', label: 'Expressive Out', plain: 'Expressing (writing, playing)', detail: 'Journal, improv, sketching, chores', params: 'O_1=0.35', Ivis: 0, Iaud: 0, O1: 0.35 },
+  { key: 'execution', label: 'Deep Execution', plain: 'Focused work (making things)', detail: 'Code, drafting, building', params: 'O_1=0.80', Ivis: 0, Iaud: 0, O1: 0.8 },
 ];
 
 export const ANCHORS: readonly (Option<AnchorKey> & { Ianchor: number; Oanchor: number; kinetic: boolean })[] = [
-  { key: 'none', label: 'None / Silence', detail: 'No secondary channel', params: 'I_a=0 O_a=0', Ianchor: 0, Oanchor: 0, kinetic: false },
-  { key: 'brown', label: 'Ambient Brown Noise', detail: 'Broadband masking', params: 'I_a=0.30', Ianchor: 0.3, Oanchor: 0, kinetic: false },
-  { key: 'music', label: 'Familiar Lyrical Music', detail: 'On repeat, C_in,2 ≤ 0.15', params: 'I_a=0.55', Ianchor: 0.55, Oanchor: 0, kinetic: false },
-  { key: 'fidget', label: 'Tactile Fidget', detail: 'Hand-scale kinetic', params: 'O_a=0.20', Ianchor: 0, Oanchor: 0.2, kinetic: false },
-  { key: 'treadmill', label: 'Walking Treadmill', detail: '2.5–2.8 mph, kinetic deload', params: 'O_a=0.35', Ianchor: 0, Oanchor: 0.35, kinetic: true },
+  { key: 'none', label: 'None / Silence', plain: 'Silence', detail: 'No secondary channel', params: 'I_a=0 O_a=0', Ianchor: 0, Oanchor: 0, kinetic: false },
+  { key: 'brown', label: 'Ambient Brown Noise', plain: 'Background noise', detail: 'Brown or white noise, rain, ambient', params: 'I_a=0.30', Ianchor: 0.3, Oanchor: 0, kinetic: false },
+  { key: 'music', label: 'Familiar Lyrical Music', plain: 'Familiar music', detail: 'On repeat, low cognitive density', params: 'I_a=0.55', Ianchor: 0.55, Oanchor: 0, kinetic: false },
+  { key: 'fidget', label: 'Tactile Fidget', plain: 'Fidget or hands busy', detail: 'Hand-scale kinetic', params: 'O_a=0.20', Ianchor: 0, Oanchor: 0.2, kinetic: false },
+  { key: 'treadmill', label: 'Walking Treadmill', plain: 'Walking or moving', detail: 'Walk, treadmill, pacing, workout', params: 'O_a=0.35', Ianchor: 0, Oanchor: 0.35, kinetic: true },
 ];
 
 export const VALUATIONS: readonly (Option<ValuationKey> & { V: number; admissible: boolean })[] = [
-  { key: 'churn', label: 'Churn', detail: 'Feeds, inbox, scrolling — inadmissible', params: 'V=0.10', V: 0.1, admissible: false },
-  { key: 'utility', label: 'Utility', detail: 'Necessary, low-yield', params: 'V=0.50', V: 0.5, admissible: true },
-  { key: 'art', label: 'Literature / Art', detail: 'Generative or restorative', params: 'V=0.85', V: 0.85, admissible: true },
-  { key: 'architecture', label: 'Deep Architecture', detail: 'Structural yield', params: 'V=1.00', V: 1.0, admissible: true },
+  { key: 'churn', label: 'Churn', plain: 'Scrolling, feeds, inbox', detail: 'Feeds, inbox, scrolling — inadmissible', params: 'V=0.10', V: 0.1, admissible: false },
+  { key: 'utility', label: 'Utility', plain: 'Necessary stuff', detail: 'Chores, admin, meetings, errands', params: 'V=0.50', V: 0.5, admissible: true },
+  { key: 'art', label: 'Literature / Art', plain: 'Books, art, music, people', detail: 'Generative or restorative', params: 'V=0.85', V: 0.85, admissible: true },
+  { key: 'architecture', label: 'Deep Architecture', plain: 'Real work or craft', detail: 'Structural yield', params: 'V=1.00', V: 1.0, admissible: true },
 ];
 
 export const DENSITIES: readonly (Option<DensityKey> & { Cin: number })[] = [
-  { key: 'null', label: 'Null', detail: 'No intake', params: 'C_in=0.05', Cin: 0.05 },
-  { key: 'fiction', label: 'Fiction Narrative', detail: 'Low-entropy prose', params: 'C_in=0.20', Cin: 0.2 },
-  { key: 'analysis', label: 'Structured Analysis', detail: 'Essays, reports', params: 'C_in=0.40', Cin: 0.4 },
-  { key: 'manuals', label: 'System Manuals', detail: 'Reference, specs', params: 'C_in=0.65', Cin: 0.65 },
-  { key: 'proofs', label: 'Abstract Proofs / Code', detail: 'Maximal entropy', params: 'C_in=0.90', Cin: 0.9 },
+  { key: 'null', label: 'Null', plain: 'Nothing to take in', detail: 'No intake', params: 'C_in=0.05', Cin: 0.05 },
+  { key: 'fiction', label: 'Fiction Narrative', plain: 'Light: stories, chat', detail: 'Low-entropy prose', params: 'C_in=0.20', Cin: 0.2 },
+  { key: 'analysis', label: 'Structured Analysis', plain: 'Medium: articles, meetings', detail: 'Essays, reports', params: 'C_in=0.40', Cin: 0.4 },
+  { key: 'manuals', label: 'System Manuals', plain: 'Dense: manuals, textbooks', detail: 'Reference, specs', params: 'C_in=0.65', Cin: 0.65 },
+  { key: 'proofs', label: 'Abstract Proofs / Code', plain: 'Very dense: math, code', detail: 'Maximal entropy', params: 'C_in=0.90', Cin: 0.9 },
 ];
 
 export const CONTEXTS: readonly (Option<ContextKey> & { P: number; S: number })[] = [
-  { key: 'agency', label: 'Pure Agency', detail: 'Self-directed', params: 'P=0.00 S=1.00', P: 0, S: 1 },
-  { key: 'soft', label: 'Soft Goal', detail: 'Intent without stakes', params: 'P=0.25 S=0.85', P: 0.25, S: 0.85 },
-  { key: 'sprint', label: 'Sprint Deliverable', detail: 'Committed date', params: 'P=0.60 S=0.70', P: 0.6, S: 0.7 },
-  { key: 'scrutiny', label: 'External Scrutiny', detail: 'Evaluation threat', params: 'P=0.90 S=0.25', P: 0.9, S: 0.25 },
+  { key: 'agency', label: 'Pure Agency', plain: 'My own choice', detail: 'Self-directed', params: 'P=0.00 S=1.00', P: 0, S: 1 },
+  { key: 'soft', label: 'Soft Goal', plain: 'A soft goal', detail: 'Intent without stakes', params: 'P=0.25 S=0.85', P: 0.25, S: 0.85 },
+  { key: 'sprint', label: 'Sprint Deliverable', plain: 'A real deadline', detail: 'Committed date', params: 'P=0.60 S=0.70', P: 0.6, S: 0.7 },
+  { key: 'scrutiny', label: 'External Scrutiny', plain: 'Being judged', detail: 'Evaluation threat', params: 'P=0.90 S=0.25', P: 0.9, S: 0.25 },
 ];
 
 export const SCRATCHPADS: readonly (Option<ScratchpadKey> & { omega: number; gammaAssoc: number })[] = [
-  { key: 'single', label: 'Single Thread Flow', detail: 'No tangents surfaced', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
-  { key: 'tokenized', label: 'Tokenized To Scratchpad', detail: 'Tangent written, then dropped', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
-  { key: 'speculative', label: 'Unbuffered Speculative Intake', detail: 'Sub-threads spawned, not externalized', params: 'γ_a=0.5 Ω=0', omega: 0, gammaAssoc: 0.5 },
-  { key: 'rabbit', label: 'Unbuffered Rabbit Hole', detail: 'Divergent context switch', params: 'γ_a=1.0 Ω=0.25', omega: 0.25, gammaAssoc: 1 },
+  { key: 'single', label: 'Single Thread Flow', plain: 'Stayed on track', detail: 'No tangents surfaced', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
+  { key: 'tokenized', label: 'Tokenized To Scratchpad', plain: 'Wrote tangents down', detail: 'Tangent written, then dropped', params: 'γ_a=0 Ω=0', omega: 0, gammaAssoc: 0 },
+  { key: 'speculative', label: 'Unbuffered Speculative Intake', plain: 'Ideas kept branching', detail: 'Sub-threads spawned, not externalized', params: 'γ_a=0.5 Ω=0', omega: 0, gammaAssoc: 0.5 },
+  { key: 'rabbit', label: 'Unbuffered Rabbit Hole', plain: 'Fell down a rabbit hole', detail: 'Divergent context switch', params: 'γ_a=1.0 Ω=0.25', omega: 0.25, gammaAssoc: 1 },
 ];
 
 export const NOVELTIES: readonly (Option<NoveltyKey> & { xi: number })[] = [
-  { key: 'monotonous', label: 'Monotonous', detail: 'Low-entropy, repetitive', params: 'ξ=0.00', xi: 0 },
-  { key: 'routine', label: 'Routine', detail: 'Familiar domain', params: 'ξ=0.05', xi: 0.05 },
-  { key: 'novel', label: 'Novel Cross-Domain', detail: 'High-entropy associative stimulation', params: 'ξ=0.15', xi: 0.15 },
+  { key: 'monotonous', label: 'Monotonous', plain: 'Boring, repetitive', detail: 'Low-entropy, repetitive', params: 'ξ=0.00', xi: 0 },
+  { key: 'routine', label: 'Routine', plain: 'Familiar', detail: 'Familiar domain', params: 'ξ=0.05', xi: 0.05 },
+  { key: 'novel', label: 'Novel Cross-Domain', plain: 'New territory', detail: 'High-entropy associative stimulation', params: 'ξ=0.15', xi: 0.15 },
 ];
 
 export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   {
     key: 'supine',
     label: 'Supported / Supine',
-    detail: 'Masked / deload',
+    plain: 'Lying down or moving',
+    detail: 'Supported, supine, standing or moving: no static seat',
     params: '𝟙seat=0 𝟙kin=1',
     staticSeated: false,
     kineticOrSupported: true,
@@ -333,6 +350,7 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   {
     key: 'seated',
     label: 'Ergonomic Seated',
+    plain: 'Sitting',
     detail: 'Neutral spine, screen at eye line',
     params: '𝟙seat=1 𝟙kin=0',
     staticSeated: true,
@@ -345,6 +363,7 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   {
     key: 'ocular',
     label: 'Active Ocular Strain',
+    plain: 'Eyes hurting',
     detail: 'Accommodation fatigue reported',
     params: 'γ_vis×1.6',
     staticSeated: true,
@@ -357,7 +376,8 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
   {
     key: 'slump',
     label: 'Cervical / Lumbar Slump',
-    detail: 'Collapsed posture',
+    plain: 'Slouching or stiff',
+    detail: 'Collapsed posture, neck or back pain',
     params: 'γ_post×2.0',
     staticSeated: true,
     kineticOrSupported: false,
@@ -369,13 +389,13 @@ export const SOMATICS: readonly (Option<SomaticKey> & SomaticFlags)[] = [
 ];
 
 export const INTENSITIES: readonly (Option<IntensityKey> & { factor: number })[] = [
-  { key: 'light', label: 'Light', detail: 'Easy pace, ×0.7 intensity', params: '×0.70', factor: 0.7 },
-  { key: 'standard', label: 'Standard', detail: 'As modelled', params: '×1.00', factor: 1 },
-  { key: 'heavy', label: 'Heavy', detail: 'Pushing, ×1.25 intensity', params: '×1.25', factor: 1.25 },
+  { key: 'light', label: 'Light', plain: 'Easy', detail: 'Easy pace, ×0.7 intensity', params: '×0.70', factor: 0.7 },
+  { key: 'standard', label: 'Standard', plain: 'Normal', detail: 'As modelled', params: '×1.00', factor: 1 },
+  { key: 'heavy', label: 'Heavy', plain: 'Hard', detail: 'Pushing, ×1.25 intensity', params: '×1.25', factor: 1.25 },
 ];
 
 export const DEFAULT_SPEC: BlockSpec = Object.freeze({
-  cadence: 'm25',
+  cadence: 'm15',
   intensity: 'standard',
   modality: 'execution',
   anchor: 'music',
@@ -1108,11 +1128,12 @@ function buildPrescription(
 
 const REST_BASE: SpecBase = { modality: 'zero', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' };
 
-export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants): Prescription[] {
+export function prescribe(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, maxMinutes?: number): Prescription[] {
   const F = compositeStrain(x);
   const out: Prescription[] = [];
   const g = d.guardrails;
-  const push = (kind: Exclude<ConfigKind, 'sleep'>, name: string, rationale: string, base: SpecBase, preferredMax = 90) => {
+  const push = (kind: Exclude<ConfigKind, 'sleep'>, name: string, rationale: string, base: SpecBase, preferredMaxIn = 90) => {
+    const preferredMax = maxMinutes ? Math.min(preferredMaxIn, Math.max(15, maxMinutes)) : preferredMaxIn;
     const m = MODALITIES.find((o) => o.key === base.modality)!;
     // Guardrails: the optical cutoff forbids any visual intake, the backlog
     // lock forbids any intake at all. Candidates that violate them are dropped.
@@ -1404,23 +1425,33 @@ export function presetEntry(p: UserPreset): CatalogEntry {
 }
 
 export const BLOCK_CATALOG: readonly CatalogEntry[] = [
-  { id: 'rest-isolation', name: 'Sensory isolation rest', kind: 'rest', detail: 'Dark room, eye mask, supine, silence', minutes: 25, spec: { ...REST_BASE } },
-  { id: 'rest-brown', name: 'Zero-input rest, brown noise', kind: 'rest', detail: 'Supine under broadband masking', minutes: 25, spec: { ...REST_BASE, anchor: 'brown' } },
-  { id: 'somatic-walk', name: 'Treadmill walk, zero input', kind: 'somatic', detail: '2.5–2.8 mph, no screens, no audio', minutes: 25, spec: { ...REST_BASE, anchor: 'treadmill' } },
-  { id: 'somatic-fidget', name: 'Supine deload with tactile anchor', kind: 'somatic', detail: 'Spinal deload, eyes closed, hand-scale kinetic', minutes: 25, spec: { ...REST_BASE, anchor: 'fidget' } },
-  { id: 'absorb-audio', name: 'Audio narrative, eye mask', kind: 'absorb', detail: 'Fiction density, supine, I_vis = 0', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
-  { id: 'absorb-audio-walk', name: 'Audiobook on the treadmill', kind: 'absorb', detail: 'Fiction density, kinetic anchor', minutes: 45, spec: { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
-  { id: 'absorb-literature', name: 'Literature on the page', kind: 'absorb', detail: 'Substantive prose, familiar music, supported', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
-  { id: 'absorb-analysis', name: 'Structured analysis reading', kind: 'absorb', detail: 'Essays and reports, seated, tokenized', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'analysis', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'absorb-dense', name: 'Dense technical absorption', kind: 'absorb', detail: 'Specs, papers, code review at C_in 0.65', minutes: 45, spec: { modality: 'dense', anchor: 'music', valuation: 'architecture', density: 'manuals', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'express-journal', name: 'Scratchpad synthesis, familiar music', kind: 'express', detail: 'Analog journaling, tangents tokenized', minutes: 25, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'express-silence', name: 'Improv or free-write in silence', kind: 'express', detail: 'Expressive output, supported posture', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
-  { id: 'express-walk', name: 'Pacing dictation', kind: 'express', detail: 'Expressive output on the treadmill', minutes: 25, spec: { modality: 'expressive', anchor: 'treadmill', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
-  { id: 'ramp', name: 'Arousal ramp: novel-domain free-write', kind: 'express', detail: 'Music anchor plus cross-domain novelty (ξ = 0.15)', minutes: 15, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' } },
-  { id: 'execute-sprint', name: 'Core generative sprint, music loop', kind: 'execute', detail: 'Architecture / proofs / code, pure agency', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'execute-walk', name: 'Walking-desk execution', kind: 'execute', detail: 'Same output vector on the treadmill', minutes: 45, spec: { modality: 'execution', anchor: 'treadmill', valuation: 'architecture', density: 'proofs', context: 'soft', scratchpad: 'tokenized', somatic: 'supine' } },
-  { id: 'execute-deadline', name: 'Sprint deliverable under deadline', kind: 'execute', detail: 'P = 0.60, S = 0.70, music anchor', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'sprint', scratchpad: 'tokenized', somatic: 'seated' } },
-  { id: 'sleep', name: 'Terminal sleep reset', kind: 'sleep', detail: 'Full shutdown, 7.5 h', minutes: 0, spec: null },
+  { id: 'rest-isolation', name: 'Rest in the dark', kind: 'rest', detail: 'Lie down, eyes closed, nothing playing', minutes: 25, spec: { ...REST_BASE } },
+  { id: 'rest-brown', name: 'Rest with background noise', kind: 'rest', detail: 'Lie down under brown noise or rain sounds', minutes: 25, spec: { ...REST_BASE, anchor: 'brown' } },
+  { id: 'nap', name: 'Short nap', kind: 'rest', detail: 'Twenty minutes, eye mask, silence', minutes: 25, spec: { ...REST_BASE } },
+  { id: 'meditate', name: 'Meditate or breathe', kind: 'rest', detail: 'Sit or lie still with your breath', minutes: 15, spec: { ...REST_BASE } },
+  { id: 'somatic-walk', name: 'Walk without input', kind: 'somatic', detail: 'A walk with no screens and no audio', minutes: 25, spec: { ...REST_BASE, anchor: 'treadmill' } },
+  { id: 'gym', name: 'Gym, run or stretch', kind: 'somatic', detail: 'Any workout; the body works, the head rests', minutes: 45, spec: { ...REST_BASE, anchor: 'treadmill' } },
+  { id: 'somatic-fidget', name: 'Lie down with a fidget', kind: 'somatic', detail: 'Unload your spine, eyes closed, hands busy', minutes: 25, spec: { ...REST_BASE, anchor: 'fidget' } },
+  { id: 'absorb-audio', name: 'Audiobook with eyes closed', kind: 'absorb', detail: 'A story, lying down, screen off', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-audio-walk', name: 'Audiobook on a walk', kind: 'absorb', detail: 'A story while you walk', minutes: 45, spec: { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'call-friend', name: 'Call or hang out with a friend', kind: 'absorb', detail: 'Easy conversation, no agenda', minutes: 25, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-literature', name: 'Read a book with music on', kind: 'absorb', detail: 'Fiction or literature, lying down', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-analysis', name: 'Read articles or essays', kind: 'absorb', detail: 'Non-fiction at a desk, tangents noted', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'analysis', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'tv', name: 'TV or streaming', kind: 'absorb', detail: 'An episode on the couch', minutes: 45, spec: { modality: 'reading', anchor: 'none', valuation: 'utility', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-dense', name: 'Study dense material', kind: 'absorb', detail: 'Textbooks, papers, documentation, with music', minutes: 45, spec: { modality: 'dense', anchor: 'music', valuation: 'architecture', density: 'manuals', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'meeting', name: 'Meeting or work call', kind: 'absorb', detail: 'Listening and answering, with a deadline in the room', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'sprint', scratchpad: 'single', somatic: 'seated' } },
+  { id: 'emails', name: 'Emails and admin', kind: 'absorb', detail: 'Inbox, messages, forms', minutes: 25, spec: { modality: 'reading', anchor: 'none', valuation: 'churn', density: 'analysis', context: 'sprint', scratchpad: 'speculative', somatic: 'seated' } },
+  { id: 'social', name: 'Social media', kind: 'absorb', detail: 'Feeds and scrolling', minutes: 15, spec: { modality: 'reading', anchor: 'none', valuation: 'churn', density: 'fiction', context: 'agency', scratchpad: 'speculative', somatic: 'seated' } },
+  { id: 'gaming', name: 'Video games', kind: 'absorb', detail: 'Screen, fast input, some output', minutes: 45, spec: { modality: 'reading', anchor: 'none', valuation: 'utility', density: 'analysis', context: 'agency', scratchpad: 'single', novelty: 'routine', somatic: 'seated', intensity: 'heavy' } },
+  { id: 'express-journal', name: 'Journal with music on', kind: 'express', detail: 'Get it onto paper; note the tangents', minutes: 25, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'express-silence', name: 'Free-write or play in silence', kind: 'express', detail: 'Journal, improvise, sketch; no input', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'express-walk', name: 'Think out loud on a walk', kind: 'express', detail: 'Dictate or talk it through while walking', minutes: 25, spec: { modality: 'expressive', anchor: 'treadmill', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'chores', name: 'Cook or do chores', kind: 'express', detail: 'Hands busy, low stakes, moving around', minutes: 25, spec: { modality: 'expressive', anchor: 'none', valuation: 'utility', density: 'null', context: 'agency', scratchpad: 'single', novelty: 'monotonous', somatic: 'supine', intensity: 'light' } },
+  { id: 'ramp', name: 'Warm-up: free-write about something new', kind: 'express', detail: 'Fifteen minutes with music on, in unfamiliar territory', minutes: 15, spec: { modality: 'expressive', anchor: 'music', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'novel', somatic: 'seated' } },
+  { id: 'execute-sprint', name: 'Deep work with music on repeat', kind: 'execute', detail: 'Build, code, write or design; your own choice of what', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'execute-walk', name: 'Deep work at a walking desk', kind: 'execute', detail: 'The same work, on your feet', minutes: 45, spec: { modality: 'execution', anchor: 'treadmill', valuation: 'architecture', density: 'proofs', context: 'soft', scratchpad: 'tokenized', somatic: 'supine' } },
+  { id: 'execute-deadline', name: 'Deep work under a deadline', kind: 'execute', detail: 'Committed delivery, music on', minutes: 45, spec: { modality: 'execution', anchor: 'music', valuation: 'architecture', density: 'proofs', context: 'sprint', scratchpad: 'tokenized', somatic: 'seated' } },
+  { id: 'sleep', name: 'Go to sleep', kind: 'sleep', detail: 'Full reset, 7.5 h', minutes: 0, spec: null },
 ];
 
 export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
@@ -1482,12 +1513,22 @@ function fitTable(r: Routing, d: Diagnostics, F: number): FitRow {
 }
 
 /** Grade every catalog entry (and any user presets) against the current state; sorted best first. */
-export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics, r: Routing, k: Constants, presets: readonly UserPreset[] = []): GradedBlock[] {
+export function gradeCatalog(
+  x: StateVector,
+  hoursAwake: number,
+  d: Diagnostics,
+  r: Routing,
+  k: Constants,
+  presets: readonly UserPreset[] = [],
+  blockLength?: number,
+): GradedBlock[] {
   const F = compositeStrain(x);
   const fits = fitTable(r, d, F);
   const g = d.guardrails;
   const U0 = stateUtility(x, k);
-  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG];
+  const entries: CatalogEntry[] = [...presets.map(presetEntry), ...BLOCK_CATALOG].map((e) =>
+    blockLength && e.kind !== 'sleep' ? { ...e, minutes: Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(blockLength))) } : e,
+  );
   const out: GradedBlock[] = entries.map((entry) => {
     const caps: string[] = [];
     const fit = fits[entry.kind];
@@ -1533,11 +1574,8 @@ export function gradeCatalog(x: StateVector, hoursAwake: number, d: Diagnostics,
       horizonScore = 100;
       stopReason = `no boundary inside ${entry.minutes} m`;
     }
-    const effective = Math.max(bound, 15);
-    const specOut: BlockSpec =
-      entry.presetId && CADENCES.every((c) => c.minutes !== effective)
-        ? { novelty: 'routine', ...entry.spec, cadence: CUSTOM_CADENCE, customMinutes: effective }
-        : withCadence(entry.spec, effective);
+    const effective = Math.max(bound, Math.min(15, entry.minutes));
+    const specOut: BlockSpec = withMinutes(withCadence(entry.spec, 15), effective);
     const inputs = resolveSpec(specOut);
     const I1 = inputs.u.Ivis + inputs.u.Iaud;
     const result = integrateBlock(x, hoursAwake, inputs, effective, k);
@@ -1586,6 +1624,8 @@ export interface HistoryEntry {
   k: number;
   at: string;
   kind: 'block' | 'sleep' | 'override';
+  /** Free-text description the block was logged from, when any. */
+  note?: string;
   dtMinutes: number;
   spec: BlockSpec | null;
   sleepHours?: number;
@@ -1612,6 +1652,8 @@ export interface PersistedState {
   presets: UserPreset[];
   /** Simple mode: show symbols, predicates and mono diagnostics alongside the plain copy. */
   showMath: boolean;
+  /** Fixed block length in minutes used for grading, boundaries and one-click logging. */
+  blockLength: number;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
   /** Simple (single-column flow) or advanced (full instrument panel) interface. */
@@ -1633,6 +1675,7 @@ export function defaultPersisted(): PersistedState {
     hoursAwake: 0,
     presets: [],
     showMath: false,
+    blockLength: DEFAULT_BLOCK_LENGTH,
     backlogLatch: false,
     uiMode: 'simple',
     blockIndex: 0,
@@ -1736,6 +1779,7 @@ export function decodePersisted(json: string | null): PersistedState {
     hoursAwake,
     presets,
     showMath: r.showMath === true,
+    blockLength: isFiniteNumber(r.blockLength) ? Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.blockLength))) : DEFAULT_BLOCK_LENGTH,
     backlogLatch: r.backlogLatch === true,
     uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,

@@ -189,6 +189,36 @@ trajectory chart, full audit form, state-vector report, prescription cards, trai
 block log, catalog cards, constants panel, JSON export). The header toggle switches modes;
 Calibrate / Sleep Reset / Undo are available in both.
 
+### Describe a block in your own words
+
+`blockDescriber.ts` turns free text into a proposed block, offline and deterministically:
+activity templates (workout, nap, chores, meeting, emails, scrolling, videos, film, TV, gaming,
+audiobook, podcast, conversation, commute, journaling, making, coding, math, writing, building,
+studying, dense reading, fiction, reading, listening, generic work) set the modality and its
+natural density / value, then per-field lexicons override anchor, posture, pressure, tangents,
+novelty, intensity, value and density from cues in the text, and coherence rules tidy up
+(rest has no density, expressing has no intake density, rest defaults to lying down). Durations
+are parsed from phrasings like *15 min*, *2h*, *1h30*, *half an hour*, *a pomodoro*; without one,
+the fixed block length applies. The result carries a confidence (activity evidence dominates), the
+cue word behind each choice, and the fields that were assumed. The log card shows this as
+*Understood as* with the plain choice per field; below 0.5 confidence the full form opens with the
+guess pre-selected. The description is kept as a `note` on the log entry.
+
+### Fixed block length
+
+`blockLength` (default 15 min, editable in *How this works*) is the length of every block in the
+simple flow: grades and boundaries are computed for that length, **Start** arms it, the log card
+is titled for it, and the describer defaults to it. Other lengths remain available under *Change
+what you did* (standard cadences or a custom 5–240 min).
+
+### Everyday vocabulary
+
+Every option has a plain label used by the simple interface (for example *Reading or watching*,
+*Lying down or moving*, *A real deadline*, *Fell down a rabbit hole*) beside the model label used
+in Advanced mode, and the catalog includes everyday blocks (short nap, meditate, gym, call a
+friend, TV, meeting, emails, social media, video games, cook or do chores) so the grades speak to
+habits the spec never named.
+
 ### Flexibility
 
 - **Custom duration**: `cadence: 'custom'` with `customMinutes` (5–240) anywhere a block is logged;
