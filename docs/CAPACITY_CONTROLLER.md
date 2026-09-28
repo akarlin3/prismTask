@@ -159,32 +159,44 @@ singularity, 70 in a structural one, and 15 otherwise.
 
 ### Comparisons instead of grades
 
-There are no letter grades. `compareBlocks` measures every scored block against the best option
-for the current state (`Comparison`): the reference block's name, the score margin, a *standing*,
-and the predicted end state minus the reference's for every meter (plus the composite-strain and
-`|A − A*|` differences). Standings:
+There are no letter grades, and nothing is judged. `compareBlocks` measures every scored block
+against the best option for the current state (`Comparison`): the reference block's name, the
+score margin, a *standing*, and the predicted end state minus the reference's for every meter
+(plus the composite-strain and `|A − A*|` differences). The standing describes how closely the
+score matches the recommendation, never whether the block is good or bad, and its pill shows
+only with Show math or in Advanced mode:
 
 | Standing | Rule | Shown as |
 |---|---|---|
-| `best` | the reference itself (or the same block by `sameBlock`), or margin ≥ 0 | **Best now** |
-| `close` | margin ≥ −8 | **Nearly as good** |
-| `behind` | margin ≥ −25 | **A step behind** |
-| `far` | margin < −25 | **Well behind** |
+| `best` | the reference itself (or the same block by `sameBlock`), or margin ≥ 0 | **Top match** |
+| `close` | margin ≥ −8 | **Close match** |
+| `behind` | margin ≥ −25 | **Partial match** |
+| `far` | margin < −25 | **Different path** |
 
 Guardrail caps never decide the standing. Each cap a block trips is also a typed warning
-(`GradedBlock.guardrails`, `GuardrailWarning { type, cap, detail }`) shown under the block with
-the guardrail's name: **Input prohibited** (singularity), **Backlog lock**, **Optical cutoff**,
-**Depleting intake**, **Under-arousal gate**, **Terminal strain**, **Hard boundary** (a stop rule
-trips inside 15 m), **Not indicated** (sleep). The cap still lowers the score, so a block that
-trips a guardrail usually stands well behind the recommendation, and the warning says why.
+(`GradedBlock.guardrails`, `GuardrailWarning { type, severity, cap, detail }`) named after the
+guardrail: **Input prohibited** (singularity), **Backlog lock**, **Optical cutoff**, **Depleting
+intake**, **Under-arousal gate**, **Terminal strain**, **Hard boundary** (a stop rule trips inside
+15 m), **Not indicated** (sleep).
 
-The sentence under each block is generated from the comparison (`plainComparison`): *"A step
-behind Rest in the dark: less energy, more backlog and more strain."*, *"Nearly as good as Deep
-work at a walking desk: less backlog, more strain."*, or *"This is the recommended block: the
-best fit for your state right now."* for the reference; a guardrail reads as its own line, e.g.
-*"Backlog lock — Intake is locked until you write something out."*. At most
-three differences are named, in meter order (energy, backlog, strain, activation, depth), each
-only when the end states differ by ≥ 0.02. Show math adds the score and the margin in points.
+**Only a severe guardrail is shown as a warning** (`guardrailSeverity`, `severeWarnings`): one
+that predicts harm — a singularity, terminal strain, eyes past the optical cutoff, or a boundary
+whose stop rule is a strain, energy or late-phase limit (`F ≥`, `F_vis ≥`, `E <`, `t_late`). The
+rest (backlog lock, depleting intake, the under-arousal gate, sleep not indicated, and a boundary
+on a flux sign or the backlog) are efficiency *notes*: they still cap the score, but they surface
+only under Show math, styled as plain information rather than as an alert. The same rule applies
+in Advanced mode: the singularity and the optical cutoff keep their alert banners; the backlog
+lock and the depth floor read as notes.
+
+The sentence under each block is generated from the comparison (`plainComparison`) and names
+differences without ranking: *"Compared with the recommended block (Rest in the dark): less
+energy, more backlog and more strain."*, *"About the same result as the recommended block (Deep
+work at a walking desk)."*, or *"This is the recommended block for your state right now."* for
+the reference. A warning reads as its own line, e.g. *"Optical cutoff — Your eyes need a break:
+nothing on screen or page."*, and a boundary warning names the limit it hits (*"Strain would
+reach its limit within fifteen minutes."*). At most three differences are named, in meter order
+(energy, backlog, strain, activation, depth), each only when the end states differ by ≥ 0.02.
+Show math adds the score and the margin in points, the standing pill, and the notes.
 
 **Arm** loads the entry into the audit form with its effective cadence (the catalog cadence, or
 the largest standard cadence that survives the stop rule).
@@ -203,15 +215,22 @@ diagnostics beside the plain copy.
    hint (definitions on hover), and the awake time / block count.
 3. **Recommended now** — exactly one block: the best-scoring entry of the catalog (built-in
    archetypes plus your presets) for this state, with its detail, a one-sentence reason (fit,
-   predicted effect, safe duration, or the cap that applies), the boundary, and **Use this**.
-   No other blocks are listed in the simple flow; the full compared catalog lives in Advanced.
+   predicted effect, safe duration), a warning only if a severe guardrail applies, the boundary,
+   and **Use this**. No other blocks are listed in the simple flow; the full compared catalog
+   lives in Advanced.
 4. **Your block** — starts empty: *nothing is assumed* until you describe a block or press
    **Use this** (`suggested` in the persisted state). Then the block's details are adjustable
-   chips, the Seven Pillars row and the *Before you log it* comparison appear, followed by
-   warnings in words, **Log Block** (which empties the card again) and *Save this block as a
-   preset*. **Clear** empties it by hand. The full form (How long, Intensity, Playback speed,
-   What you did, Background anchor, How substantive, How dense, Pressure and control, Tangents,
-   Novelty, Body and posture) is one link away.
+   chips and the *Before you log it* comparison appears (the comparison sentence, the reason, a
+   warning only when the block would cross a hard limit, and the six meters now → after),
+   followed by **Log Block** (which empties the card again) and *Save this block as a preset*.
+   **Clear** empties it by hand. The full form (How long, Intensity, Playback speed, What you
+   did, Background anchor, How substantive, How dense, Pressure and control, Tangents, Novelty,
+   Body and posture) is one link away.
+
+The simple flow is **judgement-free by default**: no standing pill, no pillar scorecard, no
+"churn" or masking notes, and no efficiency notes. A warning appears only for a severe guardrail.
+**Show math** restores the standing pill and margin, the Seven Pillars row, the depth-floor and
+masking notes, and the efficiency notes, all styled as information.
 
 The copy layer lives in `capacityCopy.ts` (`PLAIN_SERIES`, `plainQuadrant`, `plainRegime`,
 `plainCap`, `plainEffect`, `plainReason`).
@@ -277,11 +296,11 @@ widened in step (gains to 5, drag schedule to 48 h).
 The block you suggest (described in words, taken from the recommendation, or adjusted chip by
 chip) is scored exactly like a catalog entry at its own length and compared with the recommended
 block (`gradeBlock(spec, …, against)`, `Comparison.self` when it is that block by content), and
-the card shows its standing pill, the comparison sentence, its reason, and all six meters as
+the card shows the comparison sentence, its reason, any severe warning, and all six meters as
 *now → after the block* (bar with the current fill, the change band, and a marker at the
-predicted value), followed by the routed headline the state would land on. In Advanced mode the
-predicted-Δx panel carries the same standing and margin. Everything updates live before anything
-is logged.
+predicted value), followed by the routed headline the state would land on. Show math adds the
+standing pill, the margin and the efficiency notes; in Advanced mode the predicted-Δx panel
+carries the same standing and margin. Everything updates live before anything is logged.
 
 ### Past blocks: edit and delete
 
@@ -298,7 +317,8 @@ backlog latch are set from the replay. **Undo** still reverts the last entry.
 
 Every evaluation of a block runs through seven constitutional filters (`pillars.ts`,
 `evaluatePillars`), each returning pass / flag / block / n/a with a one-line reason, shown as a
-row under the block being logged (simple and advanced):
+row under the block being logged in Advanced mode and, in the simple flow, only with Show math
+(the row is a scorecard, so it stays out of the judgement-free default view):
 
 | Pillar | Operator | Check |
 |---|---|---|

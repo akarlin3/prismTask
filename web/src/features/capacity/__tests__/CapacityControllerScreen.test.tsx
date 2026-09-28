@@ -40,7 +40,8 @@ describe('CapacityControllerScreen', () => {
     const details = within(mine).getByLabelText(/Block details/i);
     expect(within(details).getByRole('button', { name: /^Tangents:/i })).toHaveAttribute('aria-expanded', 'false');
     const preview = within(mine).getByLabelText(/Before you log it/i);
-    expect(within(preview).getByLabelText(/^Standing Best now$/)).toBeInTheDocument();
+    // Judgement-free: no standing pill without Show math, just the comparison in words.
+    expect(within(preview).queryByLabelText(/^Standing /)).not.toBeInTheDocument();
     expect(preview).toHaveTextContent(/This is the recommended block/);
     expect(preview).toHaveTextContent(/Before you log it · 15 min/);
     expect(within(preview).getByLabelText(/^Energy \d\.\d\d now, \d\.\d\d after the block$/)).toBeInTheDocument();
@@ -51,7 +52,8 @@ describe('CapacityControllerScreen', () => {
     fireEvent.click(within(details).getByRole('radio', { name: /Constant switching, scattered/i }));
     expect(within(details).getByRole('button', { name: /^Tangents: Constant switching, scattered ← you/i })).toBeInTheDocument();
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec.scratchpad).toBe('chaos');
-    expect(within(within(mine).getByLabelText(/Before you log it/i)).queryByLabelText(/^Standing Best now$/)).not.toBeInTheDocument();
+    expect(within(mine).getByLabelText(/Before you log it/i)).toHaveTextContent(/recommended block \(/);
+    expect(within(mine).getByLabelText(/Before you log it/i)).not.toHaveTextContent(/behind|better|worse/i);
     fireEvent.click(within(details).getByRole('button', { name: /^Done$/i }));
     expect(within(mine).queryByRole('radiogroup', { name: /What you did/i })).not.toBeInTheDocument();
 
@@ -62,14 +64,17 @@ describe('CapacityControllerScreen', () => {
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).suggested).toBe(false);
     expect(within(mine).queryByLabelText(/Before you log it/i)).not.toBeInTheDocument();
 
-    // Describing a churn block still gets a standing, plus a warning that names the guardrail it trips.
+    // Describing a churn block is compared, not judged: no standing pill, no warning (its guardrails are
+    // efficiency notes), no pillar scorecard, and no "counts as churn" line.
     fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
     fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
     const churnPreview = within(mine).getByLabelText(/Before you log it/i);
-    expect(within(churnPreview).getByLabelText(/^Standing (Well behind|A step behind)$/)).toBeInTheDocument();
-    const warnings = within(churnPreview).getByLabelText(/Guardrail warnings/i);
-    expect(warnings).toHaveTextContent(/Depleting intake|Hard boundary/);
-    expect(churnPreview).not.toHaveTextContent(/Not now/);
+    expect(within(churnPreview).queryByLabelText(/^Standing /)).not.toBeInTheDocument();
+    expect(churnPreview).toHaveTextContent(/recommended block \(/);
+    expect(within(churnPreview).queryByLabelText(/Guardrail warnings/i)).not.toBeInTheDocument();
+    expect(within(churnPreview).queryByLabelText(/Guardrail notes/i)).not.toBeInTheDocument();
+    expect(mine).not.toHaveTextContent(/behind|Not now|churn|good idea/i);
+    expect(within(mine).queryByLabelText(/Seven pillars/i)).not.toBeInTheDocument();
     fireEvent.click(within(mine).getByRole('button', { name: /^Clear$/i }));
     expect(within(mine).queryByLabelText(/Understood as/i)).not.toBeInTheDocument();
     expect(mine).toHaveTextContent(/Nothing is assumed until you do/);
@@ -78,6 +83,15 @@ describe('CapacityControllerScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /Show math/i }));
     expect(within(status).getAllByText(/I\* /).length).toBeGreaterThan(0);
     expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).showMath).toBe(true);
+    // With Show math on, the same churn block shows its standing, the pillar row and its efficiency notes.
+    fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'scrolled instagram' } });
+    fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+    const mathPreview = within(mine).getByLabelText(/Before you log it/i);
+    expect(within(mathPreview).getByLabelText(/^Standing (Partial match|Different path)$/)).toBeInTheDocument();
+    expect(within(mathPreview).getByLabelText(/Guardrail notes/i)).toHaveTextContent(/Depleting intake|Hard boundary/);
+    expect(within(mathPreview).queryByLabelText(/Guardrail warnings/i)).not.toBeInTheDocument();
+    expect(within(mine).getByLabelText(/Seven pillars/i)).toBeInTheDocument();
+    fireEvent.click(within(mine).getByRole('button', { name: /^Clear$/i }));
 
     // Advanced reveals the instrument panel and persists.
     fireEvent.click(screen.getByRole('button', { name: /^advanced$/i }));
@@ -192,6 +206,9 @@ describe('CapacityControllerScreen', () => {
     expect(within(log).queryByLabelText(/Seven pillars/i)).not.toBeInTheDocument();
     fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'journaled about the week' } });
     fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    // The pillar row is a scorecard, so the judgement-free simple flow keeps it behind Show math.
+    expect(within(log).queryByLabelText(/Seven pillars/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Show math/i }));
     const pillars = within(log).getByLabelText(/Seven pillars/i);
     expect(within(pillars).getAllByRole('button')).toHaveLength(7);
     expect(within(pillars).getByRole('button', { name: /Curiosity: pass/i })).toBeInTheDocument();
@@ -324,11 +341,12 @@ describe('CapacityControllerScreen', () => {
     expect(standings.length).toBeGreaterThanOrEqual(15);
     // Quadrant IV: the top card is an execution block; the others are compared with it by name.
     expect(within(catalog).getByText('Deep work with music on repeat')).toBeInTheDocument();
-    expect(standings[0]).toHaveTextContent('Best now');
-    expect(within(catalog).getAllByText(/^(Nearly as good as|A step behind|Well behind) Deep work at a walking desk: /).length).toBeGreaterThan(3);
-    // Guardrails are warnings that name the guardrail, not verdicts.
-    expect(within(catalog).queryByText(/Not now/)).not.toBeInTheDocument();
-    expect(within(catalog).getAllByLabelText(/Guardrail warnings/i).length).toBeGreaterThan(0);
+    expect(standings[0]).toHaveTextContent('Top match');
+    expect(within(catalog).getAllByText(/^Compared with the recommended block \(Deep work at a walking desk\): /).length).toBeGreaterThan(3);
+    expect(catalog).not.toHaveTextContent(/behind|Not now/);
+    // In a healthy state no guardrail is severe: the catalog carries notes (Advanced shows the math), not warnings.
+    expect(within(catalog).queryAllByLabelText(/Guardrail warnings/i)).toHaveLength(0);
+    expect(within(catalog).getAllByLabelText(/Guardrail notes/i).length).toBeGreaterThan(0);
     expect(catalog).toHaveTextContent(/Depleting intake|Not indicated/);
     const armButtons = within(catalog).getAllByRole('button', { name: /^Arm$/ });
     fireEvent.click(armButtons[0]);
@@ -343,7 +361,29 @@ describe('CapacityControllerScreen', () => {
     // Prescription card, trailing prompt and catalog entry all offer the reset.
     expect(screen.getAllByRole('button', { name: /Log Sleep Reset/i }).length).toBeGreaterThanOrEqual(2);
     const catalog = screen.getByRole('region', { name: /Block catalog/i });
-    expect(within(catalog).getAllByLabelText(/^Standing /)[0]).toHaveTextContent('Best now');
+    expect(within(catalog).getAllByLabelText(/^Standing /)[0]).toHaveTextContent('Top match');
     expect(within(catalog).getByText('Go to sleep')).toBeInTheDocument();
+    // Intake in a singularity is a severe guardrail, so here the catalog does carry warnings.
+    expect(within(catalog).getAllByLabelText(/Guardrail warnings/i).length).toBeGreaterThan(0);
+    expect(catalog).toHaveTextContent(/Input prohibited — Taking things in would drain you right now/);
+  });
+
+  it('warns in the simple flow only when a block would cross a hard limit', () => {
+    seed({ uiMode: 'simple', x: { E: 0.7, B: 0.2, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.9 }, hoursAwake: 3, blockIndex: 1, history: [] });
+    render(<CapacityControllerScreen />);
+    const mine = screen.getByRole('region', { name: /^Your block$/i });
+    // A page in front of tired eyes: the optical cutoff is severe, so it is the one warning shown.
+    fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'read a novel on the couch' } });
+    fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+    const preview = within(mine).getByLabelText(/Before you log it/i);
+    expect(within(preview).getByLabelText(/Guardrail warnings/i)).toHaveTextContent(/Optical cutoff — Your eyes need a break/);
+    expect(within(preview).queryByLabelText(/Guardrail notes/i)).not.toBeInTheDocument();
+    expect(within(preview).queryByLabelText(/^Standing /)).not.toBeInTheDocument();
+    // An audiobook with the eyes closed trips nothing severe: no warning at all.
+    fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'listened to an audiobook lying down' } });
+    fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+    const quiet = within(mine).getByLabelText(/Before you log it/i);
+    expect(within(quiet).queryByLabelText(/Guardrail warnings/i)).not.toBeInTheDocument();
+    expect(quiet).not.toHaveTextContent(/Optical cutoff|Hard boundary/);
   });
 });

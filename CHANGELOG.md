@@ -37,9 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Deconstruction, Somatic Grounding, Creativity, Strength Through Hardship
   as σ_strength drag attenuation, Radical Empathy), a before-you-log
   preview of the programmed block (reason and all six meters now → after),
-  comparisons instead of letter grades (every block stands against the
-  best one for the state: Best now / Nearly as good / A step behind / Well
-  behind / Not now, with the differences in words), and playback speed for
+  comparisons instead of letter grades (every block is measured against
+  the best one for the state and the differences are named in words; the
+  standing — Top match / Close match / Partial match / Different path —
+  shows only with Show math or in Advanced), and playback speed for
   listening and watching blocks (0.75×–3× scaling the intake channels,
   parsed from "at 1.5x", adjustable as a chip, with a usual listening speed
   applied to the catalog's audiobook entries). The simple flow now shows
@@ -58,7 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   minutes, with wider Constants ranges to match. Guardrails are warnings
   that name the guardrail (Input prohibited, Backlog lock, Optical cutoff,
   Depleting intake, Under-arousal gate, Terminal strain, Hard boundary, Not
-  indicated) rather than a "Not now" verdict, and a Past blocks log lets any
+  indicated) rather than a "Not now" verdict, and only a severe guardrail
+  (a singularity, terminal strain, eyes past the cutoff, or a strain /
+  energy / late-phase limit inside the block) is shown as a warning: the
+  efficiency guardrails (backlog lock, depleting intake, under-arousal
+  gate, not indicated) are notes shown only under Show math, as are the
+  Seven Pillars row and the depth-floor and masking notes in the simple
+  flow, so nothing is judged by default. A Past blocks log lets any
   logged block be edited (note, length, every field) or deleted, with
   everything after it replayed from the state it now follows.
   Engine + screen tests under

@@ -51,7 +51,7 @@ describe('plain-language copy', () => {
     const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
     const d = diagnose(x, 4, 0.9, k);
     const list = gradeCatalog(x, 4, d, route(x, d, k), k);
-    expect(plainReason(list[0], x)).toMatch(/^Fits what you need now;/);
+    expect(plainReason(list[0], x)).toMatch(/^Fits what your state calls for;/);
     const locked = list.find((g) => g.caps.length > 0);
     if (locked) expect(plainReason(locked, x)).not.toMatch(/[ΓΦψ]/);
   });
@@ -65,8 +65,11 @@ describe('plain-language copy', () => {
     const w = plainGuardrail(locked.guardrails.find((g) => g.type === 'backlogLock')!);
     expect(w.label).toBe('Backlog lock');
     expect(w.text).toMatch(/locked until you write/);
-    // The reason and the comparison speak about fit and effect; the guardrail is a separate line.
-    expect(plainReason(locked, x)).toMatch(/^(Fits what you need now|Reasonable now|Not the priority now|Wrong move for this state);/);
+    // A locked backlog is an efficiency note, not a severe warning.
+    expect(w.severity).toBe('note');
+    // The reason and the comparison describe fit and effect without judging; the guardrail is a separate line.
+    expect(plainReason(locked, x)).toMatch(/^(Fits what your state calls for|A fair fit for your state|A loose fit for your state|Not what your state calls for right now);/);
+    expect(plainReason(locked, x)).not.toMatch(/wrong|priority/i);
     expect(plainComparison(locked)).not.toMatch(/Not now/);
     expect(Object.keys(GUARDRAIL_LABEL)).toEqual(['singularity', 'backlogLock', 'opticalCutoff', 'depletingIntake', 'underArousal', 'terminalStrain', 'boundary', 'notIndicated']);
     for (const label of Object.values(GUARDRAIL_LABEL)) expect(label).toMatch(/^[A-Z]/);
@@ -77,19 +80,33 @@ describe('plain-language copy', () => {
     const d = diagnose(x, 4, 0.9, k);
     const list = gradeCatalog(x, 4, d, route(x, d, k), k);
     const best = list[0];
-    expect(plainComparison(best)).toBe('This is the recommended block: the best fit for your state right now.');
+    expect(plainComparison(best)).toBe('This is the recommended block for your state right now.');
+    const escaped = best.entry.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const g of list.slice(1)) {
       const text = plainComparison(g);
       expect(text).not.toMatch(/\b[A-F]\b(?! )|grade/i);
       expect(text).toContain(best.entry.name);
       expect(text).toMatch(/\.$/);
+      // Judgement-free: differences are named, the block is never ranked as better, worse or behind.
+      expect(text).not.toMatch(/\b(behind|better|worse|wrong|bad|good)\b/i);
+      expect(text).toMatch(new RegExp(`^(Compared with the recommended block \\(${escaped}\\): |About the same result as the recommended block \\(${escaped}\\)\\.$)`));
     }
-    const behind = list.find((g) => g.comparison.standing === 'behind' || g.comparison.standing === 'far');
-    if (behind) expect(plainComparison(behind)).toMatch(new RegExp(`^(A step behind|Well behind) ${best.entry.name}: `));
-    expect(Object.values(STANDING_LABEL)).toEqual(['Best now', 'Nearly as good', 'A step behind', 'Well behind']);
+    expect(Object.values(STANDING_LABEL)).toEqual(['Top match', 'Close match', 'Partial match', 'Different path']);
+    for (const label of Object.values(STANDING_LABEL)) expect(label).not.toMatch(/behind|better|worse|good|bad/i);
     const c = { ...best.comparison, deltas: { E: -0.05, B: 0.03, Fvis: 0, Fbody: 0, A: 0, V: 0 }, strainDelta: 0.04, arousalErrorDelta: -0.03 };
     expect(plainDifferences(c)).toEqual(['less energy', 'more backlog', 'more strain']);
     expect(plainDifferences({ ...c, strainDelta: 0 })).toEqual(['less energy', 'more backlog', 'activation closer to the sweet spot']);
     expect(plainDifferences({ ...c, deltas: null })).toEqual([]);
+  });
+
+  it('names the limit a boundary trip hits, in words', () => {
+    expect(plainCap('boundary trips inside 15 m (F ≥ 0.60)')).toBe('Strain would reach its limit within fifteen minutes.');
+    expect(plainCap('boundary trips inside 15 m (F_vis ≥ 0.60)')).toBe('Your eyes would reach their limit within fifteen minutes.');
+    expect(plainCap('boundary trips inside 15 m (E < 0.30)')).toBe('Energy would drop below its floor within fifteen minutes.');
+    expect(plainCap('boundary trips inside 15 m (t_late)')).toBe('The late-phase limit would trip within fifteen minutes.');
+    expect(plainCap('boundary trips inside 15 m (B ≥ 0.60)')).toBe('Backlog would fill up within fifteen minutes.');
+    expect(plainCap('boundary trips inside 15 m (Φ_in < 0)')).toMatch(/^Intake would start to drain/);
+    expect(plainCap('boundary trips inside 15 m (Φ_out < 0)')).toMatch(/^Output would start to cost/);
+    expect(plainCap('under-arousal gate: A = 0.20 with E = 0.70 — rest rejected')).not.toMatch(/will not help/);
   });
 });

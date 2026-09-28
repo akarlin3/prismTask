@@ -8,6 +8,7 @@ import {
   type Diagnostics,
   type GradedBlock,
   type GuardrailType,
+  type GuardrailSeverity,
   type GuardrailWarning,
   type Routing,
   type Standing,
@@ -83,11 +84,23 @@ export function plainCap(cap: string): string {
   if (cap.startsWith('optical cutoff')) return 'Your eyes need a break: nothing on screen or page.';
   if (cap.startsWith('input prohibited')) return 'Taking things in would drain you right now.';
   if (cap.startsWith('depleting intake')) return 'This would drain more than it restores.';
-  if (cap.startsWith('under-arousal gate')) return 'You are under-activated, not tired: rest will not help.';
+  if (cap.startsWith('under-arousal gate')) return 'Under-activated rather than tired: rest is unlikely to take.';
   if (cap.startsWith('terminal strain')) return 'Strain is at the limit; no more output.';
-  if (cap.startsWith('boundary trips')) return 'Hits a limit within fifteen minutes.';
+  if (cap.startsWith('boundary trips')) return plainBoundary(cap);
   if (cap.startsWith('not indicated')) return 'Not needed yet.';
   return cap;
+}
+
+/** Which limit a boundary trip hits inside the block, in words. */
+function plainBoundary(cap: string): string {
+  if (/F_vis ≥/.test(cap)) return 'Your eyes would reach their limit within fifteen minutes.';
+  if (/(^|[^_])F ≥/.test(cap)) return 'Strain would reach its limit within fifteen minutes.';
+  if (/E </.test(cap)) return 'Energy would drop below its floor within fifteen minutes.';
+  if (/t_late/.test(cap)) return 'The late-phase limit would trip within fifteen minutes.';
+  if (/B ≥/.test(cap)) return 'Backlog would fill up within fifteen minutes.';
+  if (/Φ_in </.test(cap)) return 'Intake would start to drain more than it restores within fifteen minutes.';
+  if (/Φ_out </.test(cap)) return 'Output would start to cost more than it clears within fifteen minutes.';
+  return 'Reaches a limit within fifteen minutes.';
 }
 
 const EFFECT_THRESHOLD = 0.03;
@@ -116,7 +129,8 @@ export function plainEffect(before: StateVector, after: StateVector): string[] {
  * guardrails it trips are reported separately (`plainGuardrail`), never folded in here.
  */
 export function plainReason(g: GradedBlock, x: StateVector): string {
-  const fit = g.fit >= 90 ? 'Fits what you need now' : g.fit >= 60 ? 'Reasonable now' : g.fit >= 30 ? 'Not the priority now' : 'Wrong move for this state';
+  // Fit is described, not judged: how closely the block matches what the routed state calls for.
+  const fit = g.fit >= 90 ? 'Fits what your state calls for' : g.fit >= 60 ? 'A fair fit for your state' : g.fit >= 30 ? 'A loose fit for your state' : 'Not what your state calls for right now';
   const effect = g.predicted ? plainEffect(x, g.predicted).join(', ') : 'no simulated effect';
   // A boundary inside fifteen minutes is a guardrail warning of its own; only a usable horizon is stated here.
   const horizon = g.entry.kind !== 'sleep' && g.horizon < 100 && g.boundMinutes >= 15 ? ` Safe for about ${g.boundMinutes} minutes.` : '';
@@ -135,9 +149,9 @@ export const GUARDRAIL_LABEL: Record<GuardrailType, string> = {
   notIndicated: 'Not indicated',
 };
 
-/** A guardrail warning in words: its name and what it means for this block. */
-export function plainGuardrail(w: GuardrailWarning): { label: string; text: string } {
-  return { label: GUARDRAIL_LABEL[w.type], text: plainCap(w.detail) };
+/** A guardrail warning in words: its name, what it means for this block, and whether it is a warning or a note. */
+export function plainGuardrail(w: GuardrailWarning): { label: string; text: string; severity: GuardrailSeverity } {
+  return { label: GUARDRAIL_LABEL[w.type], text: plainCap(w.detail), severity: w.severity };
 }
 
 export function joinEffects(parts: string[]): string {
@@ -145,12 +159,16 @@ export function joinEffects(parts: string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-/** Short label for where a block stands against the best option right now. */
+/**
+ * Short label for where a block stands against the best option right now. Judgement-free: the
+ * words describe how closely the score matches the recommendation, never whether the block is
+ * good or bad, and the pill only shows with Show math or in Advanced mode.
+ */
 export const STANDING_LABEL: Record<Standing, string> = {
-  best: 'Best now',
-  close: 'Nearly as good',
-  behind: 'A step behind',
-  far: 'Well behind',
+  best: 'Top match',
+  close: 'Close match',
+  behind: 'Partial match',
+  far: 'Different path',
 };
 
 const DIFF_THRESHOLD = 0.02;
@@ -176,16 +194,14 @@ export function plainDifferences(c: Comparison): string[] {
   return out.slice(0, 3);
 }
 
-/** One sentence comparing a block with the best option for the current state. */
+/**
+ * One sentence comparing a block with the best option for the current state. Judgement-free: it
+ * names the recommended block and the predicted differences, and never ranks the block as better,
+ * worse or behind (the margin is available under Show math).
+ */
 export function plainComparison(g: GradedBlock): string {
   const c = g.comparison;
-  const self = c.self;
-  if (self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'This is the recommended block: the best fit for your state right now.';
+  if (c.self || (c.standing === 'best' && c.margin === 0 && !c.deltas)) return 'This is the recommended block for your state right now.';
   const diffs = joinEffects(plainDifferences(c));
-  if (c.standing === 'best') {
-    if (c.margin > 0) return diffs ? `Better than the recommended block, ${c.against.name}: ${diffs}.` : `Better than the recommended block, ${c.against.name}.`;
-    return diffs ? `As good as the recommended block, ${c.against.name}: ${diffs}.` : `As good as the recommended block, ${c.against.name}.`;
-  }
-  const lead = c.standing === 'close' ? `Nearly as good as ${c.against.name}` : c.standing === 'behind' ? `A step behind ${c.against.name}` : `Well behind ${c.against.name}`;
-  return `${lead}: ${diffs || 'about the same result'}.`;
+  return diffs ? `Compared with the recommended block (${c.against.name}): ${diffs}.` : `About the same result as the recommended block (${c.against.name}).`;
 }

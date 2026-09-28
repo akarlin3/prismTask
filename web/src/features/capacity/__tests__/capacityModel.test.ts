@@ -30,6 +30,8 @@ import {
   compareBlocks,
   gradeBlock,
   gradeCatalog,
+  guardrailSeverity,
+  severeWarnings,
   inferKind,
   modalityIsPlayback,
   nearestSpeed,
@@ -417,6 +419,8 @@ describe('graded block catalog', () => {
         // Guardrails are typed warnings, one per cap, never a verdict of their own.
         expect(g.guardrails.map((w) => w.detail)).toEqual(g.caps);
         for (const w of g.guardrails) expect(g.score).toBeLessThanOrEqual(w.cap);
+        // Every warning carries its severity, derived from the guardrail (and the stop rule, for a boundary).
+        for (const w of g.guardrails) expect(w.severity).toBe(guardrailSeverity(w.type, w.detail));
       }
       if (g.entry.kind !== 'sleep') {
         expect(g.spec).not.toBeNull();
@@ -429,6 +433,41 @@ describe('graded block catalog', () => {
     expect(compareBlocks(twin, best, k).standing).toBe('best');
     expect(sameBlock(best.spec, twin.spec)).toBe(true);
     expect(sameBlock(best.spec, best.spec && { ...best.spec, speed: 'x2' })).toBe(false);
+  });
+
+  it('marks only harm-predicting guardrails as severe; efficiency guardrails are notes', () => {
+    expect(guardrailSeverity('singularity')).toBe('severe');
+    expect(guardrailSeverity('terminalStrain')).toBe('severe');
+    expect(guardrailSeverity('opticalCutoff')).toBe('severe');
+    expect(guardrailSeverity('backlogLock')).toBe('note');
+    expect(guardrailSeverity('depletingIntake')).toBe('note');
+    expect(guardrailSeverity('underArousal')).toBe('note');
+    expect(guardrailSeverity('notIndicated')).toBe('note');
+    // A boundary is severe when the stop rule that fires is a strain, energy or late-phase limit.
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (F ≥ 0.60)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (F_vis ≥ 0.60)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (E < 0.30)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (t_late)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (Φ_in < 0)')).toBe('note');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (Φ_out < 0)')).toBe('note');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (B ≥ 0.60)')).toBe('note');
+    // Sleep when it is not indicated is a note; a page in front of tired eyes is a warning.
+    const iv = gradeAll({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    const sleep = iv.list.find((g) => g.entry.kind === 'sleep')!;
+    expect(sleep.guardrails.map((w) => w.severity)).toEqual(['note']);
+    expect(severeWarnings(sleep)).toEqual([]);
+    const eyes = gradeAll({ E: 0.7, B: 0.2, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.9 });
+    const page = eyes.list.find((g) => g.spec && resolveSpec(g.spec).u.Ivis > 0)!;
+    expect(severeWarnings(page).map((w) => w.type)).toContain('opticalCutoff');
+    // Tired eyes do not bound a listening block: nothing severe, and no F_vis stop rule.
+    const ears = eyes.list.find((g) => g.spec && resolveSpec(g.spec).u.Iaud > 0 && resolveSpec(g.spec).u.Ivis === 0)!;
+    expect(ears).toBeDefined();
+    expect(severeWarnings(ears)).toEqual([]);
+    expect(ears.guardrails.some((w) => /F_vis/.test(w.detail))).toBe(false);
+    // Intake under the backlog lock is a note only.
+    const jammed = gradeAll({ E: 0.7, B: 0.7, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 4, true);
+    const locked = jammed.list.find((g) => g.guardrails.some((w) => w.type === 'backlogLock'))!;
+    expect(locked.guardrails.find((w) => w.type === 'backlogLock')!.severity).toBe('note');
   });
 
   it('puts execution on top in Quadrant IV and rest on top in Quadrant I-A', () => {
@@ -586,6 +625,8 @@ describe('gradeBlock (the block being programmed)', () => {
     expect(churn.caps.length).toBeGreaterThan(0);
     expect(churn.guardrails.length).toBe(churn.caps.length);
     expect(churn.guardrails.map((w) => w.type)).toContain('depletingIntake');
+    // Depleting intake is an efficiency note, never a severe warning.
+    expect(churn.guardrails.find((w) => w.type === 'depletingIntake')!.severity).toBe('note');
     const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k, 'This block', best);
     expect(long.spec!.customMinutes).toBe(40);
     expect(long.entry.minutes).toBe(40);

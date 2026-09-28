@@ -1122,7 +1122,7 @@ export interface Stop {
 }
 
 interface StopCheck {
-  (x: StateVector, d: Derivatives, minute: number, hoursAwake: number): Stop | null;
+  (x: StateVector, d: Derivatives, minute: number, hoursAwake: number, u: ReturnType<typeof resolveSpec>['u']): Stop | null;
 }
 
 const goal = (reason: string): Stop => ({ kind: 'goal', reason });
@@ -1143,7 +1143,7 @@ function simulateHorizon(
   for (let m = 0; m < maxMinutes; m += 1) {
     const psi = circadianDrag(hoursAwake, k);
     const d = derivatives(x, b, psi, k);
-    const stop = check(x, d, m, hoursAwake);
+    const stop = check(x, d, m, hoursAwake, b.u);
     if (stop) return { horizon: m, reason: stop.reason, kind: stop.kind };
     x = clampState({
       E: x.E + h * d.dE,
@@ -1165,12 +1165,13 @@ const STOP_RULES: Record<Exclude<ConfigKind, 'sleep'>, { text: string; check: St
   },
   absorb: {
     text: 'stop when Φ_in < 0, B ≥ 0.60, F_vis ≥ 0.60 (violations) or E ≥ 0.70 (recovered)',
-    check: (x, d, m) =>
+    // Eyes past the cutoff bound visual intake only: an audiobook with the eyes closed is not stopped by F_vis.
+    check: (x, d, m, _hoursAwake, u) =>
       m > 0 && d.phiIn < 0
         ? violation('Φ_in < 0')
         : x.B >= 0.6
           ? violation('B ≥ 0.60')
-          : x.Fvis >= 0.6
+          : x.Fvis >= 0.6 && u.Ivis > 0
             ? violation('F_vis ≥ 0.60')
             : m > 0 && x.E >= 0.7
               ? goal('E ≥ 0.70')
@@ -1600,12 +1601,37 @@ export type Standing = 'best' | 'close' | 'behind' | 'far';
 /** The guardrail a block trips. Warnings, not verdicts: the standing still comes from the score. */
 export type GuardrailType = 'singularity' | 'backlogLock' | 'opticalCutoff' | 'depletingIntake' | 'underArousal' | 'terminalStrain' | 'boundary' | 'notIndicated';
 
+/**
+ * How serious a tripped guardrail is. `severe` guardrails predict harm (a singularity, terminal
+ * strain, eyes past the cutoff, or a strain / energy / late-phase limit inside the block) and are
+ * the only ones shown as warnings; `note` guardrails are about efficiency (a locked backlog, a
+ * negative flux, rest that will not take, sleep that is not needed) and only surface under Show math.
+ */
+export type GuardrailSeverity = 'severe' | 'note';
+
 export interface GuardrailWarning {
   type: GuardrailType;
+  severity: GuardrailSeverity;
   /** Score cap the guardrail applies. */
   cap: number;
   /** Model-level detail with symbols (same text as `caps`). */
   detail: string;
+}
+
+const SEVERE_GUARDRAILS: ReadonlySet<GuardrailType> = new Set<GuardrailType>(['singularity', 'terminalStrain', 'opticalCutoff']);
+/** Stop-rule reasons that make a boundary trip severe: strain, energy or the late phase, never a flux sign or the backlog. */
+const SEVERE_BOUNDARY = /(^|[^_a-z])(F ≥|F_vis ≥|E <|t_late)/;
+
+/** Severity of a guardrail from its type and, for a boundary trip, the stop rule that fired. */
+export function guardrailSeverity(type: GuardrailType, detail = ''): GuardrailSeverity {
+  if (SEVERE_GUARDRAILS.has(type)) return 'severe';
+  if (type === 'boundary') return SEVERE_BOUNDARY.test(detail) ? 'severe' : 'note';
+  return 'note';
+}
+
+/** The warnings worth showing without Show math: only the severe guardrails a block trips. */
+export function severeWarnings(g: { guardrails: readonly GuardrailWarning[] }): GuardrailWarning[] {
+  return g.guardrails.filter((w) => w.severity === 'severe');
 }
 
 export interface Comparison {
@@ -1746,7 +1772,7 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
       if (!indicated) {
         const detail = 'not indicated: I* numerator > 0 at Γ = 1, F < F_term, t_awake < t_late';
         caps.push(detail);
-        guardrails.push({ type: 'notIndicated', cap: 15, detail });
+        guardrails.push({ type: 'notIndicated', severity: guardrailSeverity('notIndicated', detail), cap: 15, detail });
       }
       return {
         entry,
@@ -1797,7 +1823,7 @@ function gradeEntry(entry: CatalogEntry, x: StateVector, hoursAwake: number, d: 
     const capTo = (v: number, type: GuardrailType, why: string) => {
       cap = Math.min(cap, v);
       caps.push(why);
-      guardrails.push({ type, cap: v, detail: why });
+      guardrails.push({ type, severity: guardrailSeverity(type, why), cap: v, detail: why });
     };
     // Specific reasons first; the generic boundary cap last so the plain reason leads with the cause.
     if (I1 > 0 && d.regime === 'singularity' && d.singularityMode !== 'somatic') capTo(10, 'singularity', 'input prohibited: I*(t) ≤ 0');

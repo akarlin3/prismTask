@@ -139,31 +139,58 @@ const QUADRANT_TONE: Record<Routing['quadrant'], string> = {
   'IV-B': 'border-emerald-400/40 bg-emerald-400/5 text-emerald-200',
 };
 
+// Judgement-free tones: the pill describes how closely the score matches the recommendation, never a verdict.
 const STANDING_TONE: Record<Standing, string> = {
   best: 'border-emerald-400/70 bg-emerald-400/15 text-emerald-200',
   close: 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200',
   behind: 'border-zinc-500 bg-zinc-800 text-zinc-200',
-  far: 'border-amber-400/60 bg-amber-400/10 text-amber-200',
+  far: 'border-zinc-600 bg-zinc-800/60 text-zinc-300',
 };
 
-/** The guardrails a block trips, as warnings that name the guardrail. */
+/**
+ * The guardrails a block trips. Only a severe guardrail (a singularity, terminal strain, eyes past
+ * the cutoff, a strain / energy / late-phase limit inside the block) is shown as a warning; the
+ * others are efficiency notes that appear only with Show math, styled as plain information.
+ */
 function GuardrailList({ warnings, showMath, compact = false }: { warnings: GuardrailWarning[]; showMath: boolean; compact?: boolean }) {
-  if (warnings.length === 0) return null;
+  const severe = warnings.filter((w) => w.severity === 'severe');
+  const notes = showMath ? warnings.filter((w) => w.severity === 'note') : [];
+  if (severe.length === 0 && notes.length === 0) return null;
   return (
-    <ul className={`grid gap-1 ${compact ? 'mt-1' : 'mt-1.5'}`} aria-label="Guardrail warnings">
-      {warnings.map((w) => {
-        const p = plainGuardrail(w);
-        return (
-          <li key={w.type} className="flex items-start gap-1.5 rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1.5 text-[11px] leading-snug text-amber-100">
-            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>
-              <span className="font-semibold">{p.label}</span> — {p.text}
-              {showMath && <span className="ml-1 font-mono text-[10px] text-amber-200/70">{w.detail}</span>}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+    <div className={`grid gap-1 ${compact ? 'mt-1' : 'mt-1.5'}`}>
+      {severe.length > 0 && (
+        <ul className="grid gap-1" aria-label="Guardrail warnings">
+          {severe.map((w) => {
+            const p = plainGuardrail(w);
+            return (
+              <li key={w.type} className="flex items-start gap-1.5 rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1.5 text-[11px] leading-snug text-amber-100">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  <span className="font-semibold">{p.label}</span> — {p.text}
+                  {showMath && <span className="ml-1 font-mono text-[10px] text-amber-200/70">{w.detail}</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {notes.length > 0 && (
+        <ul className="grid gap-1" aria-label="Guardrail notes">
+          {notes.map((w) => {
+            const p = plainGuardrail(w);
+            return (
+              <li key={w.type} className="flex items-start gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-[11px] leading-snug text-zinc-400">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                <span>
+                  <span className="font-medium text-zinc-300">{p.label}</span> — {p.text}
+                  <span className="ml-1 font-mono text-[10px] text-zinc-500">{w.detail}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -1289,7 +1316,7 @@ function BlockPreview({ graded, x, minutes, thenHeadline, showMath, k }: { grade
     <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2.5" aria-label="Before you log it">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Before you log it · {minutes} min</span>
-        <StandingPill standing={c.standing} />
+        {showMath && <StandingPill standing={c.standing} />}
       </div>
       <p className="mt-1 text-[12.5px] leading-snug text-zinc-100">{plainComparison(graded)}</p>
       <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-400">{plainReason(graded, x)}</p>
@@ -1877,9 +1904,9 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           </div>
 
           {!valuation.admissible && !zeroVector && (
-            <p className="flex items-start gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[11px] text-rose-200">
-              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              V_target = {fmt(valuation.V)} &lt; V_min = {fmt(k.Vmin)}: this block violates the admissibility constraint. Logging it records the churn; it does not authorise it.
+            <p className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-[11px] text-zinc-400">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+              V_target = {fmt(valuation.V)} &lt; V_min = {fmt(k.Vmin)}: below the admissibility floor. The block is logged as it is.
             </p>
           )}
           {inputProhibited && (
@@ -1895,9 +1922,9 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </p>
           )}
           {backlogViolation && (
-            <p className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-2.5 py-2 text-[11px] text-amber-100">
-              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Backlog saturated (B = {fmt(x.B)}, lock at {fmt(k.BsatLock)}): I₁ &gt; 0 is prohibited until an expressive digestion block runs. The armed block carries I₁ = {fmt(armedI1)}.
+            <p className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-[11px] text-zinc-400">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+              Backlog saturated (B = {fmt(x.B)}, lock at {fmt(k.BsatLock)}): the model locks I₁ &gt; 0 until an expressive digestion block runs. The armed block carries I₁ = {fmt(armedI1)}.
             </p>
           )}
           {maskingActive && (
@@ -1991,7 +2018,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             <ol className="mt-2 grid list-decimal gap-1 pl-5 leading-relaxed">
               <li>The six meters are a model of your current capacity, updated every time you log a block of work or rest.</li>
               <li>“Recommended now” is the single block that fits this exact state best, chosen from every kind of block the model knows.</li>
-              <li>Describe the block you did or plan to do. It is compared with the recommendation (Best now, Nearly as good, A step behind, Well behind, or Not now when a rule locks it out) and every meter is shown now → after, before you log it. Nothing is assumed until you describe something or use the recommendation.</li>
+              <li>Describe the block you did or plan to do. Every meter is shown now → after, next to what the recommendation would do, before you log it. Nothing is judged: a warning appears only when the block would cross a hard limit (a singularity, terminal strain, eyes past their cutoff). Nothing is assumed until you describe something or use the recommendation.</li>
             </ol>
             <p className="mt-2 text-[11.5px] text-zinc-500">Calibrate sets the meters by hand when the model drifts from how you feel. Show math reveals the symbols and the rules behind every number.</p>
             <label className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-zinc-400">
@@ -2243,18 +2270,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             </div>
             <div className="mt-3 grid gap-3">
               {showFullForm && <div className="grid gap-4">{auditFormGroups(true)}</div>}
-              <PillarRow verdicts={pillars} showMath={showMath} />
+              {showMath && <PillarRow verdicts={pillars} showMath />}
               <BlockPreview graded={armedGrade} x={x} minutes={dt} thenHeadline={`${plainQuadrant(previewRouting).headline} — ${joinEffects(plainEffect(x, preview.x))}`} showMath={showMath} k={k} />
-              {!valuation.admissible && !zeroVector && (
-                <p className="flex items-start gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[11.5px] text-rose-200">
-                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  This counts as churn. Logging it records what happened; it does not make it a good idea.
+              {showMath && !valuation.admissible && !zeroVector && (
+                <p className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-[11.5px] text-zinc-400">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                  Below the model's depth floor (V_target = {fmt(valuation.V)} &lt; V_min = {fmt(k.Vmin)}). The block is logged as it is.
                 </p>
               )}
-              {maskingActive && (
-                <p className="flex items-start gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11.5px] text-zinc-300">
-                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-300" aria-hidden="true" />
-                  Deep focus hides strain. Trust the boundary, not how your body feels mid-sprint.
+              {showMath && maskingActive && (
+                <p className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-[11.5px] text-zinc-400">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                  Deep focus hides strain: felt strain under-reports the model's F during this block, so the boundary follows the model.
                 </p>
               )}
               <button
@@ -2474,7 +2501,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
           icon={Grid2x2}
           aside={
             <span className="font-mono text-[10.5px] text-zinc-500">
-              score = 0.45·fit + 0.40·outcome + 0.15·horizon, capped by guardrails · margin vs the best: ≥ −8 nearly as good · ≥ −25 a step behind · else well behind · capped = not now
+              score = 0.45·fit + 0.40·outcome + 0.15·horizon, capped by guardrails · margin vs the best: ≥ −8 close match · ≥ −25 partial match · else different path · caps lower the score; a severe guardrail reads as a warning, the rest as notes
             </span>
           }
         >
