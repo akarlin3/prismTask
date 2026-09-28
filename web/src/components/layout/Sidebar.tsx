@@ -18,6 +18,7 @@ import {
   Pill,
   Smile,
   Target,
+  Gauge,
   FileText,
   Archive,
   Settings,
@@ -70,6 +71,7 @@ const SECTIONS: readonly NavSection[] = [
       { to: '/mood', icon: Smile, label: 'Mood' },
       { to: '/medication', icon: Pill, label: 'Medication' },
       { to: '/focus', icon: Target, label: 'Focus' },
+      { to: '/capacity', icon: Gauge, label: 'Capacity' },
     ],
   },
   {

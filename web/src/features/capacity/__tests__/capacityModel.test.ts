@@ -1,0 +1,923 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ANCHORS,
+  CADENCES,
+  CONTEXTS,
+  DENSITIES,
+  INTENSITIES,
+  MODALITIES,
+  NOVELTIES,
+  PLAYBACK_SPEEDS,
+  SCRATCHPADS,
+  SOMATICS,
+  VALUATIONS,
+  DEFAULT_CONSTANTS,
+  DEFAULT_SPEC,
+  DEFAULT_STATE,
+  STATE_KEYS,
+  applySleepReset,
+  arousalPotential,
+  circadianDrag,
+  criticalIntensity,
+  decodePersisted,
+  defaultPersisted,
+  derivatives,
+  diagnose,
+  encodePersisted,
+  gammaArousal,
+  integrateBlock,
+  blockMinutes,
+  compareBlocks,
+  gradeBlock,
+  gradeCatalog,
+  guardrailSeverity,
+  severeWarnings,
+  inferKind,
+  modalityIsPlayback,
+  nearestSpeed,
+  sameBlock,
+  nextBacklogLatch,
+  prescribe,
+  replayHistory,
+  resolveSpec,
+  route,
+  sanitizeSpec,
+  timerElapsedMinutes,
+  timerRemainingMs,
+  type BlockSpec,
+  type HistoryEntry,
+  type StateVector,
+} from '../capacityModel';
+
+const k = DEFAULT_CONSTANTS;
+
+const spec = (over: Partial<BlockSpec>): BlockSpec => ({ ...DEFAULT_SPEC, ...over });
+
+const state = (over: Partial<StateVector>): StateVector => ({ ...DEFAULT_STATE, ...over });
+
+const REST = spec({ modality: 'zero', anchor: 'none', density: 'null', somatic: 'supine', scratchpad: 'single' });
+
+describe('kernels', () => {
+  it('Γ_arousal peaks at A* and decays symmetrically', () => {
+    expect(gammaArousal(0.5, k)).toBeCloseTo(1, 10);
+    expect(gammaArousal(0.3, k)).toBeCloseTo(gammaArousal(0.7, k), 10);
+    expect(gammaArousal(0.3, k)).toBeCloseTo(Math.exp(-0.04 / 0.08), 10);
+  });
+
+  it('A_inst follows the spec weights', () => {
+    const u = resolveSpec(spec({ modality: 'execution', anchor: 'music' })).u;
+    expect(arousalPotential(u)).toBeCloseTo(0.4 * 0.8 + 0.25 * 0.55, 10);
+    const dense = resolveSpec(spec({ modality: 'dense', anchor: 'none' })).u;
+    expect(arousalPotential(dense)).toBeCloseTo(0.45 * 0.85, 10);
+  });
+
+  it('ψ(t) is flat at ψ₀ until onset, then grows exponentially', () => {
+    expect(circadianDrag(0, k)).toBeCloseTo(0.1, 10);
+    expect(circadianDrag(10, k)).toBeCloseTo(0.1, 10);
+    expect(circadianDrag(14, k)).toBeCloseTo(0.1 * Math.E, 6);
+    expect(circadianDrag(16, k)).toBeGreaterThan(circadianDrag(14, k));
+  });
+
+  it('I* matches the closed form and the sign of Φ_in', () => {
+    const x = state({ E: 0.4, B: 0.3, A: 0.5, V: 0.85 });
+    const psi = 0.1;
+    const Istar = criticalIntensity(x, 0.2, psi, k);
+    const expected = (0.85 * 0.85 * 0.6 * 1 - 0.4 * 0.3 - 0.1) / (0.45 * 0.2);
+    expect(Istar).toBeCloseTo(expected, 10);
+    // Below the boundary, Φ_in > 0; above it, Φ_in < 0.
+    const below = derivatives(x, { ...resolveSpec(spec({ modality: 'auditory', density: 'fiction' })) }, psi, k);
+    expect(below.I1).toBeLessThan(Istar);
+    expect(below.phiIn).toBeGreaterThan(0);
+    const hot = state({ E: 0.9, B: 0.6, A: 0.5, V: 0.85 });
+    const IstarHot = criticalIntensity(hot, 0.9, psi, k);
+    const above = derivatives(hot, resolveSpec(spec({ modality: 'dense', density: 'proofs' })), psi, k);
+    expect(IstarHot).toBeLessThan(above.I1);
+    expect(above.phiIn).toBeLessThan(0);
+  });
+});
+
+describe('integration', () => {
+  it('keeps the state on the unit manifold under extreme inputs', () => {
+    const extremes: BlockSpec[] = [
+      spec({ modality: 'dense', anchor: 'music', valuation: 'churn', density: 'proofs', context: 'scrutiny', scratchpad: 'rabbit', somatic: 'slump', cadence: 'm90' }),
+      spec({ modality: 'execution', anchor: 'treadmill', context: 'scrutiny', somatic: 'ocular', cadence: 'm90' }),
+      REST,
+    ];
+    for (const s of extremes) {
+      for (const x0 of [state({ E: 0, B: 1, Fvis: 1, Fbody: 1, A: 1, V: 0 }), state({ E: 1, B: 0, Fvis: 0, Fbody: 0, A: 0, V: 1 })]) {
+        const r = integrateBlock(x0, 20, resolveSpec(s), 90, k);
+        for (const key of STATE_KEYS) {
+          expect(r.x[key]).toBeGreaterThanOrEqual(0);
+          expect(r.x[key]).toBeLessThanOrEqual(1);
+          expect(Number.isFinite(r.x[key])).toBe(true);
+        }
+        expect(r.trace).toHaveLength(91);
+      }
+    }
+  });
+
+  it('zero-vector rest restores energy, decays backlog and ocular strain', () => {
+    const x0 = state({ E: 0.3, B: 0.5, Fvis: 0.5, Fbody: 0.4 });
+    const r = integrateBlock(x0, 4, resolveSpec(REST), 45, k);
+    expect(r.x.E).toBeGreaterThan(x0.E);
+    expect(r.x.B).toBeLessThan(x0.B);
+    expect(r.x.Fvis).toBeLessThan(x0.Fvis);
+    expect(r.x.Fbody).toBeLessThan(x0.Fbody);
+    expect(r.hoursAwake).toBeCloseTo(4.75, 10);
+    expect(r.mean.phiIn).toBe(0);
+    expect(r.mean.phiOut).toBe(0);
+  });
+
+  it('flow-state execution under pure agency yields Φ_out > 0 and digests backlog', () => {
+    const x0 = state({ E: 0.7, B: 0.4, Fvis: 0.1, Fbody: 0.1, A: 0.45, V: 0.9 });
+    const r = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'execution', anchor: 'music', context: 'agency' })), 45, k);
+    expect(r.mean.phiOut).toBeGreaterThan(0);
+    expect(r.x.B).toBeLessThan(x0.B);
+    expect(r.x.Fbody).toBeGreaterThan(x0.Fbody);
+    // Sustainable flow: the (1 − E) yield saturation keeps pure-agency execution near energy-neutral.
+    expect(Math.abs(r.x.E - x0.E)).toBeLessThan(0.1);
+  });
+
+  it('circadian drag taxes output: the same sprint depletes E late in the phase', () => {
+    const x0 = state({ E: 0.7, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.45, V: 0.9 });
+    const b = resolveSpec(spec({ modality: 'execution', anchor: 'music', context: 'agency' }));
+    const day = integrateBlock(x0, 4, b, 45, k);
+    const night = integrateBlock(x0, 18, b, 45, k);
+    expect(night.x.E).toBeLessThan(day.x.E);
+    expect(night.mean.dE).toBeLessThan(0);
+  });
+
+  it('external scrutiny turns the same output block depleting', () => {
+    const x0 = state({ E: 0.7, B: 0.4, Fvis: 0.3, Fbody: 0.3, A: 0.45, V: 0.9 });
+    const agency = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'execution', context: 'agency' })), 45, k);
+    const scrutiny = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'execution', context: 'scrutiny' })), 45, k);
+    expect(scrutiny.mean.phiOut).toBeLessThan(0);
+    expect(scrutiny.x.E).toBeLessThan(agency.x.E);
+  });
+
+  it('churn accrues backlog faster than literature at equal intake', () => {
+    const x0 = state({ E: 0.6, B: 0.2, V: 0.5 });
+    const churn = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'reading', valuation: 'churn', density: 'fiction' })), 45, k);
+    const art = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'reading', valuation: 'art', density: 'fiction' })), 45, k);
+    expect(churn.x.B).toBeGreaterThan(art.x.B);
+    expect(churn.x.V).toBeLessThan(art.x.V);
+  });
+
+  it('unbuffered intake branches backlog through (1 + γ_assoc), and a rabbit hole adds Ω_switch on top', () => {
+    const x0 = state({ E: 0.6, B: 0.2, V: 1 });
+    const run = (scratchpad: BlockSpec['scratchpad']) => integrateBlock(x0, 4, resolveSpec(spec({ modality: 'dense', density: 'proofs', scratchpad })), 60, k);
+    const tokenized = run('tokenized');
+    const speculative = run('speculative');
+    const rabbit = run('rabbit');
+    expect(tokenized.mean.accrual).toBeCloseTo(0.35 * 0.9 * 0.85, 1);
+    expect(speculative.mean.accrual).toBeGreaterThan(tokenized.mean.accrual * 1.4);
+    expect(rabbit.mean.accrual).toBeGreaterThan(speculative.mean.accrual + 0.2);
+    expect(rabbit.x.B).toBeGreaterThan(speculative.x.B);
+    expect(speculative.x.B).toBeGreaterThan(tokenized.x.B);
+    // The report decomposition is exact: dB = accrual − decay − digestion.
+    expect(rabbit.mean.dB).toBeCloseTo(rabbit.mean.accrual - rabbit.mean.decay - rabbit.mean.digestion, 10);
+  });
+
+  it('novel cross-domain stimulation lifts arousal through ξ_novelty', () => {
+    const x0 = state({ A: 0.2 });
+    const flat = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'expressive', anchor: 'none', novelty: 'monotonous' })), 25, k);
+    const novel = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'expressive', anchor: 'none', novelty: 'novel' })), 25, k);
+    expect(arousalPotential(resolveSpec(spec({ modality: 'expressive', anchor: 'none' })).u, 0.15)).toBeCloseTo(0.4 * 0.35 + 0.15, 10);
+    expect(novel.x.A).toBeGreaterThan(flat.x.A + 0.05);
+  });
+
+  it('somatic markers modulate F_body: slump > seated > treadmill', () => {
+    const x0 = state({ Fbody: 0.3 });
+    const s = (somatic: BlockSpec['somatic'], anchor: BlockSpec['anchor'] = 'none') =>
+      integrateBlock(x0, 4, resolveSpec(spec({ modality: 'execution', somatic, anchor })), 45, k).x.Fbody;
+    expect(s('slump')).toBeGreaterThan(s('seated'));
+    expect(s('seated')).toBeGreaterThan(s('seated', 'treadmill'));
+    expect(s('seated', 'treadmill')).toBeLessThan(x0.Fbody + 0.05);
+  });
+
+  it('reported ocular strain accelerates F_vis even on an auditory block', () => {
+    const x0 = state({ Fvis: 0.3 });
+    const plain = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'auditory', somatic: 'seated' })), 45, k);
+    const strained = integrateBlock(x0, 4, resolveSpec(spec({ modality: 'auditory', somatic: 'ocular' })), 45, k);
+    expect(plain.x.Fvis).toBeLessThan(x0.Fvis);
+    expect(strained.x.Fvis).toBeGreaterThan(plain.x.Fvis);
+  });
+
+  it('sleep reset restores E, clears strain and resets arousal tone', () => {
+    const x = applySleepReset(state({ E: 0.2, B: 0.8, Fvis: 0.7, Fbody: 0.6, A: 0.9 }), 7.5);
+    expect(x.E).toBeGreaterThan(0.9);
+    expect(x.B).toBeLessThan(0.15);
+    expect(x.Fvis).toBeLessThan(0.01);
+    expect(x.A).toBeCloseTo(0.3, 10);
+  });
+});
+
+describe('diagnostics and routing', () => {
+  it('flags the burnout singularity late in the circadian phase', () => {
+    const x = state({ E: 0.3, B: 0.6 });
+    const d = diagnose(x, 17, 0.2, k);
+    expect(d.latePhase).toBe(true);
+    expect(d.regime).toBe('singularity');
+    expect(route(x, d, k).quadrant).toBe('SINGULARITY');
+  });
+
+  it('distinguishes saturation (E high) from the structural singularity (E low)', () => {
+    const full = state({ E: 0.95, B: 0.2, A: 0.5, V: 0.85 });
+    expect(diagnose(full, 4, 0.4, k).regime).toBe('saturated');
+    const jammed = state({ E: 0.3, B: 1.0, A: 0.5, V: 0.6 });
+    expect(diagnose(jammed, 4, 0.4, k).regime).toBe('singularity');
+    expect(diagnose(jammed, 4, 0.4, k).singularityMode).toBe('structural');
+    expect(diagnose(jammed, 17, 0.4, k).singularityMode).toBe('late');
+  });
+
+  it('prescribes zero-input rest before sleep for a structural singularity', () => {
+    const x = state({ E: 0.3, B: 0.4, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.3 });
+    const d = diagnose(x, 4, 0.4, k);
+    const r = route(x, d, k);
+    expect(r.quadrant).toBe('SINGULARITY');
+    const ps = prescribe(x, 4, d, r, k);
+    expect(ps[0].kind).toBe('rest');
+    expect(ps[0].spec?.modality).toBe('zero');
+    expect(ps.some((p) => p.kind === 'sleep')).toBe(true);
+  });
+
+  it('marks arousal-limited intake when Γ alone closes the restorative zone', () => {
+    const x = state({ E: 0.4, B: 0.3, A: 0.05, V: 0.85 });
+    const d = diagnose(x, 4, 0.2, k);
+    expect(d.numerator).toBeLessThanOrEqual(0);
+    expect(d.numeratorOpt).toBeGreaterThan(0);
+    expect(d.regime).toBe('arousal-limited');
+    expect(route(x, d, k).quadrant).toBe('II');
+  });
+
+  it('raises the high-capacity guardrails from the state vector', () => {
+    const optical = diagnose(state({ Fvis: 0.65 }), 4, 0.4, k);
+    expect(optical.guardrails.opticalCutoff).toBe(true);
+    const saturated = diagnose(state({ B: 0.7, E: 0.8 }), 4, 0.4, k);
+    expect(saturated.guardrails.backlogSaturated).toBe(true);
+    expect(diagnose(state({ B: 0.5 }), 4, 0.4, k, true).guardrails.backlogSaturated).toBe(true);
+    const under = diagnose(state({ E: 0.7, A: 0.2 }), 4, 0.4, k);
+    expect(under.guardrails.underArousal).toBe(true);
+    expect(under.guardrails.trueDepletion).toBe(false);
+    const depleted = diagnose(state({ E: 0.3, A: 0.2, B: 0.2, V: 0.9 }), 4, 0.4, k);
+    expect(depleted.guardrails.trueDepletion).toBe(true);
+    expect(route(state({ E: 0.3, A: 0.2, B: 0.2, V: 0.9 }), depleted, k).quadrant).toBe('I-A');
+    const terminal = diagnose(state({ Fbody: 0.85, E: 0.8 }), 4, 0.4, k);
+    expect(terminal.regime).toBe('singularity');
+    expect(terminal.singularityMode).toBe('somatic');
+    expect(route(state({ Fbody: 0.85, E: 0.8 }), terminal, k).title).toBe('Terminal Sleep Reset');
+  });
+
+  it('latches the backlog lock until an output block digests it or B clears', () => {
+    const rest = resolveSpec(spec({ modality: 'zero' }));
+    const express = resolveSpec(spec({ modality: 'expressive' }));
+    const intake = resolveSpec(spec({ modality: 'reading' }));
+    expect(nextBacklogLatch(false, state({ B: 0.7 }), intake, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), rest, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), intake, k)).toBe(true);
+    expect(nextBacklogLatch(true, state({ B: 0.55 }), express, k)).toBe(false);
+    expect(nextBacklogLatch(true, state({ B: 0.3 }), rest, k)).toBe(false);
+  });
+
+  it('routes each quadrant from its trigger predicate', () => {
+    const cases: Array<[Partial<StateVector>, string]> = [
+      [{ E: 0.3, B: 0.7, A: 0.5, V: 0.8 }, 'I-A'],
+      // Jammed backlog at low E is Quadrant I-A even when the structural singularity also holds:
+      // zero-input flush is that regime's own remedy.
+      [{ E: 0.2, B: 0.9, A: 0.5, V: 0.6 }, 'I-A'],
+      // Structural singularity with a clear backlog: no intake is admissible, rest before sleep.
+      [{ E: 0.3, B: 0.4, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.3 }, 'SINGULARITY'],
+      [{ E: 0.6, B: 0.7, A: 0.5, V: 0.8 }, 'I-B'],
+      [{ E: 0.6, B: 0.3, Fbody: 0.6, A: 0.5, V: 0.8 }, 'III'],
+      [{ E: 0.4, B: 0.3, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 }, 'II'],
+      [{ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 'IV'],
+      [{ E: 0.8, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 'IV-B'],
+    ];
+    for (const [over, expected] of cases) {
+      const x = state(over);
+      const d = diagnose(x, 4, 0.4, k);
+      expect(route(x, d, k).quadrant, JSON.stringify(over)).toBe(expected);
+    }
+  });
+});
+
+describe('prescription engine', () => {
+  const quadrantStates: Partial<StateVector>[] = [
+    { E: 0.3, B: 0.7 },
+    { E: 0.6, B: 0.7 },
+    { E: 0.6, B: 0.3, Fbody: 0.6 },
+    { E: 0.4, B: 0.3, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 },
+    { E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, V: 0.9 },
+    { E: 0.8, B: 0.5, Fvis: 0.1, Fbody: 0.1, V: 0.9 },
+    { E: 0.3, B: 0.6 },
+  ];
+
+  it('emits two or three configurations with cadence-aligned hard boundaries', () => {
+    const valid = new Set(CADENCES.map((c) => c.minutes));
+    quadrantStates.forEach((over, i) => {
+      const x = state(over);
+      const hours = i === quadrantStates.length - 1 ? 17 : 4;
+      const d = diagnose(x, hours, 0.4, k);
+      const r = route(x, d, k);
+      const ps = prescribe(x, hours, d, r, k);
+      expect(ps.length, r.quadrant).toBeGreaterThanOrEqual(2);
+      expect(ps.length).toBeLessThanOrEqual(3);
+      for (const p of ps) {
+        if (p.kind === 'sleep') {
+          expect(p.spec).toBeNull();
+          expect(p.boundMinutes).toBe(0);
+        } else {
+          expect(p.spec).not.toBeNull();
+          expect(valid.has(p.boundMinutes)).toBe(true);
+          expect(p.predicted).not.toBeNull();
+        }
+      }
+    });
+  });
+
+  it('never prescribes intake under the backlog lock or visual intake under the optical cutoff', () => {
+    const locked = state({ E: 0.45, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const dl = diagnose(locked, 4, 0.2, k, true);
+    const rl = route(locked, dl, k);
+    expect(rl.quadrant).toBe('II');
+    const pl = prescribe(locked, 4, dl, rl, k);
+    expect(pl.length).toBeGreaterThanOrEqual(2);
+    for (const p of pl) if (p.spec) expect(resolveSpec(p.spec).u.Ivis + resolveSpec(p.spec).u.Iaud).toBe(0);
+
+    const blurred = state({ E: 0.45, B: 0.2, Fvis: 0.62, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const db = diagnose(blurred, 4, 0.2, k);
+    const rb = route(blurred, db, k);
+    expect(rb.quadrant).toBe('III');
+    const pb = prescribe(blurred, 4, db, rb, k);
+    expect(pb.length).toBeGreaterThanOrEqual(2);
+    for (const p of pb) if (p.spec) expect(resolveSpec(p.spec).u.Ivis).toBe(0);
+  });
+
+  it('caps Quadrant II intake at c_II · I*(t) and leads with an arousal ramp when under-aroused', () => {
+    // num = 0.85·0.85·0.55 − 0.4·0.59 − 0.1 = 0.0614 → I*(0.20) = 0.68 → 0.7·I* = 0.48:
+    // audio (0.35) admissible, page reading (0.50) not.
+    const x = state({ E: 0.45, B: 0.59, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 });
+    const d = diagnose(x, 4, 0.2, k);
+    const cap = d.IstarFiction * k.absorbCapFraction;
+    expect(cap).toBeGreaterThan(0.35);
+    expect(cap).toBeLessThan(0.5);
+    const ps = prescribe(x, 4, d, route(x, d, k), k);
+    expect(ps.some((p) => p.spec?.modality === 'auditory')).toBe(true);
+    expect(ps.some((p) => p.spec?.modality === 'reading')).toBe(false);
+
+    const under = state({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.2, V: 0.9 });
+    const du = diagnose(under, 4, 0.9, k);
+    expect(du.guardrails.underArousal).toBe(true);
+    const pu = prescribe(under, 4, du, route(under, du, k), k);
+    expect(pu[0].name).toMatch(/Arousal ramp/);
+    expect(pu[0].spec?.novelty).toBe('novel');
+    expect(pu.some((p) => p.kind === 'rest')).toBe(false);
+  });
+
+  it('caps the execution horizon before somatic strain crosses the gate', () => {
+    const x = state({ E: 0.9, B: 0.1, Fvis: 0.1, Fbody: 0.45, A: 0.5, V: 1 });
+    const d = diagnose(x, 4, 0.9, k);
+    const r = route(x, d, k);
+    const ps = prescribe(x, 4, d, r, k);
+    const sprint = ps.find((p) => p.kind === 'execute' && p.spec?.anchor === 'music');
+    expect(sprint).toBeDefined();
+    expect(sprint!.boundMinutes).toBeLessThan(90);
+    expect(sprint!.stopRule).toContain('F ≥ 0.55');
+  });
+});
+
+describe('graded block catalog', () => {
+  const gradeAll = (over: Partial<StateVector>, hours = 4, latch = false) => {
+    const x = state(over);
+    const d = diagnose(x, hours, 0.4, k, latch);
+    return { x, d, r: route(x, d, k), list: gradeCatalog(x, hours, d, route(x, d, k), k) };
+  };
+
+  it('grades every block at the fixed block length when one is given', () => {
+    const x = state({ E: 0.6, B: 0.3 });
+    const d = diagnose(x, 4, 0.4, k);
+    const list = gradeCatalog(x, 4, d, route(x, d, k), k, [], 15);
+    for (const g of list) if (g.entry.kind !== 'sleep') expect(g.boundMinutes).toBeLessThanOrEqual(15);
+    const ps = prescribe(x, 4, d, route(x, d, k), k, 15);
+    for (const p of ps) if (p.kind !== 'sleep') expect(p.boundMinutes).toBe(15);
+  });
+
+  it('scores every catalog entry on [0, 100], best first, each compared with the best', () => {
+    const { list } = gradeAll({ E: 0.6, B: 0.3 });
+    expect(list.length).toBeGreaterThanOrEqual(15);
+    const best = list[0];
+    expect(best.comparison.standing).toBe('best');
+    expect(best.comparison.margin).toBe(0);
+    expect(best.comparison.against.id).toBe(best.entry.id);
+    for (let i = 0; i < list.length; i += 1) {
+      const g = list[i];
+      expect(g.score).toBeGreaterThanOrEqual(0);
+      expect(g.score).toBeLessThanOrEqual(100);
+      if (i > 0) {
+        expect(list[i - 1].score).toBeGreaterThanOrEqual(g.score);
+        expect(g.comparison.against.name).toBe(best.entry.name);
+        expect(g.comparison.margin).toBe(g.score - best.score);
+        const expected = g.comparison.margin >= 0 ? 'best' : g.comparison.margin >= -8 ? 'close' : g.comparison.margin >= -25 ? 'behind' : 'far';
+        expect(g.comparison.standing).toBe(expected);
+        // Guardrails are typed warnings, one per cap, never a verdict of their own.
+        expect(g.guardrails.map((w) => w.detail)).toEqual(g.caps);
+        for (const w of g.guardrails) expect(g.score).toBeLessThanOrEqual(w.cap);
+        // Every warning carries its severity, derived from the guardrail (and the stop rule, for a boundary).
+        for (const w of g.guardrails) expect(w.severity).toBe(guardrailSeverity(w.type, w.detail));
+      }
+      if (g.entry.kind !== 'sleep') {
+        expect(g.spec).not.toBeNull();
+        expect(g.predicted).not.toBeNull();
+        expect(g.comparison.deltas).not.toBeNull();
+      }
+    }
+    // The same block compared with itself is the best, whatever its id.
+    const twin = { ...best, entry: { ...best.entry, id: 'armed' } };
+    expect(compareBlocks(twin, best, k).standing).toBe('best');
+    expect(sameBlock(best.spec, twin.spec)).toBe(true);
+    expect(sameBlock(best.spec, best.spec && { ...best.spec, speed: 'x2' })).toBe(false);
+  });
+
+  it('separates listening to music from an audiobook: lighter intake, no playback speed, closer to rest', () => {
+    const music = MODALITIES.find((o) => o.key === 'music')!;
+    const audio = MODALITIES.find((o) => o.key === 'auditory')!;
+    expect(music.Iaud).toBeLessThan(audio.Iaud);
+    expect(music.playback).toBe(false);
+    expect(modalityIsPlayback('music')).toBe(false);
+    expect(modalityIsPlayback('auditory')).toBe(true);
+    expect(resolveSpec(spec({ modality: 'music', anchor: 'none', speed: 'x2' })).u.Iaud).toBeCloseTo(music.Iaud, 10);
+    expect(inferKind(spec({ modality: 'music', anchor: 'none' }))).toBe('absorb');
+    const listen = (from: StateVector, hours: number, modality: BlockSpec['modality'], density: BlockSpec['density']) =>
+      integrateBlock(from, hours, resolveSpec(spec({ modality, anchor: 'none', density, valuation: 'art', somatic: 'supine' })), 15, k);
+    // From the same tired state, music ends with more energy than an audiobook: the rest term keeps 85 % of its strength.
+    const x = state({ E: 0.3, B: 0.55, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const m = listen(x, 6, 'music', 'null');
+    const a = listen(x, 6, 'auditory', 'fiction');
+    expect(m.x.E).toBeGreaterThan(a.x.E);
+    expect(m.mean.dE).toBeGreaterThan(a.mean.dE);
+    // Late, tired and loaded: the audiobook has tipped into the depleting zone while music has not.
+    const late = state({ E: 0.2, B: 0.55, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    expect(listen(late, 14, 'auditory', 'fiction').mean.phiIn).toBeLessThan(0);
+    expect(listen(late, 14, 'music', 'null').mean.phiIn).toBeGreaterThanOrEqual(0);
+    // The catalog carries both music entries, and the usual listening speed touches only the audiobook entries.
+    const d = diagnose(x, 6, 0.2, k);
+    const list = gradeCatalog(x, 6, d, route(x, d, k), k, [], 15, 'x2');
+    const names = list.map((g) => g.entry.name);
+    expect(names).toContain('Music with eyes closed');
+    expect(names).toContain('Music on a walk');
+    expect(list.find((g) => g.entry.id === 'absorb-music')!.spec!.speed).toBeUndefined();
+    expect(list.find((g) => g.entry.id === 'absorb-audio')!.spec!.speed).toBe('x2');
+  });
+
+  it('persists a running block timer and reads it back safely', () => {
+    const base = defaultPersisted();
+    expect(base.timer).toBeNull();
+    expect(base.timerChime).toBe(true);
+    const timer = { startedAt: 1_700_000_000_000, minutes: 15, spec: spec({ modality: 'reading', cadence: 'm15' }), note: 'read a novel' };
+    const round = decodePersisted(encodePersisted({ ...base, timer, timerChime: false }));
+    expect(round.timer).toEqual({ ...timer, spec: sanitizeSpec(timer.spec) });
+    expect(round.timerChime).toBe(false);
+    // Junk is dropped, lengths are clamped, a blank note is null, and the chime defaults on.
+    expect(decodePersisted(JSON.stringify({ timer: { startedAt: 'soon', minutes: 15 } })).timer).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timer: { startedAt: -1, minutes: 15 } })).timer).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timer: 'later' })).timer).toBeNull();
+    const clamped = decodePersisted(JSON.stringify({ timer: { startedAt: 1, minutes: 900, spec: {}, note: '   ' } })).timer!;
+    expect(clamped.minutes).toBe(480);
+    expect(clamped.note).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timerChime: 'no' })).timerChime).toBe(true);
+    // Remaining and elapsed time are clamped to the block.
+    expect(timerRemainingMs(timer, timer.startedAt + 5 * 60_000)).toBe(10 * 60_000);
+    expect(timerRemainingMs(timer, timer.startedAt + 20 * 60_000)).toBe(0);
+    expect(timerRemainingMs(timer, timer.startedAt - 60_000)).toBe(16 * 60_000);
+    expect(timerElapsedMinutes(timer, timer.startedAt + 6.5 * 60_000)).toBeCloseTo(6.5, 6);
+    expect(timerElapsedMinutes(timer, timer.startedAt + 60 * 60_000)).toBe(15);
+    expect(timerElapsedMinutes(timer, timer.startedAt - 60_000)).toBe(0);
+  });
+
+  it('marks only harm-predicting guardrails as severe; efficiency guardrails are notes', () => {
+    expect(guardrailSeverity('singularity')).toBe('severe');
+    expect(guardrailSeverity('terminalStrain')).toBe('severe');
+    expect(guardrailSeverity('opticalCutoff')).toBe('severe');
+    expect(guardrailSeverity('backlogLock')).toBe('note');
+    expect(guardrailSeverity('depletingIntake')).toBe('note');
+    expect(guardrailSeverity('underArousal')).toBe('note');
+    expect(guardrailSeverity('notIndicated')).toBe('note');
+    // A boundary is severe when the stop rule that fires is a strain, energy or late-phase limit.
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (F ≥ 0.60)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (F_vis ≥ 0.60)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (E < 0.30)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (t_late)')).toBe('severe');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (Φ_in < 0)')).toBe('note');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (Φ_out < 0)')).toBe('note');
+    expect(guardrailSeverity('boundary', 'boundary trips inside 15 m (B ≥ 0.60)')).toBe('note');
+    // Sleep when it is not indicated is a note; a page in front of tired eyes is a warning.
+    const iv = gradeAll({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    const sleep = iv.list.find((g) => g.entry.kind === 'sleep')!;
+    expect(sleep.guardrails.map((w) => w.severity)).toEqual(['note']);
+    expect(severeWarnings(sleep)).toEqual([]);
+    const eyes = gradeAll({ E: 0.7, B: 0.2, Fvis: 0.65, Fbody: 0.2, A: 0.5, V: 0.9 });
+    const page = eyes.list.find((g) => g.spec && resolveSpec(g.spec).u.Ivis > 0)!;
+    expect(severeWarnings(page).map((w) => w.type)).toContain('opticalCutoff');
+    // Tired eyes do not bound a listening block: nothing severe, and no F_vis stop rule.
+    const ears = eyes.list.find((g) => g.spec && resolveSpec(g.spec).u.Iaud > 0 && resolveSpec(g.spec).u.Ivis === 0)!;
+    expect(ears).toBeDefined();
+    expect(severeWarnings(ears)).toEqual([]);
+    expect(ears.guardrails.some((w) => /F_vis/.test(w.detail))).toBe(false);
+    // Intake under the backlog lock is a note only.
+    const jammed = gradeAll({ E: 0.7, B: 0.7, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 4, true);
+    const locked = jammed.list.find((g) => g.guardrails.some((w) => w.type === 'backlogLock'))!;
+    expect(locked.guardrails.find((w) => w.type === 'backlogLock')!.severity).toBe('note');
+  });
+
+  it('puts execution on top in Quadrant IV and rest on top in Quadrant I-A', () => {
+    const iv = gradeAll({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    expect(iv.r.quadrant).toBe('IV');
+    expect(iv.list[0].entry.kind).toBe('execute');
+    expect(iv.list[0].comparison.standing).toBe('best');
+    const sleep = iv.list.find((g) => g.entry.kind === 'sleep')!;
+    expect(sleep.comparison.standing).toBe('far');
+    expect(sleep.comparison.margin).toBeLessThan(-25);
+    expect(sleep.guardrails.map((w) => w.type)).toEqual(['notIndicated']);
+
+    const ia = gradeAll({ E: 0.3, B: 0.7, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    expect(ia.r.quadrant).toBe('I-A');
+    expect(ia.list[0].entry.kind).toBe('rest');
+    for (const g of ia.list.filter((g) => g.entry.kind === 'execute')) expect(g.score).toBeLessThan(50);
+  });
+
+  it('treats a reached goal as a shortened horizon, not a violation', () => {
+    // E just under the rest goal and B already clear: rest and digestion reach their goals
+    // within minutes, which must not read as "boundary trips inside 15 m".
+    const { list } = gradeAll({ E: 0.64, B: 0.02, Fvis: 0.05, Fbody: 0.51, A: 0.5, V: 0.98 });
+    for (const g of list.filter((g) => g.entry.kind === 'rest' || g.entry.kind === 'express')) {
+      expect(g.caps.some((c) => c.startsWith('boundary trips'))).toBe(false);
+      expect(g.horizon).toBe(100);
+      expect(g.boundMinutes).toBeGreaterThanOrEqual(15);
+    }
+    // Execution at F_body = 0.51 does trip the F ≥ 0.55 gate inside 15 m.
+    const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
+    expect(sprint.caps.some((c) => c.startsWith('boundary trips'))).toBe(true);
+    expect(sprint.guardrails.some((w) => w.type === 'boundary' && w.cap === 25)).toBe(true);
+    expect(['behind', 'far']).toContain(sprint.comparison.standing);
+  });
+
+  it('caps intake blocks under the backlog lock and visual blocks under the optical cutoff', () => {
+    const locked = gradeAll({ E: 0.7, B: 0.5, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 }, 4, true);
+    for (const g of locked.list) {
+      if (!g.spec) continue;
+      const u = resolveSpec(g.spec).u;
+      if (u.Ivis + u.Iaud > 0) {
+        expect(g.score).toBeLessThanOrEqual(15);
+        expect(g.caps.some((c) => c.startsWith('backlog lock'))).toBe(true);
+        expect(g.guardrails.some((w) => w.type === 'backlogLock')).toBe(true);
+      }
+    }
+    const blurred = gradeAll({ E: 0.7, B: 0.2, Fvis: 0.7, Fbody: 0.1, A: 0.5, V: 0.9 });
+    for (const g of blurred.list) {
+      if (g.spec && resolveSpec(g.spec).u.Ivis > 0) {
+        expect(g.score).toBeLessThanOrEqual(15);
+        expect(g.guardrails.some((w) => w.type === 'opticalCutoff')).toBe(true);
+      }
+    }
+  });
+
+  it('rejects rest under the under-arousal gate and promotes sleep in a late-phase singularity', () => {
+    const under = gradeAll({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.2, V: 0.9 });
+    expect(under.d.guardrails.underArousal).toBe(true);
+    for (const g of under.list.filter((g) => g.entry.kind === 'rest')) {
+      expect(g.score).toBeLessThanOrEqual(35);
+      expect(g.caps.some((c) => c.startsWith('under-arousal gate'))).toBe(true);
+      expect(g.guardrails.some((w) => w.type === 'underArousal')).toBe(true);
+    }
+    const late = gradeAll({ E: 0.4, B: 0.4 }, 17);
+    expect(late.list[0].entry.kind).toBe('sleep');
+    expect(late.list[0].comparison.standing).toBe('best');
+    for (const g of late.list) if (g.spec && resolveSpec(g.spec).u.Ivis + resolveSpec(g.spec).u.Iaud > 0) expect(g.score).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('flexibility: intensity, custom duration, presets', () => {
+  it('scales intake and output intensities and keeps them on [0, 1]', () => {
+    const light = resolveSpec(spec({ modality: 'dense', intensity: 'light' })).u;
+    const heavy = resolveSpec(spec({ modality: 'dense', intensity: 'heavy' })).u;
+    expect(light.Ivis).toBeCloseTo(0.85 * 0.7, 10);
+    expect(heavy.Ivis).toBe(1);
+    expect(resolveSpec(spec({ modality: 'execution', intensity: 'heavy' })).u.O1).toBe(1);
+    expect(resolveSpec(spec({ modality: 'execution' })).u.O1).toBe(0.8);
+  });
+
+  it('honours custom durations within bounds', () => {
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 37 }))).toBe(37);
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 1 }))).toBe(5);
+    expect(blockMinutes(spec({ cadence: 'custom', customMinutes: 999 }))).toBe(480);
+    expect(blockMinutes(spec({ cadence: 'm45' }))).toBe(45);
+    expect(decodePersisted(JSON.stringify({ blockLength: 20 })).blockLength).toBe(20);
+    expect(decodePersisted(JSON.stringify({})).blockLength).toBe(15);
+    const back = decodePersisted(JSON.stringify({ spec: { cadence: 'custom', customMinutes: 37, intensity: 'heavy' } }));
+    expect(back.spec.cadence).toBe('custom');
+    expect(back.spec.customMinutes).toBe(37);
+    expect(back.spec.intensity).toBe('heavy');
+    // A custom cadence without minutes falls back to the default cadence.
+    expect(decodePersisted(JSON.stringify({ spec: { cadence: 'custom' } })).spec.cadence).toBe(DEFAULT_SPEC.cadence);
+  });
+
+  it('grades user presets alongside the built-in catalog and infers their kind', () => {
+    const twinSpec: BlockSpec = { cadence: 'm25', modality: 'expressive', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'tokenized', novelty: 'routine', somatic: 'supine' };
+    const preset = { id: 'p1', name: 'Bass practice', spec: { ...twinSpec, cadence: 'custom' as const, customMinutes: 40 }, createdAt: '2026-09-27T00:00:00.000Z' };
+    expect(inferKind(preset.spec)).toBe('express');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'treadmill' }))).toBe('somatic');
+    expect(inferKind(spec({ modality: 'reading' }))).toBe('absorb');
+    const x = state({ E: 0.6, B: 0.7, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.8 });
+    const d = diagnose(x, 4, 0.4, k);
+    const r = route(x, d, k);
+    expect(r.quadrant).toBe('I-B');
+    const list = gradeCatalog(x, 4, d, r, k, [preset]);
+    const mine = list.find((g) => g.entry.presetId === 'p1')!;
+    expect(mine).toBeDefined();
+    expect(mine.entry.name).toBe('Bass practice');
+    expect(mine.fit).toBe(100);
+    expect(['best', 'close', 'behind']).toContain(mine.comparison.standing);
+
+    expect(mine.spec?.cadence).toBe('custom');
+    expect(mine.spec?.customMinutes).toBe(40);
+    // An identical preset at the built-in cadence scores exactly like its built-in twin.
+    const same = gradeCatalog(x, 4, d, r, k, [{ ...preset, id: 'p3', spec: twinSpec }]);
+    const clone = same.find((g) => g.entry.presetId === 'p3')!;
+    const builtIn = same.find((g) => g.entry.id === 'express-silence')!;
+    expect(clone.score).toBe(builtIn.score);
+    const back = decodePersisted(JSON.stringify({ presets: [preset, { id: 'bad' }, { id: 'p2', name: '   ' }] }));
+    expect(back.presets).toHaveLength(1);
+    expect(back.presets[0].name).toBe('Bass practice');
+  });
+});
+
+describe('gradeBlock (the block being programmed)', () => {
+  it('scores an armed block exactly like the matching catalog entry and compares it with the best', () => {
+    const x = state({ E: 0.85, B: 0.15, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.95 });
+    const d = diagnose(x, 4, 0.9, k);
+    const r = route(x, d, k);
+    const list = gradeCatalog(x, 4, d, r, k, [], 15);
+    const sprint = list.find((g) => g.entry.id === 'execute-sprint')!;
+    const armed = gradeBlock({ ...sprint.spec!, cadence: 'm15' }, x, 4, d, r, k, 'This block', list[0]);
+    expect(armed.score).toBe(sprint.score);
+    expect(armed.comparison.standing).toBe(sprint.comparison.standing);
+    expect(armed.comparison.margin).toBe(sprint.comparison.margin);
+    expect(armed.comparison.against.name).toBe(list[0].entry.name);
+    expect(armed.entry.kind).toBe('execute');
+    expect(armed.spec!.cadence).toBe('m15');
+    expect(armed.predicted).not.toBeNull();
+    // Arming the best block itself reads as the best, even though its id differs.
+    const top = gradeBlock({ ...list[0].spec!, cadence: 'm15' }, x, 4, d, r, k, 'This block', list[0]);
+    expect(top.comparison.standing).toBe('best');
+    expect(top.comparison.margin).toBe(0);
+    // Without a reference the block is compared with itself.
+    expect(gradeBlock(spec({ modality: 'reading', valuation: 'churn' }), x, 4, d, r, k).comparison.standing).toBe('best');
+  });
+
+  it('reflects the block as programmed: churn trips guardrails and stands far behind, a custom length keeps its own horizon', () => {
+    const x = state({ E: 0.7, B: 0.25 });
+    const d = diagnose(x, 4, 0.4, k);
+    const r = route(x, d, k);
+    const best = gradeCatalog(x, 4, d, r, k, [], 15)[0];
+    const churn = gradeBlock(spec({ modality: 'reading', valuation: 'churn', cadence: 'm15' }), x, 4, d, r, k, 'This block', best);
+    expect(['behind', 'far']).toContain(churn.comparison.standing);
+    expect(churn.caps.length).toBeGreaterThan(0);
+    expect(churn.guardrails.length).toBe(churn.caps.length);
+    expect(churn.guardrails.map((w) => w.type)).toContain('depletingIntake');
+    // Depleting intake is an efficiency note, never a severe warning.
+    expect(churn.guardrails.find((w) => w.type === 'depletingIntake')!.severity).toBe('note');
+    const long = gradeBlock(spec({ modality: 'expressive', anchor: 'music', cadence: 'custom', customMinutes: 40 }), x, 4, d, r, k, 'This block', best);
+    expect(long.spec!.customMinutes).toBe(40);
+    expect(long.entry.minutes).toBe(40);
+    expect(long.boundMinutes).toBeLessThanOrEqual(40);
+    expect(long.comparison.deltas).not.toBeNull();
+  });
+});
+
+describe('wide-ranging parameters', () => {
+  it('offers wider option ranges on every axis, with unique keys and monotone values', () => {
+    const keys = <K extends string>(list: readonly { key: K }[]) => list.map((o) => o.key);
+    const unique = <K extends string>(list: readonly { key: K }[]) => expect(new Set(keys(list)).size).toBe(list.length);
+    for (const list of [MODALITIES, ANCHORS, VALUATIONS, DENSITIES, CONTEXTS, SCRATCHPADS, NOVELTIES, SOMATICS, INTENSITIES, PLAYBACK_SPEEDS]) unique(list);
+    expect(MODALITIES.length).toBeGreaterThanOrEqual(12);
+    expect(ANCHORS.length).toBeGreaterThanOrEqual(8);
+    expect(VALUATIONS.map((o) => o.V)).toEqual([...VALUATIONS.map((o) => o.V)].sort((a, b) => a - b));
+    expect(VALUATIONS[0].V).toBe(0);
+    expect(VALUATIONS[VALUATIONS.length - 1].V).toBe(1);
+    expect(DENSITIES.map((o) => o.Cin)).toEqual([...DENSITIES.map((o) => o.Cin)].sort((a, b) => a - b));
+    expect(DENSITIES[DENSITIES.length - 1].Cin).toBe(1);
+    expect(CONTEXTS.map((o) => o.P)).toEqual([...CONTEXTS.map((o) => o.P)].sort((a, b) => a - b));
+    expect(CONTEXTS[CONTEXTS.length - 1].P).toBe(1);
+    expect(CONTEXTS[CONTEXTS.length - 1].S).toBeLessThan(0.1);
+    expect(SCRATCHPADS.map((o) => o.gammaAssoc)).toEqual([...SCRATCHPADS.map((o) => o.gammaAssoc)].sort((a, b) => a - b));
+    expect(SCRATCHPADS[SCRATCHPADS.length - 1].gammaAssoc).toBe(1.5);
+    expect(NOVELTIES.map((o) => o.xi)).toEqual([...NOVELTIES.map((o) => o.xi)].sort((a, b) => a - b));
+    expect(NOVELTIES[0].xi).toBeLessThan(0);
+    expect(NOVELTIES[NOVELTIES.length - 1].xi).toBe(0.3);
+    expect(INTENSITIES.map((o) => o.factor)).toEqual([0.4, 0.7, 1, 1.25, 1.6]);
+    expect(PLAYBACK_SPEEDS[0].factor).toBe(0.5);
+    expect(PLAYBACK_SPEEDS[PLAYBACK_SPEEDS.length - 1].factor).toBe(3);
+    expect(SOMATICS.map((o) => o.key)).toEqual(['supine', 'moving', 'standing', 'seated', 'ocular', 'slump', 'wrecked']);
+    // Every option resolves to inputs on the unit interval.
+    for (const m of MODALITIES) for (const a of ANCHORS) {
+      const u = resolveSpec(spec({ modality: m.key, anchor: a.key, intensity: 'max' })).u;
+      for (const v of Object.values(u)) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('infers the block kind from mixed intake/output modalities', () => {
+    expect(inferKind(spec({ modality: 'social' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'speaking' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'interactive' }))).toBe('absorb');
+    expect(inferKind(spec({ modality: 'watching' }))).toBe('absorb');
+    expect(inferKind(spec({ modality: 'manual' }))).toBe('express');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'vigorous' }))).toBe('somatic');
+    expect(inferKind(spec({ modality: 'zero', anchor: 'screen' }))).toBe('rest');
+  });
+
+  it('models the extremes: a crisis costs more than owned pressure, and deadening novelty lowers activation', () => {
+    const x = state({ E: 0.7, B: 0.3, Fvis: 0.1, Fbody: 0.3, A: 0.5, V: 0.9 });
+    const run = (over: Partial<BlockSpec>) => integrateBlock(x, 4, resolveSpec(spec({ modality: 'execution', anchor: 'none', ...over })), 15, k);
+    expect(run({ context: 'crisis' }).delta.E).toBeLessThan(run({ context: 'sprint' }).delta.E);
+    expect(run({ context: 'imposed' }).delta.E).toBeLessThan(run({ context: 'sprint' }).delta.E);
+    const quiet = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', novelty: 'deadening' })), 15, k);
+    const wild = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', novelty: 'frontier' })), 15, k);
+    expect(wild.x.A).toBeGreaterThan(quiet.x.A);
+    const chaos = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', scratchpad: 'chaos' })), 15, k);
+    const single = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', scratchpad: 'single' })), 15, k);
+    expect(chaos.delta.B).toBeGreaterThan(single.delta.B);
+    const wrecked = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', somatic: 'wrecked' })), 15, k);
+    const seated = integrateBlock(x, 4, resolveSpec(spec({ modality: 'reading', anchor: 'none', somatic: 'seated' })), 15, k);
+    expect(wrecked.delta.Fvis).toBeGreaterThan(seated.delta.Fvis);
+    expect(wrecked.delta.Fbody).toBeGreaterThan(seated.delta.Fbody);
+  });
+
+  it('persists whether a block has been suggested', () => {
+    expect(defaultPersisted().suggested).toBe(false);
+    const store = defaultPersisted();
+    store.suggested = true;
+    expect(decodePersisted(encodePersisted(store)).suggested).toBe(true);
+    expect(decodePersisted(JSON.stringify({ suggested: 'yes' })).suggested).toBe(false);
+  });
+});
+
+describe('playback speed', () => {
+  it('scales the intake channels only, clamped to [0, 1]', () => {
+    const base = resolveSpec(spec({ modality: 'auditory', anchor: 'none' })).u;
+    const fast = resolveSpec(spec({ modality: 'auditory', anchor: 'none', speed: 'x2' })).u;
+    const slow = resolveSpec(spec({ modality: 'auditory', anchor: 'none', speed: 'x075' })).u;
+    expect(base.Iaud).toBeCloseTo(0.35, 10);
+    expect(fast.Iaud).toBeCloseTo(0.7, 10);
+    expect(slow.Iaud).toBeCloseTo(0.2625, 10);
+    expect(resolveSpec(spec({ modality: 'auditory', speed: 'x3' })).u.Iaud).toBe(1);
+    // Only played-back modalities take a speed: video does, reading a page does not.
+    const video = resolveSpec(spec({ modality: 'watching', speed: 'x2' })).u;
+    expect(video.Ivis).toBeCloseTo(0.7, 10);
+    expect(video.Iaud).toBeCloseTo(0.3, 10);
+    expect(resolveSpec(spec({ modality: 'reading', speed: 'x2' })).u.Ivis).toBe(0.5);
+    expect(modalityIsPlayback('watching')).toBe(true);
+    expect(modalityIsPlayback('social')).toBe(false);
+    // Output is untouched; a zero-vector block ignores the speed entirely.
+    const out = resolveSpec(spec({ modality: 'execution', speed: 'x2' })).u;
+    expect(out.O1).toBe(0.8);
+    expect(out.Ivis + out.Iaud).toBe(0);
+    expect(resolveSpec(spec({ modality: 'zero', speed: 'x3' })).u.Iaud).toBe(0);
+    // Speed compounds with intensity.
+    expect(resolveSpec(spec({ modality: 'auditory', intensity: 'light', speed: 'x2' })).u.Iaud).toBeCloseTo(0.35 * 0.7 * 2, 10);
+    expect(nearestSpeed(1.6)).toBe('x15');
+    expect(nearestSpeed(2.2)).toBe('x2');
+    expect(nearestSpeed(0.5)).toBe('x05');
+    expect(nearestSpeed(0.6)).toBe('x05');
+  });
+
+  it('makes a fast audiobook cost more per minute than a slow one', () => {
+    const x = state({ E: 0.5, B: 0.3, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.85 });
+    const run = (speed: BlockSpec['speed']) => integrateBlock(x, 4, resolveSpec(spec({ modality: 'auditory', anchor: 'none', density: 'analysis', somatic: 'supine', speed })), 15, k);
+    const slow = run('x075');
+    const fast = run('x25');
+    expect(fast.mean.accrual).toBeGreaterThan(slow.mean.accrual);
+    expect(fast.delta.B).toBeGreaterThan(slow.delta.B);
+    expect(fast.mean.phiIn).toBeLessThan(slow.mean.phiIn);
+  });
+
+  it('applies the usual listening speed to the built-in listening entries only', () => {
+    const x = state({ E: 0.45, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const d = diagnose(x, 4, 0.2, k);
+    const r = route(x, d, k);
+    const preset = { id: 'p1', name: 'Slow audiobook', spec: spec({ modality: 'auditory', speed: 'x075' }), createdAt: '2026-09-27T00:00:00.000Z' };
+    const list = gradeCatalog(x, 4, d, r, k, [preset], 15, 'x2');
+    for (const g of list) {
+      if (!g.spec) continue;
+      if (g.entry.presetId) expect(g.spec.speed).toBe('x075');
+      else if (modalityIsPlayback(g.spec.modality)) expect(g.spec.speed).toBe('x2');
+      else expect(g.spec.speed).toBeUndefined();
+    }
+    const normal = gradeCatalog(x, 4, d, r, k, [], 15);
+    const audio = (l: typeof list) => l.find((g) => g.entry.id === 'absorb-audio')!;
+    expect(audio(normal).spec!.speed).toBeUndefined();
+    expect(audio(list).delta!.B).toBeGreaterThan(audio(normal).delta!.B);
+  });
+
+  it('persists the speed on specs and the usual listening speed', () => {
+    const store = defaultPersisted();
+    store.spec = spec({ modality: 'auditory', speed: 'x15' });
+    store.listeningSpeed = 'x175';
+    const back = decodePersisted(encodePersisted(store));
+    expect(back.spec.speed).toBe('x15');
+    expect(back.listeningSpeed).toBe('x175');
+    const bad = decodePersisted(JSON.stringify({ spec: { modality: 'auditory', speed: 'x99' }, listeningSpeed: 'fast' }));
+    expect(bad.spec.speed).toBeUndefined();
+    expect(bad.listeningSpeed).toBe('x1');
+  });
+});
+
+describe('replayHistory', () => {
+  const at = '2026-09-27T20:00:00.000Z';
+  const logged = (x: StateVector, hours: number, s: BlockSpec, dt: number, note?: string) => {
+    const inputs = resolveSpec(s);
+    const r = integrateBlock(x, hours, inputs, dt, k);
+    const entry: HistoryEntry = { k: 0, at, kind: 'block', note, dtMinutes: dt, spec: s, xBefore: x, xAfter: r.x, hoursAwakeBefore: hours, hoursAwakeAfter: r.hoursAwake, mean: r.mean, quadrant: 'IV' };
+    return { entry, x: r.x, hours: r.hoursAwake };
+  };
+
+  it('re-integrates later blocks after an edit or a delete and renumbers them', () => {
+    const x0 = state({ E: 0.8, B: 0.2, Fvis: 0.1, Fbody: 0.1, A: 0.5, V: 0.9 });
+    const a = logged(x0, 2, spec({ modality: 'execution', anchor: 'music' }), 25, 'sprint');
+    const b = logged(a.x, a.hours, spec({ modality: 'reading', anchor: 'none', valuation: 'art', density: 'fiction' }), 15);
+    const c = logged(b.x, b.hours, REST, 15);
+    const same = replayHistory([a.entry, b.entry, c.entry], k);
+    expect(same.x).toEqual(c.x);
+    expect(same.hoursAwake).toBeCloseTo(c.hours, 10);
+    expect(same.blockIndex).toBe(3);
+    expect(same.history.map((h) => h.k)).toEqual([1, 2, 3]);
+    expect(same.history[0].note).toBe('sprint');
+    // Delete the middle block: the rest block now follows the sprint directly.
+    const del = replayHistory([a.entry, c.entry], k, { x: x0, hoursAwake: 2 });
+    expect(del.history).toHaveLength(2);
+    expect(del.history[1].k).toBe(2);
+    expect(del.history[1].xBefore).toEqual(a.x);
+    const direct = integrateBlock(a.x, a.hours, resolveSpec(REST), 15, k);
+    expect(del.x).toEqual(direct.x);
+    expect(del.blockIndex).toBe(2);
+    // Edit the first block's length: everything after it moves and stays chained.
+    const edited = replayHistory([{ ...a.entry, dtMinutes: 45 }, b.entry, c.entry], k, { x: x0, hoursAwake: 2 });
+    expect(edited.history[0].xAfter).not.toEqual(a.x);
+    expect(edited.history[1].xBefore).toEqual(edited.history[0].xAfter);
+    expect(edited.history[2].xBefore).toEqual(edited.history[1].xAfter);
+    expect(edited.x).toEqual(edited.history[2].xAfter);
+    expect(edited.hoursAwake).toBeCloseTo(2 + (45 + 15 + 15) / 60, 10);
+    // Deleting everything returns to the origin.
+    const none = replayHistory([], k, { x: x0, hoursAwake: 2 });
+    expect(none.x).toEqual(x0);
+    expect(none.blockIndex).toBe(0);
+  });
+
+  it('re-applies sleep resets and keeps calibrations as recorded', () => {
+    const x0 = state({ E: 0.4, B: 0.5, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const felt = state({ E: 0.6, B: 0.3, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const cal: HistoryEntry = { k: 0, at, kind: 'override', dtMinutes: 0, spec: null, xBefore: x0, xAfter: felt, hoursAwakeBefore: 3, hoursAwakeAfter: 5, mean: null, quadrant: 'IV' };
+    const sleep: HistoryEntry = { k: 0, at, kind: 'sleep', dtMinutes: 0, spec: null, sleepHours: 8, xBefore: felt, xAfter: applySleepReset(felt, 8), hoursAwakeBefore: 5, hoursAwakeAfter: 0, mean: null, quadrant: 'IV' };
+    const after = logged(applySleepReset(felt, 8), 0, REST, 15);
+    const r = replayHistory([cal, sleep, after.entry], k, { x: x0, hoursAwake: 3 });
+    expect(r.history[0].xAfter).toEqual(felt);
+    expect(r.history[0].hoursAwakeAfter).toBe(5);
+    expect(r.history[1].xAfter).toEqual(applySleepReset(felt, 8));
+    expect(r.history[1].hoursAwakeAfter).toBe(0);
+    expect(r.history[2].k).toBe(1);
+    expect(r.x).toEqual(after.x);
+    expect(r.blockIndex).toBe(1);
+    // A different calibration upstream changes what the sleep reset produces.
+    const r2 = replayHistory([{ ...cal, xAfter: state({ E: 0.2, B: 0.9 }) }, sleep, after.entry], k, { x: x0, hoursAwake: 3 });
+    expect(r2.history[1].xAfter).toEqual(applySleepReset(state({ E: 0.2, B: 0.9 }), 8));
+    expect(r2.x).not.toEqual(after.x);
+  });
+});
+
+describe('persistence codec', () => {
+  it('round-trips a full store', () => {
+    const store = defaultPersisted();
+    store.x = state({ E: 0.42 });
+    store.hoursAwake = 6.5;
+    store.spec = spec({ modality: 'auditory', anchor: ANCHORS[1].key });
+    const back = decodePersisted(encodePersisted(store));
+    expect(back.x.E).toBeCloseTo(0.42, 10);
+    expect(back.hoursAwake).toBe(6.5);
+    expect(back.spec.modality).toBe('auditory');
+    expect(back.constants).toEqual(DEFAULT_CONSTANTS);
+  });
+
+  it('falls back to defaults on corrupt or hostile payloads', () => {
+    expect(decodePersisted(null)).toEqual(defaultPersisted());
+    expect(decodePersisted('{not json')).toEqual(defaultPersisted());
+    const hostile = JSON.stringify({ x: { E: 7, B: -1, Fvis: 'x', Fbody: 0, A: 0, V: 0 }, spec: { modality: 'evil', novelty: 'weird' }, constants: { alphaIn: 99 }, backlogLatch: 'yes' });
+    const d = decodePersisted(hostile);
+    expect(d.x).toEqual(DEFAULT_STATE);
+    expect(d.spec.modality).toBe(DEFAULT_SPEC.modality);
+    expect(d.spec.novelty).toBe('routine');
+    expect(d.constants.alphaIn).toBe(5);
+    expect(d.backlogLatch).toBe(false);
+  });
+});

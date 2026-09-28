@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- feat(web): 6D Capacity Controller at `/capacity` (Wellness → Capacity) — a
+  discrete-time state-space monitor over `x = [E, B, F_vis, F_body, A, V]ᵀ`
+  with the governing flux equations, `I*(t)` stability boundary, burnout
+  singularity badge, a segmented telemetry audit form (cadence, modality,
+  anchor, valuation, density, context, scratchpad discipline, somatic marker),
+  quadrant-routed prescriptions with simulated hard time boundaries, a
+  10-block trajectory chart, block log, manual override / constants / sleep
+  reset modals, and `localStorage` persistence. The v2 spec adds the
+  associative branching multiplier `(1 + γ_assoc)` on backlog accrual, the
+  `ξ_novelty` arousal term, the optical cutoff / backlog-saturation /
+  under-arousal-vs-depletion / terminal-strain guardrails, the revised
+  routing matrix with its parameter ranges, a per-block *State Vector
+  Update* report (with Markdown copy), a single trailing operational
+  prompt, and a compared block catalog (every archetype always listed,
+  forward-simulated and scored for the current state, one-click arm).
+  Opens in a simple single-column flow written in plain language (status
+  headline → compared "what to do next" cards → short log card) with a
+  Show-math toggle, custom durations, an intensity setting, saveable user
+  presets compared alongside the catalog, an Advanced toggle for the full
+  instrument panel, a free-text block describer ("read a novel on the
+  couch" → activity, posture, anchor, pressure, tangents, length, with the
+  cue behind each choice, every field adjustable in place), plain everyday
+  option labels, an everyday block catalog, a fixed 15-minute block length
+  for the simple flow, and the Seven Pillars filter row (Objective
+  Impartiality as a Kalman-blended calibration, Curiosity, Intellectual
+  Deconstruction, Somatic Grounding, Creativity, Strength Through Hardship
+  as σ_strength drag attenuation, Radical Empathy), a before-you-log
+  preview of the programmed block (reason and all six meters now → after),
+  comparisons instead of letter grades (every block is measured against
+  the best one for the state and the differences are named in words; the
+  standing — Top match / Close match / Partial match / Different path —
+  shows only with Show math or in Advanced), and playback speed for
+  listening and watching blocks (0.75×–3× scaling the intake channels,
+  parsed from "at 1.5x", adjustable as a chip, with a usual listening speed
+  applied to the catalog's audiobook entries). The simple flow now shows
+  exactly one recommended block and compares the block you describe with
+  it; nothing is assumed until you describe a block or use the
+  recommendation, and logging empties the card again. Every block
+  parameter spans a wider range: thirteen activities (rest, listening to
+  music and listening to an audiobook or podcast as separate activities
+  for their different levels of involvement, watching, browsing, reading,
+  dense study, talking, presenting, games, hands-on, expressing, focused
+  work), eight backgrounds (up to background
+  speech, background video and hard exercise), six kinds of thing (numbing
+  to real work), seven densities (small talk to new research), six pressure
+  contexts (own choice to emergency), six tangent levels (on track to
+  constant switching), five novelty levels (mind-numbing to overwhelmingly
+  new), seven body states (lying down to eyes and back both hurting), five
+  intensities (×0.4 to ×1.6), speeds from 0.5× and custom lengths to 480
+  minutes, with wider Constants ranges to match. Guardrails are warnings
+  that name the guardrail (Input prohibited, Backlog lock, Optical cutoff,
+  Depleting intake, Under-arousal gate, Terminal strain, Hard boundary, Not
+  indicated) rather than a "Not now" verdict, and only a severe guardrail
+  (a singularity, terminal strain, eyes past the cutoff, or a strain /
+  energy / late-phase limit inside the block) is shown as a warning: the
+  efficiency guardrails (backlog lock, depleting intake, under-arousal
+  gate, not indicated) are notes shown only under Show math, as are the
+  Seven Pillars row and the depth-floor and masking notes in the simple
+  flow, so nothing is judged by default. Starting a block runs a
+  countdown for its length (15 minutes by default) that logs the block
+  when it ends, survives a reload, can be finished early (logging the
+  minutes done) or cancelled, and chimes when done. A Past blocks log
+  lets any logged block be edited (note, length, every field) or deleted,
+  with everything after it replayed from the state it now follows.
+  Engine + screen tests under
+  `web/src/features/capacity/__tests__/`. Model notes and closure choices in
+  `docs/CAPACITY_CONTROLLER.md`.
+
 ## [2.0.0] — 2026-05-16
 
 ### Removed
