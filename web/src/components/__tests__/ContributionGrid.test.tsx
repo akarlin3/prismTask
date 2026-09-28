@@ -31,9 +31,9 @@ describe('ContributionGrid', () => {
     const cells = screen.getAllByTestId('contribution-grid-cell');
     // Only past + today cells are rendered (future cells are spacers
     // without the testid). 12 weeks covers at most 84 days; the rendered
-    // count is ≤ 84 and ≥ 79 (12 weeks − up to 5 future days).
+    // count is ≤ 84 and ≥ 78 (12 weeks − up to 6 future days, on a Monday).
     expect(cells.length).toBeLessThanOrEqual(84);
-    expect(cells.length).toBeGreaterThanOrEqual(79);
+    expect(cells.length).toBeGreaterThanOrEqual(78);
   });
 
   it('buckets recent completions into the grid by date', () => {
@@ -76,8 +76,9 @@ describe('ContributionGrid', () => {
       />,
     );
     const cells = screen.getAllByTestId('contribution-grid-cell');
-    // 4 weeks = at most 28 days, at least 23 (4 × 7 minus future spacers).
+    // 4 weeks = at most 28 days, at least 22 (4 × 7 minus up to 6 future
+    // spacers, on a Monday).
     expect(cells.length).toBeLessThanOrEqual(28);
-    expect(cells.length).toBeGreaterThanOrEqual(23);
+    expect(cells.length).toBeGreaterThanOrEqual(22);
   });
 });
