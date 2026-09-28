@@ -41,6 +41,9 @@ import {
   replayHistory,
   resolveSpec,
   route,
+  sanitizeSpec,
+  timerElapsedMinutes,
+  timerRemainingMs,
   type BlockSpec,
   type HistoryEntry,
   type StateVector,
@@ -433,6 +436,31 @@ describe('graded block catalog', () => {
     expect(compareBlocks(twin, best, k).standing).toBe('best');
     expect(sameBlock(best.spec, twin.spec)).toBe(true);
     expect(sameBlock(best.spec, best.spec && { ...best.spec, speed: 'x2' })).toBe(false);
+  });
+
+  it('persists a running block timer and reads it back safely', () => {
+    const base = defaultPersisted();
+    expect(base.timer).toBeNull();
+    expect(base.timerChime).toBe(true);
+    const timer = { startedAt: 1_700_000_000_000, minutes: 15, spec: spec({ modality: 'reading', cadence: 'm15' }), note: 'read a novel' };
+    const round = decodePersisted(encodePersisted({ ...base, timer, timerChime: false }));
+    expect(round.timer).toEqual({ ...timer, spec: sanitizeSpec(timer.spec) });
+    expect(round.timerChime).toBe(false);
+    // Junk is dropped, lengths are clamped, a blank note is null, and the chime defaults on.
+    expect(decodePersisted(JSON.stringify({ timer: { startedAt: 'soon', minutes: 15 } })).timer).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timer: { startedAt: -1, minutes: 15 } })).timer).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timer: 'later' })).timer).toBeNull();
+    const clamped = decodePersisted(JSON.stringify({ timer: { startedAt: 1, minutes: 900, spec: {}, note: '   ' } })).timer!;
+    expect(clamped.minutes).toBe(480);
+    expect(clamped.note).toBeNull();
+    expect(decodePersisted(JSON.stringify({ timerChime: 'no' })).timerChime).toBe(true);
+    // Remaining and elapsed time are clamped to the block.
+    expect(timerRemainingMs(timer, timer.startedAt + 5 * 60_000)).toBe(10 * 60_000);
+    expect(timerRemainingMs(timer, timer.startedAt + 20 * 60_000)).toBe(0);
+    expect(timerRemainingMs(timer, timer.startedAt - 60_000)).toBe(16 * 60_000);
+    expect(timerElapsedMinutes(timer, timer.startedAt + 6.5 * 60_000)).toBeCloseTo(6.5, 6);
+    expect(timerElapsedMinutes(timer, timer.startedAt + 60 * 60_000)).toBe(15);
+    expect(timerElapsedMinutes(timer, timer.startedAt - 60_000)).toBe(0);
   });
 
   it('marks only harm-predicting guardrails as severe; efficiency guardrails are notes', () => {

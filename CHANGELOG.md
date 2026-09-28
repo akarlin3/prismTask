@@ -65,9 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   efficiency guardrails (backlog lock, depleting intake, under-arousal
   gate, not indicated) are notes shown only under Show math, as are the
   Seven Pillars row and the depth-floor and masking notes in the simple
-  flow, so nothing is judged by default. A Past blocks log lets any
-  logged block be edited (note, length, every field) or deleted, with
-  everything after it replayed from the state it now follows.
+  flow, so nothing is judged by default. Starting a block runs a
+  countdown for its length (15 minutes by default) that logs the block
+  when it ends, survives a reload, can be finished early (logging the
+  minutes done) or cancelled, and chimes when done. A Past blocks log
+  lets any logged block be edited (note, length, every field) or deleted,
+  with everything after it replayed from the state it now follows.
   Engine + screen tests under
   `web/src/features/capacity/__tests__/`. Model notes and closure choices in
   `docs/CAPACITY_CONTROLLER.md`.

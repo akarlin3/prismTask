@@ -222,7 +222,9 @@ diagnostics beside the plain copy.
    **Use this** (`suggested` in the persisted state). Then the block's details are adjustable
    chips and the *Before you log it* comparison appears (the comparison sentence, the reason, a
    warning only when the block would cross a hard limit, and the six meters now → after),
-   followed by **Log Block** (which empties the card again) and *Save this block as a preset*.
+   followed by **Start block** (a countdown for the block's length that logs it when it ends),
+   **Log Block** (logs it now; the card empties again either way) and *Save this block as a
+   preset*.
    **Clear** empties it by hand. The full form (How long, Intensity, Playback speed, What you
    did, Background anchor, How substantive, How dense, Pressure and control, Tangents, Novelty,
    Body and posture) is one link away.
@@ -301,6 +303,22 @@ the card shows the comparison sentence, its reason, any severe warning, and all 
 predicted value), followed by the routed headline the state would land on. Show math adds the
 standing pill, the margin and the efficiency notes; in Advanced mode the predicted-Δx panel
 carries the same standing and margin. Everything updates live before anything is logged.
+
+### Block timer
+
+**Start block** (on the block you described or took from the recommendation; **Start** on the
+recommended block itself; **Start Block Timer** in the Advanced audit form) starts a countdown
+for the block's length (15 minutes by default, the fixed block length, or the length you set on
+the block) and logs the block when the countdown ends. The running block is persisted
+(`PersistedState.timer`, a `RunningBlock { startedAt, minutes, spec, note }`), so a reload keeps
+the countdown, and a countdown that ended while the page was closed is logged on the next load.
+While it runs, the card shows the time left (`role="timer"`), the progress, the end time, and
+three controls: **Finish early** (available after 5 minutes, the model's shortest block; logs
+the minutes done so far via `withMinutes`), **Cancel** (nothing is logged) and a chime toggle
+(`timerChime`, on by default: three short tones through Web Audio when the block ends; the
+audio context is created on the Start click so browsers allow it). The state the block is
+integrated from is the live state at the moment it finishes, exactly as if it had been logged
+by hand; **Log Block** still logs a block immediately, for something already done.
 
 ### Past blocks: edit and delete
 

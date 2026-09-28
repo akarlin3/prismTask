@@ -21,6 +21,9 @@ import {
   PenLine,
   Play,
   Settings2,
+  Timer,
+  Volume2,
+  VolumeX,
   Sigma,
   SlidersHorizontal,
   Trash2,
@@ -69,6 +72,8 @@ import {
   replayHistory,
   resolveSpec,
   route,
+  timerElapsedMinutes,
+  timerRemainingMs,
   type BlockSpec,
   type ConfigKind,
   type Constants,
@@ -80,6 +85,7 @@ import {
   type Option,
   type PersistedState,
   type Prescription,
+  type RunningBlock,
   type Routing,
   type SpeedKey,
   type Standing,
@@ -1605,6 +1611,59 @@ function BlockLog({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Running block: countdown, progress, finish early / cancel / chime
+// ---------------------------------------------------------------------------
+
+function RunningBlockPanel({ timer, now, chime, onToggleChime, onFinishEarly, onCancel }: { timer: RunningBlock; now: number; chime: boolean; onToggleChime: () => void; onFinishEarly: () => void; onCancel: () => void }) {
+  const total = timer.minutes * 60_000;
+  const remaining = timerRemainingMs(timer, now);
+  const elapsed = timerElapsedMinutes(timer, now);
+  const pct = total > 0 ? Math.min(100, Math.max(0, (100 * (total - remaining)) / total)) : 100;
+  const mm = Math.floor(remaining / 60_000);
+  const ss = Math.floor((remaining % 60_000) / 1000);
+  const endsAt = new Date(timer.startedAt + total).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const canFinish = elapsed >= MIN_CUSTOM_MINUTES;
+  const what = timer.note ?? MODALITIES.find((o) => o.key === timer.spec.modality)?.plain ?? 'Block';
+  return (
+    <div className="rounded-md border border-cyan-400/40 bg-cyan-400/5 px-3 py-3" aria-label="Block in progress">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">
+          <Timer className="h-3.5 w-3.5" aria-hidden="true" /> Block in progress
+        </span>
+        <span className="text-[10.5px] text-zinc-500">
+          {timer.minutes} min · ends {endsAt}
+        </span>
+      </div>
+      <div className="mt-1 text-[12.5px] leading-snug text-zinc-100">{what}</div>
+      <div role="timer" aria-label="Time left" className="mt-2 font-mono text-4xl font-semibold leading-none tabular-nums text-zinc-50">
+        {mm}:{String(ss).padStart(2, '0')}
+      </div>
+      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-label="Block progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+        <div className="h-full rounded-full bg-cyan-400 transition-[width] duration-1000 ease-linear motion-reduce:transition-none" style={{ width: `${pct.toFixed(1)}%` }} />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <GhostButton onClick={onFinishEarly} disabled={!canFinish}>
+          Finish early
+        </GhostButton>
+        <GhostButton onClick={onCancel}>Cancel</GhostButton>
+        <button
+          type="button"
+          onClick={onToggleChime}
+          aria-pressed={chime}
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-zinc-800 px-2 py-1 text-[10.5px] text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-cyan-400"
+        >
+          {chime ? <Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> : <VolumeX className="h-3.5 w-3.5" aria-hidden="true" />}
+          {chime ? 'Chime on' : 'Chime off'}
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+        {canFinish ? `Finish early logs the ${Math.round(elapsed)} minutes done so far.` : `Finish early opens after ${MIN_CUSTOM_MINUTES} minutes.`} Cancel logs nothing. When the timer ends, the block is logged for you.
+      </p>
+    </div>
+  );
+}
+
 export function CapacityControllerScreen({ frameless = false }: { frameless?: boolean }) {
   const [store, setStore] = useState<PersistedState>(loadPersisted);
   const [modal, setModal] = useState<'override' | 'constants' | 'sleep' | null>(null);
@@ -1618,7 +1677,12 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const [adjusted, setAdjusted] = useState<ReadonlySet<DescribedField>>(() => new Set());
   const formRef = useRef<HTMLDivElement>(null);
 
-  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength, listeningSpeed, suggested } = store;
+  const { x, hoursAwake, constants: k, spec, history, blockIndex, backlogLatch, presets, showMath, blockLength, listeningSpeed, suggested, timer, timerChime } = store;
+  // Block timer: `now` ticks once a second while a block runs; the block is logged when the countdown ends.
+  const [now, setNow] = useState(() => Date.now());
+  const audioRef = useRef<AudioContext | null>(null);
+  const finishRef = useRef<(t: RunningBlock, minutes: number, early: boolean) => void>(() => {});
+  const completedRef = useRef<number | null>(null);
 
   useEffect(() => {
     try {
@@ -1685,19 +1749,22 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
   const pushHistory = (entry: HistoryEntry, patch: Partial<PersistedState>) =>
     update({ ...patch, history: [...history, entry].slice(-HISTORY_LIMIT) });
 
-  const integrate = (note?: string) => {
-    const result = integrateBlock(x, hoursAwake, inputs, dt, k);
+  /** Integrate a block from the live state and log it; `extra` patches the store in the same update. */
+  const integrateSpec = (specToLog: BlockSpec, note?: string, extra: Partial<PersistedState> = {}) => {
+    const ins = resolveSpec(specToLog);
+    const minutes = blockMinutes(specToLog);
+    const result = integrateBlock(x, hoursAwake, ins, minutes, k);
     const nextIndex = blockIndex + 1;
-    const latch = nextBacklogLatch(backlogLatch, result.x, inputs, k);
-    const q = route(result.x, diagnose(result.x, result.hoursAwake, inputs.theta.Cin, k, latch), k).quadrant;
+    const latch = nextBacklogLatch(backlogLatch, result.x, ins, k);
+    const q = route(result.x, diagnose(result.x, result.hoursAwake, ins.theta.Cin, k, latch), k).quadrant;
     pushHistory(
       {
         k: nextIndex,
         at: new Date().toISOString(),
         kind: 'block',
         note: note?.trim() || undefined,
-        dtMinutes: dt,
-        spec,
+        dtMinutes: minutes,
+        spec: specToLog,
         xBefore: x,
         xAfter: result.x,
         hoursAwakeBefore: hoursAwake,
@@ -1705,15 +1772,111 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
         mean: result.mean,
         quadrant: q,
       },
-      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex, backlogLatch: latch, suggested: false },
+      { x: result.x, hoursAwake: result.hoursAwake, blockIndex: nextIndex, backlogLatch: latch, suggested: false, ...extra },
     );
     setNotice(
-      `Block k${nextIndex} logged (Δt ${dt} m) · E ${fmt(x.E)}→${fmt(result.x.E)} · B ${fmt(x.B)}→${fmt(result.x.B)} · F ${fmt(compositeStrain(x))}→${fmt(compositeStrain(result.x))} → ${q}`,
+      `Block k${nextIndex} logged (Δt ${minutes} m) · E ${fmt(x.E)}→${fmt(result.x.E)} · B ${fmt(x.B)}→${fmt(result.x.B)} · F ${fmt(compositeStrain(x))}→${fmt(compositeStrain(result.x))} → ${q}`,
     );
     setDescribed(null);
     setAdjusted(new Set());
     setAdjustField(null);
   };
+
+  /** Log the armed block now, without a timer. */
+  const integrate = (note?: string) => integrateSpec(spec, note);
+
+  // --- Block timer ---------------------------------------------------------
+
+  /** Create the audio context on the Start click, when browsers allow sound, so the chime can play later. */
+  const ensureAudio = () => {
+    if (audioRef.current) return;
+    try {
+      const w = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
+      const Ctx = w.AudioContext ?? w.webkitAudioContext;
+      if (Ctx) audioRef.current = new Ctx();
+    } catch {
+      // No audio on this platform; the block still logs itself when the timer ends.
+    }
+  };
+
+  const playChime = () => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    try {
+      void ctx.resume?.();
+      const t0 = ctx.currentTime + 0.05;
+      [523.25, 659.25, 783.99].forEach((hz, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = hz;
+        const at = t0 + i * 0.18;
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(0.18, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + 0.55);
+      });
+    } catch {
+      // A blocked or closed audio context is not worth an error.
+    }
+  };
+
+  /** Start a countdown for the block's length; the block is logged when it ends. */
+  const startTimer = (s: BlockSpec, note?: string) => {
+    const minutes = blockMinutes(s);
+    if (timerChime) ensureAudio();
+    // The start time is read inside the updater, outside render, so the handler stays pure.
+    setStore((prev) => ({ ...prev, spec: s, suggested: true, timer: { startedAt: Date.now(), minutes, spec: s, note: note?.trim() || null }, updatedAt: new Date().toISOString() }));
+    setAdjustField(null);
+    setNotice(`Block started · ${minutes} min · it is logged when the timer ends`);
+  };
+
+  const startFromRecommendation = (raw: BlockSpec) => {
+    const s = simple ? withMinutes(raw, blockLength) : raw;
+    setShowFullForm(false);
+    setDescribed(null);
+    setAdjusted(new Set());
+    startTimer(s);
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
+
+  const finishTimer = (t: RunningBlock, minutes: number, early: boolean) => {
+    integrateSpec(withMinutes(t.spec, minutes), t.note ?? undefined, { timer: null });
+    if (!early && timerChime) playChime();
+  };
+
+  /** Log the minutes done so far (never fewer than the model's shortest block) and stop the timer. */
+  const finishEarly = () => {
+    if (!timer) return;
+    const done = Math.round(timerElapsedMinutes(timer, now));
+    finishTimer(timer, Math.max(MIN_CUSTOM_MINUTES, Math.min(timer.minutes, done)), true);
+  };
+
+  const cancelTimer = () => {
+    update({ timer: null });
+    setNotice('Block cancelled · nothing logged');
+  };
+
+  useEffect(() => {
+    finishRef.current = finishTimer;
+  });
+
+  useEffect(() => {
+    if (!timer) return;
+    const check = () => {
+      const t = Date.now();
+      setNow(t);
+      if (timerRemainingMs(timer, t) > 0 || completedRef.current === timer.startedAt) return;
+      completedRef.current = timer.startedAt;
+      window.clearInterval(id);
+      finishRef.current(timer, timer.minutes, false);
+    };
+    const id = window.setInterval(check, 1000);
+    check();
+    return () => window.clearInterval(id);
+  }, [timer]);
 
   const applyDescribed = (text: string, result: DescribedBlock) => {
     setDescribed({ text, result });
@@ -1877,6 +2040,7 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
 
   const integratePanel = (label: string) => (
     <>
+          {timer && <RunningBlockPanel timer={timer} now={now} chime={timerChime} onToggleChime={() => update({ timerChime: !timerChime })} onFinishEarly={finishEarly} onCancel={cancelTimer} />}
           <PillarRow verdicts={pillars} showMath />
           <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2.5">
             <div className="flex items-center justify-between gap-2">
@@ -1940,6 +2104,14 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
             className="w-full rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
           >
             {label}
+          </button>
+          <button
+            type="button"
+            onClick={() => startTimer(spec)}
+            disabled={!!timer}
+            className="w-full rounded-md border border-zinc-700 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Start Block Timer · Δt = {dt} m
           </button>
     </>
   );
@@ -2168,7 +2340,14 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                       Log Sleep
                     </PrimaryButton>
                   ) : (
-                    <PrimaryButton onClick={() => recommended.spec && arm(recommended.spec)}>Use this</PrimaryButton>
+                    <>
+                      <PrimaryButton onClick={() => recommended.spec && startFromRecommendation(recommended.spec)} disabled={!!timer}>
+                        Start
+                      </PrimaryButton>
+                      <GhostButton onClick={() => recommended.spec && arm(recommended.spec)} disabled={!!timer}>
+                        Use this
+                      </GhostButton>
+                    </>
                   )}
                 </div>
               </div>
@@ -2187,14 +2366,18 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
               )}
             </div>
             <div className="mt-3">
-              <DescribeBox defaultMinutes={blockLength} defaultSpeed={listeningSpeed} onDescribed={applyDescribed} />
+              {timer ? (
+                <RunningBlockPanel timer={timer} now={now} chime={timerChime} onToggleChime={() => update({ timerChime: !timerChime })} onFinishEarly={finishEarly} onCancel={cancelTimer} />
+              ) : (
+                <DescribeBox defaultMinutes={blockLength} defaultSpeed={listeningSpeed} onDescribed={applyDescribed} />
+              )}
             </div>
-            {!suggested && (
+            {!timer && !suggested && (
               <p className="mt-2 text-[12px] leading-snug text-zinc-500">
                 Describe a block you did or plan to do, or use the recommendation above. It is compared with the recommended block and every meter is shown now → after before you log it. Nothing is assumed until you do.
               </p>
             )}
-            {suggested && (
+            {!timer && suggested && (
             <>
             <div className={`mt-2 rounded-md border px-3 py-2 ${described ? 'border-cyan-400/30 bg-cyan-400/5' : 'border-zinc-800 bg-zinc-950/60'}`} aria-label={described ? 'Understood as' : 'Block details'}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -2284,13 +2467,25 @@ export function CapacityControllerScreen({ frameless = false }: { frameless?: bo
                   Deep focus hides strain: felt strain under-reports the model's F during this block, so the boundary follows the model.
                 </p>
               )}
-              <button
-                type="button"
-                onClick={() => integrate(described?.text)}
-                className="w-full rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
-              >
-                Log Block
-              </button>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <button
+                  type="button"
+                  onClick={() => startTimer(spec, described?.text)}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-cyan-400/70 bg-cyan-400/15 px-3 py-3 text-[12px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:bg-cyan-400/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+                >
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                  Start block · {dt} min
+                </button>
+                <button
+                  type="button"
+                  onClick={() => integrate(described?.text)}
+                  title="Log this block now, without a timer"
+                  className="rounded-md border border-zinc-700 px-3 py-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+                >
+                  Log Block
+                </button>
+              </div>
+              <p className="text-[11px] leading-snug text-zinc-500">Start runs a {dt}-minute countdown and logs the block when it ends. Log Block records it now, for something already done.</p>
               <PresetSaver onSave={savePreset} />
             </div>
             </>

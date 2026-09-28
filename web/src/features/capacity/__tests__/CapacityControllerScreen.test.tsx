@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { CapacityControllerScreen } from '../CapacityControllerScreen';
 import { STORAGE_KEY, decodePersisted } from '../capacityModel';
 
@@ -385,5 +385,123 @@ describe('CapacityControllerScreen', () => {
     const quiet = within(mine).getByLabelText(/Before you log it/i);
     expect(within(quiet).queryByLabelText(/Guardrail warnings/i)).not.toBeInTheDocument();
     expect(quiet).not.toHaveTextContent(/Optical cutoff|Hard boundary/);
+  });
+
+  it('starting a block runs a countdown for its length and logs it when the time is up', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-28T14:00:00'));
+      render(<CapacityControllerScreen />);
+      const rec = screen.getByRole('region', { name: /Recommended block/i });
+      const mine = screen.getByRole('region', { name: /^Your block$/i });
+      fireEvent.click(within(rec).getByRole('button', { name: /^Start$/ }));
+      const running = within(mine).getByLabelText(/Block in progress/i);
+      expect(within(running).getByRole('timer', { name: /Time left/i })).toHaveTextContent(/^15:00$/);
+      expect(running).toHaveTextContent(/15 min · ends/);
+      expect(within(running).getByRole('progressbar', { name: /Block progress/i })).toHaveAttribute('aria-valuenow', '0');
+      expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).timer?.minutes).toBe(15);
+      // While it runs there is nothing else to log or start.
+      expect(within(mine).queryByRole('button', { name: /^Log Block$/i })).not.toBeInTheDocument();
+      expect(within(mine).queryByLabelText(/Before you log it/i)).not.toBeInTheDocument();
+      expect(within(rec).getByRole('button', { name: /^Start$/ })).toBeDisabled();
+      expect(within(running).getByRole('button', { name: /Finish early/i })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(within(mine).getByRole('timer', { name: /Time left/i })).toHaveTextContent(/^14:00$/);
+      act(() => {
+        vi.advanceTimersByTime(5 * 60_000);
+      });
+      expect(within(mine).getByRole('button', { name: /Finish early/i })).toBeEnabled();
+      expect(within(mine).getByRole('progressbar', { name: /Block progress/i })).toHaveAttribute('aria-valuenow', '40');
+      // The end of the countdown logs the block at its full length and empties the card.
+      act(() => {
+        vi.advanceTimersByTime(9 * 60_000);
+      });
+      const saved = decodePersisted(localStorage.getItem(STORAGE_KEY));
+      expect(saved.timer).toBeNull();
+      expect(saved.history).toHaveLength(1);
+      expect(saved.history[0].dtMinutes).toBe(15);
+      expect(saved.suggested).toBe(false);
+      expect(within(mine).queryByLabelText(/Block in progress/i)).not.toBeInTheDocument();
+      expect(mine).toHaveTextContent(/Nothing is assumed until you do/);
+      expect(screen.getByText(/Block k1 logged/i)).toBeInTheDocument();
+      expect(within(rec).getByRole('button', { name: /^Start$/ })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps a running block across a reload, finishes it early with the minutes done, or cancels it', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-28T14:10:00'));
+      seed({ uiMode: 'simple', timer: { startedAt: Date.now() - 10 * 60_000, minutes: 15, spec: { modality: 'reading', cadence: 'm15' }, note: 'read a novel on the couch' } });
+      render(<CapacityControllerScreen />);
+      const mine = screen.getByRole('region', { name: /^Your block$/i });
+      const running = within(mine).getByLabelText(/Block in progress/i);
+      expect(running).toHaveTextContent(/read a novel on the couch/);
+      expect(within(running).getByRole('timer', { name: /Time left/i })).toHaveTextContent(/^5:00$/);
+      expect(running).toHaveTextContent(/Finish early logs the 10 minutes done so far/);
+      fireEvent.click(within(running).getByRole('button', { name: /Finish early/i }));
+      let saved = decodePersisted(localStorage.getItem(STORAGE_KEY));
+      expect(saved.timer).toBeNull();
+      expect(saved.history).toHaveLength(1);
+      expect(saved.history[0].dtMinutes).toBe(10);
+      expect(saved.history[0].note).toBe('read a novel on the couch');
+      // A described block starts from its own words; Cancel logs nothing and keeps the block for later.
+      fireEvent.change(within(mine).getByLabelText(/Describe it in your own words/i), { target: { value: 'journaled about the week' } });
+      fireEvent.click(within(mine).getByRole('button', { name: /Read it/i }));
+      fireEvent.click(within(mine).getByRole('button', { name: /^Start block/i }));
+      expect(within(mine).getByLabelText(/Block in progress/i)).toHaveTextContent(/journaled about the week/);
+      expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).timer?.note).toBe('journaled about the week');
+      fireEvent.click(within(mine).getByRole('button', { name: /^Chime on$/i }));
+      expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).timerChime).toBe(false);
+      fireEvent.click(within(mine).getByRole('button', { name: /^Cancel$/i }));
+      saved = decodePersisted(localStorage.getItem(STORAGE_KEY));
+      expect(saved.timer).toBeNull();
+      expect(saved.history).toHaveLength(1);
+      expect(within(mine).getByRole('button', { name: /^Log Block$/i })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('logs a countdown that ended while the page was closed', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-28T15:00:00'));
+      seed({ uiMode: 'simple', timer: { startedAt: Date.now() - 30 * 60_000, minutes: 15, spec: { modality: 'expressive', cadence: 'm15' }, note: null } });
+      render(<CapacityControllerScreen />);
+      const saved = decodePersisted(localStorage.getItem(STORAGE_KEY));
+      expect(saved.timer).toBeNull();
+      expect(saved.history).toHaveLength(1);
+      expect(saved.history[0].dtMinutes).toBe(15);
+      expect(screen.queryByLabelText(/Block in progress/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/Block k1 logged/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('offers the timer in Advanced mode as well', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-28T16:00:00'));
+      seed({ spec: { modality: 'expressive', cadence: 'm25' } });
+      render(<CapacityControllerScreen />);
+      const form = screen.getByRole('region', { name: /Telemetry ingestion audit/i });
+      fireEvent.click(within(form).getByRole('button', { name: /Start Block Timer · Δt = 25 m/i }));
+      expect(within(form).getByRole('timer', { name: /Time left/i })).toHaveTextContent(/^25:00$/);
+      expect(within(form).getByRole('button', { name: /Start Block Timer/i })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(25 * 60_000);
+      });
+      expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).history).toHaveLength(1);
+      expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).history[0].dtMinutes).toBe(25);
+      expect(within(form).queryByLabelText(/Block in progress/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

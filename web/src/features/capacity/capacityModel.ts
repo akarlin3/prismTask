@@ -1973,6 +1973,29 @@ export function replayHistory(history: readonly HistoryEntry[], k: Constants, or
   return { history: out, x, hoursAwake: hours, blockIndex: count, backlogLatch: latch };
 }
 
+/**
+ * A block that has been started: its countdown runs for `minutes` from `startedAt` (epoch ms),
+ * and the block is logged when the countdown ends. Persisted, so a reload keeps the timer and a
+ * countdown that ended while the page was closed is logged on the next load.
+ */
+export interface RunningBlock {
+  startedAt: number;
+  minutes: number;
+  spec: BlockSpec;
+  /** The description the block was started from, when any. */
+  note: string | null;
+}
+
+/** Milliseconds left on a running block at `now` (epoch ms); never negative. */
+export function timerRemainingMs(t: RunningBlock, now: number): number {
+  return Math.max(0, t.startedAt + t.minutes * 60_000 - now);
+}
+
+/** Minutes already spent on a running block at `now`, capped at its length. */
+export function timerElapsedMinutes(t: RunningBlock, now: number): number {
+  return Math.min(t.minutes, Math.max(0, (now - t.startedAt) / 60_000));
+}
+
 export interface PersistedState {
   version: 1;
   x: StateVector;
@@ -1987,6 +2010,10 @@ export interface PersistedState {
   listeningSpeed: SpeedKey;
   /** Simple mode: a block has been described or taken from the recommendation (nothing is assumed otherwise). */
   suggested: boolean;
+  /** The block whose timer is running, if any. */
+  timer: RunningBlock | null;
+  /** Play a short chime when a timed block ends. */
+  timerChime: boolean;
   /** Set when B crosses B_sat; cleared by an output block or once B < 0.40. */
   backlogLatch: boolean;
   /** Simple (single-column flow) or advanced (full instrument panel) interface. */
@@ -2011,6 +2038,8 @@ export function defaultPersisted(): PersistedState {
     blockLength: DEFAULT_BLOCK_LENGTH,
     listeningSpeed: DEFAULT_SPEED,
     suggested: false,
+    timer: null,
+    timerChime: true,
     backlogLatch: false,
     uiMode: 'simple',
     blockIndex: 0,
@@ -2118,6 +2147,8 @@ export function decodePersisted(json: string | null): PersistedState {
     blockLength: isFiniteNumber(r.blockLength) ? Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(r.blockLength))) : DEFAULT_BLOCK_LENGTH,
     listeningSpeed: typeof r.listeningSpeed === 'string' && PLAYBACK_SPEEDS.some((o) => o.key === r.listeningSpeed) ? (r.listeningSpeed as SpeedKey) : DEFAULT_SPEED,
     suggested: r.suggested === true,
+    timer: sanitizeTimer(r.timer),
+    timerChime: r.timerChime !== false,
     backlogLatch: r.backlogLatch === true,
     uiMode: r.uiMode === 'advanced' ? 'advanced' : 'simple',
     blockIndex,
@@ -2126,6 +2157,15 @@ export function decodePersisted(json: string | null): PersistedState {
     spec: sanitizeSpec(r.spec),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : base.updatedAt,
   };
+}
+
+function sanitizeTimer(raw: unknown): RunningBlock | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const t = raw as Record<string, unknown>;
+  if (!isFiniteNumber(t.startedAt) || t.startedAt <= 0 || !isFiniteNumber(t.minutes)) return null;
+  const minutes = Math.min(MAX_CUSTOM_MINUTES, Math.max(MIN_CUSTOM_MINUTES, Math.round(t.minutes)));
+  const note = typeof t.note === 'string' && t.note.trim().length > 0 ? t.note.trim().slice(0, 500) : null;
+  return { startedAt: t.startedAt, minutes, spec: sanitizeSpec(t.spec), note };
 }
 
 export function encodePersisted(state: PersistedState): string {
