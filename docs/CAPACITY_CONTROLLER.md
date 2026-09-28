@@ -136,7 +136,8 @@ minutes is marked inadmissible. **Arm This Block** loads the configuration into 
 ## Compared block catalog
 
 A fixed catalog of block archetypes (sensory-isolation rest, brown-noise rest, treadmill walk,
-supine deload, audio narrative, audiobook on the treadmill, literature on the page, structured
+supine deload, audio narrative, audiobook on the treadmill, music with eyes closed, music on a
+walk, literature on the page, structured
 analysis, dense technical absorption, scratchpad synthesis, improv in silence, pacing dictation,
 arousal ramp, generative sprint, walking-desk execution, deadline sprint, terminal sleep reset)
 is always listed, whatever the routed quadrant. Each entry is forward-simulated from the
@@ -247,7 +248,7 @@ Calibrate / Sleep Reset / Undo are available in both.
 `blockDescriber.ts` turns free text into a proposed block, offline and deterministically:
 activity templates (workout, nap, chores, meeting, emails, scrolling, videos, film, TV, gaming,
 audiobook, podcast, conversation, commute, journaling, making, coding, math, writing, building,
-studying, dense reading, fiction, reading, listening, generic work) set the modality and its
+studying, dense reading, fiction, reading, music, listening, generic work) set the modality and its
 natural density / value, then per-field lexicons override anchor, posture, pressure, tangents,
 novelty, intensity, value and density from cues in the text, and coherence rules tidy up
 (rest has no density, expressing has no intake density, rest defaults to lying down). Durations
@@ -265,13 +266,27 @@ is playing). Tapping a chip opens a picker
 for that field alone; a changed chip reads *← you*, a described one shows the cue word, an
 assumed one is dimmed. *Open the full form* still shows every group at once.
 
+### Music and audiobooks are different activities
+
+*Listening to music* and *Listening (audiobook, podcast)* are separate activities because of
+their different levels of involvement. Music has no words to follow: its intake is lighter
+(`I_aud` 0.15 against 0.35), its natural density is null (no quadratic `β_in C_in I₁²` cost),
+no playback speed applies to it, and the rest term `ρ_E (E_cap − E)(1 − I₁)` keeps 85 % of its
+strength instead of 65 %, so music with the eyes closed sits close to rest. An audiobook or a
+podcast is speech to comprehend at a chosen speed, so it can tip into the depleting zone
+(`I₁ > I*`) in a state where music does not. Background music while doing something else stays
+the *Familiar music* anchor (`I_a` 0.55, a different channel); the describer never sets both
+for the same block. The catalog carries *Music with eyes closed* and *Music on a walk* next to
+the audiobook entries; "listened to an album on the couch" reads as music, "listened to a
+podcast" as an audiobook-class block.
+
 ### Wider parameter ranges
 
 Every axis of a block spans a wider range of options, with plain labels in the simple flow:
 
 | Axis | Options (model value) |
 |---|---|
-| Activity `T₁` | Rest (0) · Listening (`I_aud` 0.35, playback) · Watching (`I_vis` 0.35 + `I_aud` 0.15, playback) · Browsing / skimming (`I_vis` 0.30) · Reading (0.50) · Studying dense material (0.85) · Talking with people (`I_aud` 0.30 + `O₁` 0.30) · Presenting / teaching (`I_aud` 0.15 + `O₁` 0.55) · Games / interactive (`I_vis` 0.55 + `O₁` 0.30) · Hands-on (`I_vis` 0.15 + `O₁` 0.30) · Expressing (`O₁` 0.35) · Focused work (`O₁` 0.80) |
+| Activity `T₁` | Rest (0) · Listening to music (`I_aud` 0.15, no playback speed) · Listening to an audiobook or podcast (`I_aud` 0.35, playback) · Watching (`I_vis` 0.35 + `I_aud` 0.15, playback) · Browsing / skimming (`I_vis` 0.30) · Reading (0.50) · Studying dense material (0.85) · Talking with people (`I_aud` 0.30 + `O₁` 0.30) · Presenting / teaching (`I_aud` 0.15 + `O₁` 0.55) · Games / interactive (`I_vis` 0.55 + `O₁` 0.30) · Hands-on (`I_vis` 0.15 + `O₁` 0.30) · Expressing (`O₁` 0.35) · Focused work (`O₁` 0.80) |
 | Background `T₂` | Silence · Background noise (`I_a` 0.30) · Familiar music (0.55) · Podcast / people talking (0.75) · TV / video in the background (0.85) · Fidget (`O_a` 0.20) · Walking (`O_a` 0.35, kinetic) · Hard exercise (`O_a` 0.65, kinetic) |
 | Kind of thing `V_target` | Numbing (0, inadmissible) · Churn (0.10, inadmissible) · Necessary stuff (0.50) · People and care (0.70) · Books / art / music (0.85) · Real work or craft (1.00) |
 | Density `C_in` | Nothing (0.05) · Small talk, memes (0.10) · Light (0.20) · Medium (0.40) · Dense (0.65) · Very dense (0.90) · Extreme: new research (1.00) |

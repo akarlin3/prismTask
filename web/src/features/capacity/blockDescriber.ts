@@ -87,6 +87,9 @@ const TEMPLATES: readonly Template[] = [
   { pattern: rx('paper|papers|documentation|docs|manual|reference|rfc|spec\\b|specification|contract|legal'), word: 'dense reading', spec: { modality: 'dense', density: 'manuals', valuation: 'architecture' } },
   { pattern: rx('novel|fiction|story|stories|poetry|poems?|literature|short stories'), word: 'fiction', spec: { modality: 'reading', density: 'fiction', valuation: 'art' } },
   { pattern: rx('read|reading|book|articles?|essays?|news|newsletter|magazine|blog|wikipedia'), word: 'reading', spec: { modality: 'reading', density: 'analysis', valuation: 'utility' } },
+  // Music as the activity itself (a lighter intake than speech, no playback speed). Anything more
+  // specific above (coding, writing, reading, …) wins first, and the music then reads as a background.
+  { pattern: rx('music|playlist|album|spotify|apple music|lo-?fi|songs?|soundtrack|concert|vinyl|record player|put (?:a|the) record on|mixtape|dj set'), word: 'music', spec: { modality: 'music', anchor: 'none', density: 'null', valuation: 'art', somatic: 'supine' } },
   { pattern: rx('listen(?:ed|ing)?|heard'), word: 'listening', spec: { modality: 'auditory', density: 'fiction', valuation: 'utility' } },
   { pattern: rx('walk(?:ed|ing)?|stroll(?:ed|ing)?|hike|hiking|pacing|paced'), word: 'walk', spec: { modality: 'zero', anchor: 'treadmill', somatic: 'moving', density: 'null', valuation: 'utility' } },
   { pattern: rx('work(?:ed|ing)? on|worked|finished|shipped|task|tasks|project|ticket|spreadsheet|report|slides|deck|presentation prep'), word: 'work', spec: { modality: 'execution', density: 'analysis', valuation: 'utility' } },
@@ -284,6 +287,16 @@ export function describeBlock(text: string, defaultMinutes = 15, defaultSpeed: S
   if (modalityKey === 'zero') {
     spec.density = 'null';
     spec.scratchpad = 'single';
+  }
+  if (modalityKey === 'music') {
+    // The music is the activity, not a background: never both, and nothing to be dense about.
+    // Any other background cue (a walk, brown noise) still counts.
+    spec.density = 'null';
+    if (spec.anchor === 'music') {
+      const i = cues.findIndex((c) => c.field === 'anchor');
+      if (i >= 0) cues.splice(i, 1);
+      spec.anchor = pick(t, ANCHORS_LEX.filter(([, key]) => key !== 'music'), 'anchor', cues) ?? 'none';
+    }
   }
   // Playback speed only means something when something is being played back.
   const speed = parseSpeed(t);

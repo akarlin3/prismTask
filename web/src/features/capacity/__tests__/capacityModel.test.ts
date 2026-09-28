@@ -438,6 +438,37 @@ describe('graded block catalog', () => {
     expect(sameBlock(best.spec, best.spec && { ...best.spec, speed: 'x2' })).toBe(false);
   });
 
+  it('separates listening to music from an audiobook: lighter intake, no playback speed, closer to rest', () => {
+    const music = MODALITIES.find((o) => o.key === 'music')!;
+    const audio = MODALITIES.find((o) => o.key === 'auditory')!;
+    expect(music.Iaud).toBeLessThan(audio.Iaud);
+    expect(music.playback).toBe(false);
+    expect(modalityIsPlayback('music')).toBe(false);
+    expect(modalityIsPlayback('auditory')).toBe(true);
+    expect(resolveSpec(spec({ modality: 'music', anchor: 'none', speed: 'x2' })).u.Iaud).toBeCloseTo(music.Iaud, 10);
+    expect(inferKind(spec({ modality: 'music', anchor: 'none' }))).toBe('absorb');
+    const listen = (from: StateVector, hours: number, modality: BlockSpec['modality'], density: BlockSpec['density']) =>
+      integrateBlock(from, hours, resolveSpec(spec({ modality, anchor: 'none', density, valuation: 'art', somatic: 'supine' })), 15, k);
+    // From the same tired state, music ends with more energy than an audiobook: the rest term keeps 85 % of its strength.
+    const x = state({ E: 0.3, B: 0.55, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    const m = listen(x, 6, 'music', 'null');
+    const a = listen(x, 6, 'auditory', 'fiction');
+    expect(m.x.E).toBeGreaterThan(a.x.E);
+    expect(m.mean.dE).toBeGreaterThan(a.mean.dE);
+    // Late, tired and loaded: the audiobook has tipped into the depleting zone while music has not.
+    const late = state({ E: 0.2, B: 0.55, Fvis: 0.2, Fbody: 0.2, A: 0.5, V: 0.8 });
+    expect(listen(late, 14, 'auditory', 'fiction').mean.phiIn).toBeLessThan(0);
+    expect(listen(late, 14, 'music', 'null').mean.phiIn).toBeGreaterThanOrEqual(0);
+    // The catalog carries both music entries, and the usual listening speed touches only the audiobook entries.
+    const d = diagnose(x, 6, 0.2, k);
+    const list = gradeCatalog(x, 6, d, route(x, d, k), k, [], 15, 'x2');
+    const names = list.map((g) => g.entry.name);
+    expect(names).toContain('Music with eyes closed');
+    expect(names).toContain('Music on a walk');
+    expect(list.find((g) => g.entry.id === 'absorb-music')!.spec!.speed).toBeUndefined();
+    expect(list.find((g) => g.entry.id === 'absorb-audio')!.spec!.speed).toBe('x2');
+  });
+
   it('persists a running block timer and reads it back safely', () => {
     const base = defaultPersisted();
     expect(base.timer).toBeNull();

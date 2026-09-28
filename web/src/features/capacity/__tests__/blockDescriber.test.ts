@@ -124,6 +124,34 @@ describe('describeBlock', () => {
     expect(scroll.spec.somatic).toBe('supine');
   });
 
+  it('separates listening to music from an audiobook or podcast', () => {
+    const music = describeBlock('listened to music on the couch');
+    expect(music.spec.modality).toBe('music');
+    expect(music.spec.anchor).toBe('none');
+    expect(music.spec.somatic).toBe('supine');
+    expect(music.spec.density).toBe('null');
+    expect(music.spec.valuation).toBe('art');
+    expect(music.spec.speed).toBeUndefined();
+    expect(music.cues.find((c) => c.field === 'modality')?.choice).toBe('music');
+    // The music words are the activity, not a background cue as well.
+    expect(music.cues.some((c) => c.field === 'anchor')).toBe(false);
+    const album = describeBlock('put an album on and lay on the floor for 20 minutes');
+    expect(album.spec.modality).toBe('music');
+    expect(album.spec.somatic).toBe('supine');
+    expect(album.minutes).toBe(20);
+    // Music at a speed is still music: no playback speed applies, whatever the usual speed.
+    expect(describeBlock('music at 1.5x', 15, 'x2').spec.speed).toBeUndefined();
+    // Words to follow stay audiobook-class, with the usual speed.
+    expect(describeBlock('listened to a podcast', 15, 'x15').spec).toMatchObject({ modality: 'auditory', speed: 'x15' });
+    // Music behind something else stays a background.
+    const essay = describeBlock('wrote the essay with a playlist on');
+    expect(essay.spec.modality).toBe('execution');
+    expect(essay.spec.anchor).toBe('music');
+    const walk = describeBlock('music on a walk');
+    expect(walk.spec.modality).toBe('music');
+    expect(walk.spec.anchor).toBe('treadmill');
+  });
+
   it('attaches a playback speed to listening and watching blocks only', () => {
     const fast = describeBlock('audiobook at 1.5x on a walk');
     expect(fast.spec.modality).toBe('auditory');

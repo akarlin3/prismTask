@@ -200,6 +200,18 @@ describe('CapacityControllerScreen', () => {
     expect(within(log).getByLabelText(/Understood as/i)).toHaveTextContent(/Speed: 1\.5× \(assumed\)/);
   });
 
+  it('reads music as its own activity, without a playback speed', () => {
+    render(<CapacityControllerScreen />);
+    const log = screen.getByRole('region', { name: /^Your block$/i });
+    fireEvent.change(within(log).getByLabelText(/Describe it in your own words/i), { target: { value: 'listened to an album on the couch at 1.5x' } });
+    fireEvent.click(within(log).getByRole('button', { name: /Read it/i }));
+    const understood = within(log).getByLabelText(/Understood as/i);
+    expect(understood).toHaveTextContent(/Activity: Listening to music/);
+    expect(understood).not.toHaveTextContent(/Background: Familiar music/);
+    expect(within(log).queryByRole('button', { name: /^Speed:/i })).not.toBeInTheDocument();
+    expect(decodePersisted(localStorage.getItem(STORAGE_KEY)).spec).toMatchObject({ modality: 'music', anchor: 'none' });
+  });
+
   it('runs the block through the seven pillars', () => {
     render(<CapacityControllerScreen />);
     const log = screen.getByRole('region', { name: /^Your block$/i });

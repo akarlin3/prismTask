@@ -47,7 +47,7 @@ export function plainQuadrant(r: Routing): { headline: string; guidance: string 
     case 'I-B':
       return { headline: 'Write it out', guidance: 'Your head is full but you have energy. Get it onto paper: journal, improvise, dump the scratchpad.' };
     case 'II':
-      return { headline: 'Take in something gentle', guidance: 'Reserves are low but gentle intake will restore you: fiction, an audiobook with your eyes closed.' };
+      return { headline: 'Take in something gentle', guidance: 'Reserves are low but gentle intake will restore you: fiction, an audiobook, or just music with your eyes closed.' };
     case 'III':
       return { headline: 'Move your body', guidance: 'Strain is the limiting factor. Walk, stretch, unload your spine, and keep your eyes off screens.' };
     case 'IV':

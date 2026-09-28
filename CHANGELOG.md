@@ -47,9 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exactly one recommended block and compares the block you describe with
   it; nothing is assumed until you describe a block or use the
   recommendation, and logging empties the card again. Every block
-  parameter spans a wider range: twelve activities (rest through listening,
-  watching, browsing, reading, dense study, talking, presenting, games,
-  hands-on, expressing, focused work), eight backgrounds (up to background
+  parameter spans a wider range: thirteen activities (rest, listening to
+  music and listening to an audiobook or podcast as separate activities
+  for their different levels of involvement, watching, browsing, reading,
+  dense study, talking, presenting, games, hands-on, expressing, focused
+  work), eight backgrounds (up to background
   speech, background video and hard exercise), six kinds of thing (numbing
   to real work), seven densities (small talk to new research), six pressure
   contexts (own choice to emergency), six tangent levels (on track to

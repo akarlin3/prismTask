@@ -247,7 +247,7 @@ export function withMinutes(spec: BlockSpec, minutes: number): BlockSpec {
   }
   return { ...spec, cadence: CUSTOM_CADENCE, customMinutes: m };
 }
-export type ModalityKey = 'zero' | 'auditory' | 'watching' | 'skimming' | 'reading' | 'dense' | 'social' | 'speaking' | 'interactive' | 'manual' | 'expressive' | 'execution';
+export type ModalityKey = 'zero' | 'music' | 'auditory' | 'watching' | 'skimming' | 'reading' | 'dense' | 'social' | 'speaking' | 'interactive' | 'manual' | 'expressive' | 'execution';
 export type AnchorKey = 'none' | 'brown' | 'music' | 'voices' | 'screen' | 'fidget' | 'treadmill' | 'vigorous';
 export type ValuationKey = 'numbing' | 'churn' | 'utility' | 'connection' | 'art' | 'architecture';
 export type DensityKey = 'null' | 'chatter' | 'fiction' | 'analysis' | 'manuals' | 'proofs' | 'frontier';
@@ -299,11 +299,15 @@ export const CADENCES: readonly (Option<CadenceKey> & { minutes: number })[] = [
 /**
  * Primary activity. Spans the control space from pure rest through intake-only, mixed
  * intake/output (talking, games, hands-on work) to pure output. `playback` marks the
- * modalities a playback speed applies to.
+ * modalities a playback speed applies to. Music and audiobooks are separate activities
+ * because of their different levels of involvement: music carries no words to follow, so its
+ * intake is lighter (`I_aud` 0.15 against 0.35), it has no playback speed, and it keeps most
+ * of the rest term; an audiobook or podcast is speech to comprehend at a chosen speed.
  */
 export const MODALITIES: readonly (Option<ModalityKey> & { Ivis: number; Iaud: number; O1: number; playback: boolean })[] = [
   { key: 'zero', label: 'Nothing / Rest', plain: 'Rest, nothing going in', detail: 'Zero-vector: mask, rest, no input or output', params: 'I=0 O=0', Ivis: 0, Iaud: 0, O1: 0, playback: false },
-  { key: 'auditory', label: 'Auditory Narrative', plain: 'Listening (audiobook, podcast)', detail: 'Audiobook, podcast, radio', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0, playback: true },
+  { key: 'music', label: 'Music Only', plain: 'Listening to music', detail: 'Music as the activity itself, nothing to follow', params: 'I_aud=0.15', Ivis: 0, Iaud: 0.15, O1: 0, playback: false },
+  { key: 'auditory', label: 'Auditory Narrative', plain: 'Listening (audiobook, podcast)', detail: 'Audiobook, podcast, radio: speech to follow', params: 'I_aud=0.35', Ivis: 0, Iaud: 0.35, O1: 0, playback: true },
   { key: 'watching', label: 'Passive Video', plain: 'Watching (video, TV, film)', detail: 'Screen plus sound, no output', params: 'I_vis=0.35 I_aud=0.15', Ivis: 0.35, Iaud: 0.15, O1: 0, playback: true },
   { key: 'skimming', label: 'Light Scanning', plain: 'Browsing, skimming, feeds', detail: 'Low-effort scanning of screens', params: 'I_vis=0.30', Ivis: 0.3, Iaud: 0, O1: 0, playback: false },
   { key: 'reading', label: 'Visual Reading', plain: 'Reading', detail: 'Prose on page or screen', params: 'I_vis=0.50', Ivis: 0.5, Iaud: 0, O1: 0, playback: false },
@@ -1575,6 +1579,8 @@ export const BLOCK_CATALOG: readonly CatalogEntry[] = [
   { id: 'somatic-fidget', name: 'Lie down with a fidget', kind: 'somatic', detail: 'Unload your spine, eyes closed, hands busy', minutes: 25, spec: { ...REST_BASE, anchor: 'fidget' } },
   { id: 'absorb-audio', name: 'Audiobook with eyes closed', kind: 'absorb', detail: 'A story, lying down, screen off', minutes: 45, spec: { modality: 'auditory', anchor: 'none', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-audio-walk', name: 'Audiobook on a walk', kind: 'absorb', detail: 'A story while you walk', minutes: 45, spec: { modality: 'auditory', anchor: 'treadmill', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-music', name: 'Music with eyes closed', kind: 'absorb', detail: 'Just the music, lying down, nothing to follow', minutes: 30, spec: { modality: 'music', anchor: 'none', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
+  { id: 'absorb-music-walk', name: 'Music on a walk', kind: 'absorb', detail: 'An album while you walk', minutes: 30, spec: { modality: 'music', anchor: 'treadmill', valuation: 'art', density: 'null', context: 'agency', scratchpad: 'single', somatic: 'moving' } },
   { id: 'call-friend', name: 'Call or hang out with a friend', kind: 'express', detail: 'Easy conversation, no agenda', minutes: 25, spec: { modality: 'social', anchor: 'none', valuation: 'connection', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-literature', name: 'Read a book with music on', kind: 'absorb', detail: 'Fiction or literature, lying down', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'fiction', context: 'agency', scratchpad: 'single', somatic: 'supine' } },
   { id: 'absorb-analysis', name: 'Read articles or essays', kind: 'absorb', detail: 'Non-fiction at a desk, tangents noted', minutes: 45, spec: { modality: 'reading', anchor: 'music', valuation: 'art', density: 'analysis', context: 'agency', scratchpad: 'tokenized', somatic: 'seated' } },
