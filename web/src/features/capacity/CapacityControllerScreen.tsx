@@ -1620,8 +1620,10 @@ function RunningBlockPanel({ timer, now, chime, onToggleChime, onFinishEarly, on
   const remaining = timerRemainingMs(timer, now);
   const elapsed = timerElapsedMinutes(timer, now);
   const pct = total > 0 ? Math.min(100, Math.max(0, (100 * (total - remaining)) / total)) : 100;
-  const mm = Math.floor(remaining / 60_000);
-  const ss = Math.floor((remaining % 60_000) / 1000);
+  // Round up to the next whole second so a fresh block reads 15:00, not 14:59, and the last second reads 0:01.
+  const totalSeconds = Math.ceil(remaining / 1000);
+  const mm = Math.floor(totalSeconds / 60);
+  const ss = totalSeconds % 60;
   const endsAt = new Date(timer.startedAt + total).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const canFinish = elapsed >= MIN_CUSTOM_MINUTES;
   const what = timer.note ?? MODALITIES.find((o) => o.key === timer.spec.modality)?.plain ?? 'Block';
